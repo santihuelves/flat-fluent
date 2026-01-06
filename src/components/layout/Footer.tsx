@@ -32,18 +32,18 @@ export function Footer() {
           <div className="space-y-4">
             <h4 className="font-semibold">Recursos</h4>
             <ul className="space-y-2 text-sm text-muted-foreground">
-              <li><a href="#" className="hover:text-foreground transition-colors">Cómo funciona</a></li>
-              <li><a href="#" className="hover:text-foreground transition-colors">FAQ</a></li>
-              <li><a href="#" className="hover:text-foreground transition-colors">Contacto</a></li>
+              <li><Link to="/#how-it-works" className="hover:text-foreground transition-colors">Cómo funciona</Link></li>
+              <li><Link to="/faq" className="hover:text-foreground transition-colors">FAQ</Link></li>
+              <li><Link to="/contact" className="hover:text-foreground transition-colors">Contacto</Link></li>
             </ul>
           </div>
 
           <div className="space-y-4">
             <h4 className="font-semibold">Legal</h4>
             <ul className="space-y-2 text-sm text-muted-foreground">
-              <li><a href="#" className="hover:text-foreground transition-colors">Privacidad</a></li>
-              <li><a href="#" className="hover:text-foreground transition-colors">Términos</a></li>
-              <li><a href="#" className="hover:text-foreground transition-colors">Cookies</a></li>
+              <li><Link to="/privacy" className="hover:text-foreground transition-colors">Privacidad</Link></li>
+              <li><Link to="/terms" className="hover:text-foreground transition-colors">Términos</Link></li>
+              <li><Link to="/cookies" className="hover:text-foreground transition-colors">Cookies</Link></li>
             </ul>
           </div>
         </div>
