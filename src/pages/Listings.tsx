@@ -1,12 +1,16 @@
+import { useState, useMemo } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { motion } from 'framer-motion';
-import { MapPin, Euro, Calendar, Plus, Home, Search as SearchIcon, Users, Filter } from 'lucide-react';
+import { MapPin, Euro, Calendar, Plus, Home, Search as SearchIcon, Users, X, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Slider } from '@/components/ui/slider';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 
 const mockListings = [
   // Madrid
@@ -321,8 +325,58 @@ const mockListings = [
   },
 ];
 
+// Extraer ciudades únicas
+const cities = [...new Set(mockListings.map(l => l.city))].sort();
+
+// Rango de precios
+const MIN_PRICE = 200;
+const MAX_PRICE = 700;
+
 export default function Listings() {
   const { t } = useTranslation();
+  
+  // Estados de los filtros
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCity, setSelectedCity] = useState<string | null>(null);
+  const [priceRange, setPriceRange] = useState<[number, number]>([MIN_PRICE, MAX_PRICE]);
+  const [activeTab, setActiveTab] = useState('all');
+  const [cityOpen, setCityOpen] = useState(false);
+  const [priceOpen, setPriceOpen] = useState(false);
+
+  // Filtrado combinado
+  const filteredListings = useMemo(() => {
+    return mockListings.filter(listing => {
+      // Filtro de texto
+      const searchLower = searchTerm.toLowerCase();
+      const matchesSearch = !searchTerm || 
+        listing.title.toLowerCase().includes(searchLower) ||
+        listing.city.toLowerCase().includes(searchLower) ||
+        listing.neighborhood.toLowerCase().includes(searchLower) ||
+        listing.tags.some(tag => tag.toLowerCase().includes(searchLower));
+      
+      // Filtro de ciudad
+      const matchesCity = !selectedCity || listing.city === selectedCity;
+      
+      // Filtro de precio
+      const matchesPrice = listing.price >= priceRange[0] && listing.price <= priceRange[1];
+      
+      // Filtro de tipo (tab)
+      const matchesType = activeTab === 'all' || 
+        (activeTab === 'offer' && listing.type === 'offer_room') ||
+        (activeTab === 'seek' && listing.type === 'seek_room');
+      
+      return matchesSearch && matchesCity && matchesPrice && matchesType;
+    });
+  }, [searchTerm, selectedCity, priceRange, activeTab]);
+
+  const hasActiveFilters = searchTerm || selectedCity || priceRange[0] !== MIN_PRICE || priceRange[1] !== MAX_PRICE || activeTab !== 'all';
+
+  const clearFilters = () => {
+    setSearchTerm('');
+    setSelectedCity(null);
+    setPriceRange([MIN_PRICE, MAX_PRICE]);
+    setActiveTab('all');
+  };
 
   const ListingCard = ({ listing }: { listing: typeof mockListings[0] }) => (
     <motion.div
@@ -411,25 +465,97 @@ export default function Listings() {
             <Input 
               placeholder={t('common.search') + '...'} 
               className="pl-10"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
           <div className="flex gap-2 flex-wrap">
-            <Button variant="outline" className="gap-2">
-              <MapPin className="h-4 w-4" />
-              Toda España
-            </Button>
-            <Button variant="outline" className="gap-2">
-              <Euro className="h-4 w-4" />
-              Precio
-            </Button>
-            <Button variant="outline" size="icon">
-              <Filter className="h-4 w-4" />
-            </Button>
+            {/* City Selector */}
+            <Popover open={cityOpen} onOpenChange={setCityOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="gap-2">
+                  <MapPin className="h-4 w-4" />
+                  {selectedCity || 'Toda España'}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[200px] p-0 bg-popover" align="start">
+                <Command>
+                  <CommandInput placeholder="Buscar ciudad..." />
+                  <CommandList>
+                    <CommandEmpty>No se encontró la ciudad.</CommandEmpty>
+                    <CommandGroup>
+                      <CommandItem
+                        onSelect={() => {
+                          setSelectedCity(null);
+                          setCityOpen(false);
+                        }}
+                      >
+                        <Check className={`mr-2 h-4 w-4 ${!selectedCity ? 'opacity-100' : 'opacity-0'}`} />
+                        Toda España
+                      </CommandItem>
+                      {cities.map((city) => (
+                        <CommandItem
+                          key={city}
+                          onSelect={() => {
+                            setSelectedCity(city);
+                            setCityOpen(false);
+                          }}
+                        >
+                          <Check className={`mr-2 h-4 w-4 ${selectedCity === city ? 'opacity-100' : 'opacity-0'}`} />
+                          {city}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+
+            {/* Price Range Selector */}
+            <Popover open={priceOpen} onOpenChange={setPriceOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="gap-2">
+                  <Euro className="h-4 w-4" />
+                  {priceRange[0] === MIN_PRICE && priceRange[1] === MAX_PRICE 
+                    ? 'Precio' 
+                    : `${priceRange[0]}€ - ${priceRange[1]}€`}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[280px] bg-popover" align="start">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">Rango de precio</span>
+                    <span className="text-sm text-muted-foreground">
+                      {priceRange[0]}€ - {priceRange[1]}€
+                    </span>
+                  </div>
+                  <Slider
+                    min={MIN_PRICE}
+                    max={MAX_PRICE}
+                    step={10}
+                    value={priceRange}
+                    onValueChange={(value) => setPriceRange(value as [number, number])}
+                    className="w-full"
+                  />
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>{MIN_PRICE}€</span>
+                    <span>{MAX_PRICE}€</span>
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
+
+            {/* Clear Filters */}
+            {hasActiveFilters && (
+              <Button variant="ghost" size="icon" onClick={clearFilters} title="Limpiar filtros">
+                <X className="h-4 w-4" />
+              </Button>
+            )}
           </div>
         </div>
 
         {/* Tabs */}
-        <Tabs defaultValue="all" className="mb-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">
           <TabsList className="grid grid-cols-3 w-full max-w-md">
             <TabsTrigger value="all" className="gap-2">
               <Home className="h-4 w-4" />
@@ -446,12 +572,28 @@ export default function Listings() {
           </TabsList>
         </Tabs>
 
-        {/* Grid */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {mockListings.map((listing) => (
-            <ListingCard key={listing.id} listing={listing} />
-          ))}
+        {/* Results Counter */}
+        <div className="mb-4 text-sm text-muted-foreground">
+          Mostrando {filteredListings.length} de {mockListings.length} anuncios
         </div>
+
+        {/* Grid */}
+        {filteredListings.length > 0 ? (
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredListings.map((listing) => (
+              <ListingCard key={listing.id} listing={listing} />
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-16">
+            <div className="text-muted-foreground mb-4">
+              No se encontraron anuncios con estos filtros.
+            </div>
+            <Button variant="outline" onClick={clearFilters}>
+              Limpiar filtros
+            </Button>
+          </div>
+        )}
       </div>
     </Layout>
   );
