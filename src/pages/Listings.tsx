@@ -900,7 +900,10 @@ export default function Listings() {
 
         {/* Results Counter */}
         <div className="mb-4 text-sm text-muted-foreground">
-          Mostrando {filteredListings.length} de {mockListings.length} anuncios
+          {hasActiveFilters 
+            ? `Mostrando ${filteredListings.length} de ${mockListings.length} anuncios`
+            : `${mockListings.length} anuncios disponibles`
+          }
         </div>
 
         {/* Grid */}
