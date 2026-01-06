@@ -1,0 +1,157 @@
+{
+  "nav": {
+    "discover": "Descubrir",
+    "listings": "Anuncios",
+    "matches": "Matches",
+    "profile": "Perfil",
+    "login": "Iniciar sesión",
+    "signup": "Registrarse"
+  },
+  "landing": {
+    "hero": {
+      "title": "Encuentra tu compañero de piso ideal",
+      "subtitle": "No busques 'gente', busca compatibilidad. Nuestro test de convivencia te conecta con personas que realmente encajan contigo.",
+      "cta": "Empezar ahora",
+      "ctaSecondary": "¿Cómo funciona?"
+    },
+    "stats": {
+      "users": "Usuarios activos",
+      "matches": "Matches exitosos",
+      "cities": "Ciudades"
+    },
+    "features": {
+      "title": "¿Por qué Convinder?",
+      "subtitle": "Más que un portal de pisos. Un sistema inteligente de compatibilidad.",
+      "compatibility": {
+        "title": "Test de compatibilidad real",
+        "description": "Nuestro test analiza hábitos, horarios y estilo de vida para encontrar matches genuinos."
+      },
+      "explanation": {
+        "title": "Matching explicable",
+        "description": "Sabrás exactamente por qué encajáis y qué puntos de fricción pueden surgir."
+      },
+      "contract": {
+        "title": "Acuerdos de convivencia",
+        "description": "Genera automáticamente un contrato social con normas claras desde el inicio."
+      },
+      "security": {
+        "title": "Confianza y seguridad",
+        "description": "Verificación de usuarios, sistema de reputación y anti-estafa integrados."
+      }
+    },
+    "howItWorks": {
+      "title": "¿Cómo funciona?",
+      "step1": {
+        "title": "Crea tu perfil",
+        "description": "Cuéntanos sobre ti, tu presupuesto y zonas preferidas."
+      },
+      "step2": {
+        "title": "Haz el test",
+        "description": "3 minutos para conocer tu estilo de convivencia."
+      },
+      "step3": {
+        "title": "Descubre matches",
+        "description": "Explora perfiles compatibles con score y razones claras."
+      },
+      "step4": {
+        "title": "Conecta",
+        "description": "Chatea, conoce y encuentra tu piso ideal."
+      }
+    },
+    "cta": {
+      "title": "¿Listo para encontrar tu compañero ideal?",
+      "subtitle": "Compartir piso sin test es como casarte por sorteo. Haz el test y ahórrate dramas.",
+      "button": "Crear cuenta gratis"
+    }
+  },
+  "auth": {
+    "login": {
+      "title": "Bienvenido de nuevo",
+      "subtitle": "Inicia sesión para continuar",
+      "email": "Email",
+      "password": "Contraseña",
+      "button": "Iniciar sesión",
+      "noAccount": "¿No tienes cuenta?",
+      "signupLink": "Regístrate"
+    },
+    "signup": {
+      "title": "Únete a Convinder",
+      "subtitle": "Crea tu cuenta y encuentra tu compañero ideal",
+      "name": "Nombre",
+      "email": "Email",
+      "password": "Contraseña",
+      "confirmPassword": "Confirmar contraseña",
+      "button": "Crear cuenta",
+      "hasAccount": "¿Ya tienes cuenta?",
+      "loginLink": "Inicia sesión"
+    }
+  },
+  "profile": {
+    "title": "Mi perfil",
+    "edit": "Editar perfil",
+    "save": "Guardar cambios",
+    "photos": "Fotos",
+    "about": "Sobre mí",
+    "preferences": "Preferencias de convivencia",
+    "testStatus": "Estado del test",
+    "testNotDone": "No has completado el test",
+    "testDone": "Test completado",
+    "takeTest": "Hacer el test"
+  },
+  "test": {
+    "title": "Test de Convivencia",
+    "subtitle": "Responde honestamente. Esto nos ayuda a encontrar tu match perfecto.",
+    "tip": "Responde como VIVES, no como te gustaría vivir.",
+    "categories": {
+      "cleaning": "Limpieza y orden",
+      "schedule": "Horarios y descanso",
+      "social": "Social y visitas",
+      "noise": "Ruido y convivencia",
+      "expenses": "Gastos compartidos",
+      "lifestyle": "Estilo de vida"
+    },
+    "dealbreakers": {
+      "title": "Líneas rojas",
+      "subtitle": "Estas son cosas que NO negociamos"
+    },
+    "complete": "Completar test",
+    "next": "Siguiente",
+    "prev": "Anterior"
+  },
+  "listings": {
+    "title": "Anuncios",
+    "filters": "Filtros",
+    "createListing": "Publicar anuncio",
+    "types": {
+      "offerRoom": "Ofrezco habitación",
+      "seekRoom": "Busco habitación",
+      "seekRoomie": "Busco compañero/a"
+    },
+    "price": "€/mes",
+    "available": "Disponible desde",
+    "viewDetails": "Ver detalles"
+  },
+  "matches": {
+    "title": "Tus matches",
+    "noMatches": "Aún no tienes matches",
+    "startExploring": "Empezar a explorar",
+    "compatibility": "Compatibilidad",
+    "reasons": "¿Por qué encajáis?",
+    "friction": "Posibles fricciones",
+    "chat": "Chatear"
+  },
+  "common": {
+    "loading": "Cargando...",
+    "error": "Ha ocurrido un error",
+    "retry": "Reintentar",
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "delete": "Eliminar",
+    "edit": "Editar",
+    "back": "Volver",
+    "next": "Siguiente",
+    "skip": "Saltar",
+    "search": "Buscar",
+    "noResults": "Sin resultados"
+  }
+}

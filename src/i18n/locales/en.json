@@ -1,0 +1,157 @@
+{
+  "nav": {
+    "discover": "Discover",
+    "listings": "Listings",
+    "matches": "Matches",
+    "profile": "Profile",
+    "login": "Log in",
+    "signup": "Sign up"
+  },
+  "landing": {
+    "hero": {
+      "title": "Find your ideal roommate",
+      "subtitle": "Don't look for 'people', look for compatibility. Our cohabitation test connects you with people who truly fit with you.",
+      "cta": "Get started",
+      "ctaSecondary": "How does it work?"
+    },
+    "stats": {
+      "users": "Active users",
+      "matches": "Successful matches",
+      "cities": "Cities"
+    },
+    "features": {
+      "title": "Why Convinder?",
+      "subtitle": "More than a flat portal. An intelligent compatibility system.",
+      "compatibility": {
+        "title": "Real compatibility test",
+        "description": "Our test analyzes habits, schedules and lifestyle to find genuine matches."
+      },
+      "explanation": {
+        "title": "Explainable matching",
+        "description": "You'll know exactly why you match and what friction points may arise."
+      },
+      "contract": {
+        "title": "Living agreements",
+        "description": "Automatically generate a social contract with clear rules from the start."
+      },
+      "security": {
+        "title": "Trust and security",
+        "description": "User verification, reputation system and integrated anti-scam."
+      }
+    },
+    "howItWorks": {
+      "title": "How does it work?",
+      "step1": {
+        "title": "Create your profile",
+        "description": "Tell us about yourself, your budget and preferred areas."
+      },
+      "step2": {
+        "title": "Take the test",
+        "description": "3 minutes to understand your living style."
+      },
+      "step3": {
+        "title": "Discover matches",
+        "description": "Explore compatible profiles with score and clear reasons."
+      },
+      "step4": {
+        "title": "Connect",
+        "description": "Chat, meet and find your ideal flat."
+      }
+    },
+    "cta": {
+      "title": "Ready to find your ideal roommate?",
+      "subtitle": "Sharing a flat without a test is like getting married by lottery. Take the test and save yourself the drama.",
+      "button": "Create free account"
+    }
+  },
+  "auth": {
+    "login": {
+      "title": "Welcome back",
+      "subtitle": "Log in to continue",
+      "email": "Email",
+      "password": "Password",
+      "button": "Log in",
+      "noAccount": "Don't have an account?",
+      "signupLink": "Sign up"
+    },
+    "signup": {
+      "title": "Join Convinder",
+      "subtitle": "Create your account and find your ideal roommate",
+      "name": "Name",
+      "email": "Email",
+      "password": "Password",
+      "confirmPassword": "Confirm password",
+      "button": "Create account",
+      "hasAccount": "Already have an account?",
+      "loginLink": "Log in"
+    }
+  },
+  "profile": {
+    "title": "My profile",
+    "edit": "Edit profile",
+    "save": "Save changes",
+    "photos": "Photos",
+    "about": "About me",
+    "preferences": "Living preferences",
+    "testStatus": "Test status",
+    "testNotDone": "You haven't completed the test",
+    "testDone": "Test completed",
+    "takeTest": "Take the test"
+  },
+  "test": {
+    "title": "Cohabitation Test",
+    "subtitle": "Answer honestly. This helps us find your perfect match.",
+    "tip": "Answer how you LIVE, not how you'd like to live.",
+    "categories": {
+      "cleaning": "Cleaning and order",
+      "schedule": "Schedule and rest",
+      "social": "Social and visits",
+      "noise": "Noise and cohabitation",
+      "expenses": "Shared expenses",
+      "lifestyle": "Lifestyle"
+    },
+    "dealbreakers": {
+      "title": "Dealbreakers",
+      "subtitle": "These are things we do NOT negotiate"
+    },
+    "complete": "Complete test",
+    "next": "Next",
+    "prev": "Previous"
+  },
+  "listings": {
+    "title": "Listings",
+    "filters": "Filters",
+    "createListing": "Create listing",
+    "types": {
+      "offerRoom": "Offering room",
+      "seekRoom": "Looking for room",
+      "seekRoomie": "Looking for roommate"
+    },
+    "price": "€/month",
+    "available": "Available from",
+    "viewDetails": "View details"
+  },
+  "matches": {
+    "title": "Your matches",
+    "noMatches": "You don't have any matches yet",
+    "startExploring": "Start exploring",
+    "compatibility": "Compatibility",
+    "reasons": "Why do you match?",
+    "friction": "Possible friction",
+    "chat": "Chat"
+  },
+  "common": {
+    "loading": "Loading...",
+    "error": "An error occurred",
+    "retry": "Retry",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "back": "Back",
+    "next": "Next",
+    "skip": "Skip",
+    "search": "Search",
+    "noResults": "No results"
+  }
+}
