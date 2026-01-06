@@ -9,6 +9,7 @@ import Signup from "./pages/Signup";
 import Onboarding from "./pages/Onboarding";
 import Discover from "./pages/Discover";
 import Listings from "./pages/Listings";
+import ListingDetail from "./pages/ListingDetail";
 import Matches from "./pages/Matches";
 import Profile from "./pages/Profile";
 import Test from "./pages/Test";
@@ -29,6 +30,7 @@ const App = () => (
           <Route path="/onboarding" element={<Onboarding />} />
           <Route path="/discover" element={<Discover />} />
           <Route path="/listings" element={<Listings />} />
+          <Route path="/listing/:id" element={<ListingDetail />} />
           <Route path="/matches" element={<Matches />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/test" element={<Test />} />

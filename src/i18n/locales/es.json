@@ -125,11 +125,37 @@
     "types": {
       "offerRoom": "Ofrezco habitación",
       "seekRoom": "Busco habitación",
-      "seekRoomie": "Busco compañero/a"
+      "seekRoomie": "Busco compañero/a",
+      "offeringRoom": "Ofrezco habitación",
+      "seekingRoom": "Busco habitación",
+      "seekingRoommate": "Busco compañero/a"
     },
     "price": "€/mes",
     "available": "Disponible desde",
-    "viewDetails": "Ver detalles"
+    "viewDetails": "Ver detalles",
+    "detail": {
+      "backToListings": "Volver a anuncios",
+      "notFound": "Anuncio no encontrado",
+      "billsIncluded": "Gastos incluidos",
+      "billsNotIncluded": "Gastos no incluidos",
+      "available": "Disponible",
+      "minStay": "Estancia mín.",
+      "deposit": "Depósito",
+      "description": "Descripción",
+      "ambiance": "Ambiente",
+      "ambianceQuiet": "Tranquilo",
+      "ambianceBalanced": "Equilibrado",
+      "ambianceSocial": "Social",
+      "householdProfile": "Quién vive aquí",
+      "residents": "Residentes",
+      "ages": "Edades",
+      "routine": "Rutina",
+      "rules": "Normas de la casa",
+      "contact": "Contactar",
+      "compatibility": "Compatibilidad",
+      "matchReasons": "Por qué encajáis",
+      "possibleFriction": "Posible fricción"
+    }
   },
   "matches": {
     "title": "Tus matches",
@@ -152,7 +178,9 @@
     "next": "Siguiente",
     "skip": "Saltar",
     "search": "Buscar",
-    "noResults": "Sin resultados"
+    "noResults": "Sin resultados",
+    "verified": "Verificado",
+    "months": "meses"
   },
   "onboarding": {
     "step": "Paso",
