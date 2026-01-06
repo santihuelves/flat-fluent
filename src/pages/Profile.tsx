@@ -51,11 +51,29 @@ export default function Profile() {
         return;
       }
 
-      const { data, error } = await supabase
+      let { data, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', user.id)
-        .single();
+        .maybeSingle();
+
+      // Si no existe perfil, crearlo automáticamente
+      if (!data && !error) {
+        const { data: newProfile, error: insertError } = await supabase
+          .from('profiles')
+          .insert({
+            id: user.id,
+            name: user.email?.split('@')[0] || 'Usuario'
+          })
+          .select()
+          .single();
+        
+        if (!insertError) {
+          data = newProfile;
+        } else {
+          console.error('Error creating profile:', insertError);
+        }
+      }
 
       if (error) throw error;
       setProfile(data as ProfileData);
