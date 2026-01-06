@@ -1,4 +1,7 @@
 {
+  "profile": {
+    "otherNeighborhood": "Other neighborhood..."
+  },
   "nav": {
     "discover": "Discover",
     "listings": "Listings",
