@@ -125,11 +125,37 @@
     "types": {
       "offerRoom": "Offering room",
       "seekRoom": "Looking for room",
-      "seekRoomie": "Looking for roommate"
+      "seekRoomie": "Looking for roommate",
+      "offeringRoom": "Offering room",
+      "seekingRoom": "Looking for room",
+      "seekingRoommate": "Looking for roommate"
     },
     "price": "€/month",
     "available": "Available from",
-    "viewDetails": "View details"
+    "viewDetails": "View details",
+    "detail": {
+      "backToListings": "Back to listings",
+      "notFound": "Listing not found",
+      "billsIncluded": "Bills included",
+      "billsNotIncluded": "Bills not included",
+      "available": "Available",
+      "minStay": "Min. stay",
+      "deposit": "Deposit",
+      "description": "Description",
+      "ambiance": "Ambiance",
+      "ambianceQuiet": "Quiet",
+      "ambianceBalanced": "Balanced",
+      "ambianceSocial": "Social",
+      "householdProfile": "Who lives here",
+      "residents": "Residents",
+      "ages": "Ages",
+      "routine": "Routine",
+      "rules": "House rules",
+      "contact": "Contact",
+      "compatibility": "Compatibility",
+      "matchReasons": "Why you match",
+      "possibleFriction": "Possible friction"
+    }
   },
   "matches": {
     "title": "Your matches",
@@ -152,7 +178,9 @@
     "next": "Next",
     "skip": "Skip",
     "search": "Search",
-    "noResults": "No results"
+    "noResults": "No results",
+    "verified": "Verified",
+    "months": "months"
   },
   "onboarding": {
     "step": "Step",
