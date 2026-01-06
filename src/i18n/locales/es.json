@@ -153,5 +153,49 @@
     "skip": "Saltar",
     "search": "Buscar",
     "noResults": "Sin resultados"
+  },
+  "onboarding": {
+    "step": "Paso",
+    "of": "de",
+    "back": "Atrás",
+    "next": "Siguiente",
+    "skipTest": "Ir a Discover",
+    "doTest": "Hacer Test",
+    "success": "¡Perfil completado!",
+    "step1": {
+      "title": "¿Qué estás buscando?",
+      "subtitle": "Cuéntanos qué tipo de alojamiento necesitas",
+      "seekingRoom": "Busco habitación",
+      "offeringRoom": "Ofrezco habitación",
+      "seekingRoommate": "Busco compañero/a para alquilar piso"
+    },
+    "step2": {
+      "title": "¿Dónde quieres vivir?",
+      "subtitle": "Selecciona tu ubicación preferida",
+      "community": "Comunidad Autónoma",
+      "selectCommunity": "Selecciona una comunidad",
+      "province": "Provincia",
+      "selectProvince": "Selecciona una provincia",
+      "city": "Ciudad o barrios preferidos",
+      "cityPlaceholder": "Ej: Malasaña, Lavapiés..."
+    },
+    "step3": {
+      "title": "Presupuesto y fechas",
+      "subtitle": "Define tu rango de presupuesto y disponibilidad",
+      "budgetMin": "Presupuesto mínimo (€)",
+      "budgetMax": "Presupuesto máximo (€)",
+      "moveInDate": "Fecha de entrada",
+      "minStay": "Estancia mínima",
+      "selectMinStay": "Selecciona duración",
+      "month": "mes",
+      "months": "meses"
+    },
+    "step4": {
+      "title": "Idiomas y ocupación",
+      "subtitle": "Ayúdanos a encontrar compañeros compatibles",
+      "languages": "Idiomas que hablas",
+      "occupation": "Ocupación (opcional)",
+      "occupationPlaceholder": "Ej: Estudiante, Diseñador..."
+    }
   }
 }

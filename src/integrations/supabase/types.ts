@@ -14,7 +14,84 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      profiles: {
+        Row: {
+          autonomous_community: string | null
+          bio: string | null
+          budget_max: number | null
+          budget_min: number | null
+          city: string | null
+          created_at: string | null
+          id: string
+          languages: string[] | null
+          lifestyle_tags: string[] | null
+          min_stay_months: number | null
+          move_in_date: string | null
+          name: string | null
+          neighborhoods: string[] | null
+          occupation: string | null
+          onboarding_completed: boolean | null
+          photos: string[] | null
+          province: string | null
+          test_completed: boolean | null
+          updated_at: string | null
+          user_type: Database["public"]["Enums"]["user_type"] | null
+          verification_level:
+            | Database["public"]["Enums"]["verification_level"]
+            | null
+        }
+        Insert: {
+          autonomous_community?: string | null
+          bio?: string | null
+          budget_max?: number | null
+          budget_min?: number | null
+          city?: string | null
+          created_at?: string | null
+          id: string
+          languages?: string[] | null
+          lifestyle_tags?: string[] | null
+          min_stay_months?: number | null
+          move_in_date?: string | null
+          name?: string | null
+          neighborhoods?: string[] | null
+          occupation?: string | null
+          onboarding_completed?: boolean | null
+          photos?: string[] | null
+          province?: string | null
+          test_completed?: boolean | null
+          updated_at?: string | null
+          user_type?: Database["public"]["Enums"]["user_type"] | null
+          verification_level?:
+            | Database["public"]["Enums"]["verification_level"]
+            | null
+        }
+        Update: {
+          autonomous_community?: string | null
+          bio?: string | null
+          budget_max?: number | null
+          budget_min?: number | null
+          city?: string | null
+          created_at?: string | null
+          id?: string
+          languages?: string[] | null
+          lifestyle_tags?: string[] | null
+          min_stay_months?: number | null
+          move_in_date?: string | null
+          name?: string | null
+          neighborhoods?: string[] | null
+          occupation?: string | null
+          onboarding_completed?: boolean | null
+          photos?: string[] | null
+          province?: string | null
+          test_completed?: boolean | null
+          updated_at?: string | null
+          user_type?: Database["public"]["Enums"]["user_type"] | null
+          verification_level?:
+            | Database["public"]["Enums"]["verification_level"]
+            | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -23,7 +100,8 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      user_type: "seeking_room" | "offering_room" | "seeking_roommate"
+      verification_level: "none" | "email" | "phone" | "document"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +228,9 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      user_type: ["seeking_room", "offering_room", "seeking_roommate"],
+      verification_level: ["none", "email", "phone", "document"],
+    },
   },
 } as const
