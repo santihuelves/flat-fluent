@@ -1,4 +1,7 @@
 {
+  "profile": {
+    "otherNeighborhood": "Otro barrio..."
+  },
   "nav": {
     "discover": "Descubrir",
     "listings": "Anuncios",

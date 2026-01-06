@@ -36,6 +36,16 @@ interface EditProfileSheetProps {
 
 const AVAILABLE_LANGUAGES = ['Español', 'Inglés', 'Francés', 'Alemán', 'Italiano', 'Portugués', 'Chino', 'Árabe'];
 
+const NEIGHBORHOODS_BY_CITY: Record<string, string[]> = {
+  'Madrid': ['Malasaña', 'Chueca', 'Lavapiés', 'Salamanca', 'Chamberí', 'Retiro', 'Tetuán', 'Usera', 'Vallecas', 'Moncloa', 'Arganzuela', 'Chamartín', 'La Latina'],
+  'Barcelona': ['Gràcia', 'El Born', 'Raval', 'Eixample', 'Poble Sec', 'Sant Antoni', 'Sants', 'Barceloneta', 'Les Corts', 'Sarrià', 'Horta', 'Poblenou'],
+  'Valencia': ['Ruzafa', 'El Carmen', 'Benimaclet', 'Patraix', 'Campanar', 'Ciutat Vella', 'Extramurs', 'La Saïdia', 'Poblats Marítims'],
+  'Sevilla': ['Triana', 'Macarena', 'Nervión', 'Santa Cruz', 'Los Remedios', 'San Pablo', 'Alameda', 'Centro'],
+  'Bilbao': ['Casco Viejo', 'Deusto', 'Abando', 'Indautxu', 'San Ignacio', 'Santutxu', 'Rekalde'],
+  'Zaragoza': ['Centro', 'Delicias', 'La Almozara', 'San José', 'Las Fuentes', 'Actur', 'El Rabal'],
+  'Málaga': ['Centro', 'La Malagueta', 'El Palo', 'Teatinos', 'Carretera de Cádiz', 'Cruz de Humilladero'],
+};
+
 export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated }: EditProfileSheetProps) {
   const { t } = useTranslation();
   const { toast } = useToast();
@@ -123,6 +133,17 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
       neighborhoods: prev.neighborhoods.filter(n => n !== neighborhood)
     }));
   };
+
+  const toggleNeighborhood = (neighborhood: string) => {
+    setFormData(prev => ({
+      ...prev,
+      neighborhoods: prev.neighborhoods.includes(neighborhood)
+        ? prev.neighborhoods.filter(n => n !== neighborhood)
+        : [...prev.neighborhoods, neighborhood]
+    }));
+  };
+
+  const availableNeighborhoods = NEIGHBORHOODS_BY_CITY[formData.city] || [];
 
   const toggleLanguage = (language: string) => {
     setFormData(prev => ({
@@ -274,27 +295,51 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
           {/* Neighborhoods */}
           <div className="space-y-3">
             <Label>{t('profile.neighborhoods')}</Label>
+            
+            {/* Predefined neighborhoods for selected city */}
+            {availableNeighborhoods.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {availableNeighborhoods.map((neighborhood) => (
+                  <Badge
+                    key={neighborhood}
+                    variant={formData.neighborhoods.includes(neighborhood) ? 'default' : 'outline'}
+                    className="rounded-full cursor-pointer transition-colors"
+                    onClick={() => toggleNeighborhood(neighborhood)}
+                  >
+                    {neighborhood}
+                  </Badge>
+                ))}
+              </div>
+            )}
+            
+            {/* Manual input for custom neighborhoods */}
             <div className="flex gap-2">
               <Input
                 value={neighborhoodInput}
                 onChange={(e) => setNeighborhoodInput(e.target.value)}
-                placeholder={t('profile.neighborhoodPlaceholder')}
+                placeholder={availableNeighborhoods.length > 0 ? t('profile.otherNeighborhood') : t('profile.neighborhoodPlaceholder')}
                 onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addNeighborhood())}
               />
               <Button type="button" variant="outline" onClick={addNeighborhood}>
                 +
               </Button>
             </div>
-            <div className="flex flex-wrap gap-2">
-              {formData.neighborhoods.map((n, i) => (
-                <Badge key={i} variant="secondary" className="rounded-full gap-1">
-                  {n}
-                  <button onClick={() => removeNeighborhood(n)}>
-                    <X className="h-3 w-3" />
-                  </button>
-                </Badge>
-              ))}
-            </div>
+            
+            {/* Selected neighborhoods (custom ones not in predefined list) */}
+            {formData.neighborhoods.filter(n => !availableNeighborhoods.includes(n)).length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {formData.neighborhoods
+                  .filter(n => !availableNeighborhoods.includes(n))
+                  .map((n, i) => (
+                    <Badge key={i} variant="secondary" className="rounded-full gap-1">
+                      {n}
+                      <button onClick={() => removeNeighborhood(n)}>
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  ))}
+              </div>
+            )}
           </div>
 
           {/* Budget */}
