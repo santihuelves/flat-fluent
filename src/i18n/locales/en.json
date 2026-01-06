@@ -8,7 +8,8 @@
     "matches": "Matches",
     "profile": "Profile",
     "login": "Log in",
-    "signup": "Sign up"
+    "signup": "Sign up",
+    "logout": "Log out"
   },
   "landing": {
     "hero": {

@@ -8,7 +8,8 @@
     "matches": "Matches",
     "profile": "Perfil",
     "login": "Iniciar sesión",
-    "signup": "Registrarse"
+    "signup": "Registrarse",
+    "logout": "Cerrar sesión"
   },
   "landing": {
     "hero": {

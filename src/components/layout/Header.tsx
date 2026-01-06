@@ -1,15 +1,56 @@
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
-import { Home, Search, MessageCircle, User, Menu, X } from 'lucide-react';
-import { useState } from 'react';
+import { Home, Search, MessageCircle, User, Menu, X, LogOut } from 'lucide-react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { supabase } from '@/integrations/supabase/client';
+import { User as SupabaseUser, Session } from '@supabase/supabase-js';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 export function Header() {
   const { t } = useTranslation();
   const location = useLocation();
+  const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [user, setUser] = useState<SupabaseUser | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+
+  useEffect(() => {
+    // Set up auth state listener FIRST
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        setSession(session);
+        setUser(session?.user ?? null);
+      }
+    );
+
+    // THEN check for existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    navigate('/');
+  };
+
+  const getUserInitials = () => {
+    if (!user?.email) return 'U';
+    return user.email.charAt(0).toUpperCase();
+  };
 
   const navItems = [
     { href: '/discover', label: t('nav.discover'), icon: Search },
@@ -51,18 +92,45 @@ export function Header() {
         <div className="flex items-center gap-2">
           <LanguageSwitcher />
           
-          <div className="hidden md:flex items-center gap-2">
-            <Link to="/login">
-              <Button variant="ghost" size="sm">
-                {t('nav.login')}
-              </Button>
-            </Link>
-            <Link to="/signup">
-              <Button variant="hero" size="sm">
-                {t('nav.signup')}
-              </Button>
-            </Link>
-          </div>
+          {user ? (
+            <div className="hidden md:flex items-center">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="rounded-full">
+                    <Avatar className="h-8 w-8">
+                      <AvatarFallback className="bg-primary text-primary-foreground text-sm">
+                        {getUserInitials()}
+                      </AvatarFallback>
+                    </Avatar>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48 bg-background">
+                  <DropdownMenuItem onClick={() => navigate('/profile')} className="cursor-pointer">
+                    <User className="mr-2 h-4 w-4" />
+                    {t('nav.profile')}
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-destructive">
+                    <LogOut className="mr-2 h-4 w-4" />
+                    {t('nav.logout')}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          ) : (
+            <div className="hidden md:flex items-center gap-2">
+              <Link to="/login">
+                <Button variant="ghost" size="sm">
+                  {t('nav.login')}
+                </Button>
+              </Link>
+              <Link to="/signup">
+                <Button variant="hero" size="sm">
+                  {t('nav.signup')}
+                </Button>
+              </Link>
+            </div>
+          )}
 
           {/* Mobile menu button */}
           <Button
@@ -101,18 +169,42 @@ export function Header() {
                   </Button>
                 </Link>
               ))}
-              <div className="flex gap-2 pt-2 border-t border-border/40 mt-2">
-                <Link to="/login" className="flex-1" onClick={() => setMobileMenuOpen(false)}>
-                  <Button variant="outline" className="w-full">
-                    {t('nav.login')}
+              {user ? (
+                <div className="pt-2 border-t border-border/40 mt-2 space-y-2">
+                  <div className="flex items-center gap-3 px-3 py-2">
+                    <Avatar className="h-8 w-8">
+                      <AvatarFallback className="bg-primary text-primary-foreground text-sm">
+                        {getUserInitials()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="text-sm text-muted-foreground">{user.email}</span>
+                  </div>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start gap-3 text-destructive"
+                    onClick={() => {
+                      handleLogout();
+                      setMobileMenuOpen(false);
+                    }}
+                  >
+                    <LogOut className="h-4 w-4" />
+                    {t('nav.logout')}
                   </Button>
-                </Link>
-                <Link to="/signup" className="flex-1" onClick={() => setMobileMenuOpen(false)}>
-                  <Button variant="hero" className="w-full">
-                    {t('nav.signup')}
-                  </Button>
-                </Link>
-              </div>
+                </div>
+              ) : (
+                <div className="flex gap-2 pt-2 border-t border-border/40 mt-2">
+                  <Link to="/login" className="flex-1" onClick={() => setMobileMenuOpen(false)}>
+                    <Button variant="outline" className="w-full">
+                      {t('nav.login')}
+                    </Button>
+                  </Link>
+                  <Link to="/signup" className="flex-1" onClick={() => setMobileMenuOpen(false)}>
+                    <Button variant="hero" className="w-full">
+                      {t('nav.signup')}
+                    </Button>
+                  </Link>
+                </div>
+              )}
             </nav>
           </motion.div>
         )}
