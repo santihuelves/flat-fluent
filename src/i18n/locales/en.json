@@ -153,5 +153,49 @@
     "skip": "Skip",
     "search": "Search",
     "noResults": "No results"
+  },
+  "onboarding": {
+    "step": "Step",
+    "of": "of",
+    "back": "Back",
+    "next": "Next",
+    "skipTest": "Go to Discover",
+    "doTest": "Take Test",
+    "success": "Profile completed!",
+    "step1": {
+      "title": "What are you looking for?",
+      "subtitle": "Tell us what type of accommodation you need",
+      "seekingRoom": "Looking for a room",
+      "offeringRoom": "Offering a room",
+      "seekingRoommate": "Looking for a roommate to rent together"
+    },
+    "step2": {
+      "title": "Where do you want to live?",
+      "subtitle": "Select your preferred location",
+      "community": "Autonomous Community",
+      "selectCommunity": "Select a community",
+      "province": "Province",
+      "selectProvince": "Select a province",
+      "city": "City or preferred neighborhoods",
+      "cityPlaceholder": "E.g.: Malasaña, Lavapiés..."
+    },
+    "step3": {
+      "title": "Budget and dates",
+      "subtitle": "Define your budget range and availability",
+      "budgetMin": "Minimum budget (€)",
+      "budgetMax": "Maximum budget (€)",
+      "moveInDate": "Move-in date",
+      "minStay": "Minimum stay",
+      "selectMinStay": "Select duration",
+      "month": "month",
+      "months": "months"
+    },
+    "step4": {
+      "title": "Languages and occupation",
+      "subtitle": "Help us find compatible roommates",
+      "languages": "Languages you speak",
+      "occupation": "Occupation (optional)",
+      "occupationPlaceholder": "E.g.: Student, Designer..."
+    }
   }
 }
