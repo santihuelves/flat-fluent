@@ -35,27 +35,22 @@ export default function Landing() {
   return (
     <Layout showMobileNav={false}>
       {/* Hero Section */}
-      <section className="relative overflow-hidden min-h-screen flex items-center justify-center" style={{ isolation: 'isolate' }}>
-        {/* Video de fondo solo en la sección hero */}
+      <section className="relative overflow-hidden min-h-screen flex items-center justify-center">
+        {/* Video de fondo */}
         <video
           autoPlay
           muted
           loop
           playsInline
-          preload="auto"
-          className="absolute inset-0 w-full h-full object-cover"
-          style={{ 
-            zIndex: -1,
-            position: 'absolute'
-          }}
+          className="absolute inset-0 w-full h-full object-cover -z-20"
         >
           <source src="/videos/hero-background.mp4" type="video/mp4" />
         </video>
         
         {/* Overlay oscuro para legibilidad */}
-        <div className="absolute inset-0 bg-black/50" style={{ zIndex: 0, position: 'absolute' }} />
+        <div className="absolute inset-0 bg-black/50 -z-10" />
 
-        <div className="container relative z-10 pt-16">
+        <div className="container relative z-10">
           <motion.div 
             className="max-w-3xl mx-auto text-center space-y-8"
             initial="initial"
@@ -127,7 +122,7 @@ export default function Landing() {
       </section>
 
       {/* Features Section */}
-      <section className="relative py-20 bg-background z-10">
+      <section className="py-20 bg-muted/30">
         <div className="container">
           <div className="text-center max-w-2xl mx-auto mb-16">
             <h2 className="text-3xl md:text-4xl font-bold mb-4">{t('landing.features.title')}</h2>
@@ -181,7 +176,7 @@ export default function Landing() {
       </section>
 
       {/* How it Works */}
-      <section id="how-it-works" className="relative py-20 bg-background z-10">
+      <section id="how-it-works" className="py-20">
         <div className="container">
           <div className="text-center max-w-2xl mx-auto mb-16">
             <h2 className="text-3xl md:text-4xl font-bold mb-4">{t('landing.howItWorks.title')}</h2>
@@ -217,7 +212,7 @@ export default function Landing() {
       </section>
 
       {/* CTA Section */}
-      <section className="relative py-20 overflow-hidden bg-background z-10">
+      <section className="py-20 relative overflow-hidden">
         <div className="absolute inset-0 gradient-bg opacity-10" />
         <div className="container relative">
           <motion.div 

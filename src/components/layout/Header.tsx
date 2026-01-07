@@ -60,17 +60,16 @@ export function Header() {
   ];
 
   const isActive = (path: string) => location.pathname === path;
-  const isLanding = location.pathname === '/';
 
   return (
-    <header className={`sticky top-0 z-50 w-full border-b ${isLanding ? 'border-white/20 bg-transparent backdrop-blur-sm' : 'border-border/40 bg-background/80 backdrop-blur-xl'}`}>
+    <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/80 backdrop-blur-xl">
       <div className="container flex h-16 items-center justify-between">
         {/* Logo */}
         <Link to="/" className="flex items-center gap-2">
           <div className="gradient-bg rounded-xl p-2">
             <Home className="h-5 w-5 text-primary-foreground" />
           </div>
-          <span className={`text-xl font-bold tracking-tight ${isLanding ? 'text-white' : ''}`}>Convinder</span>
+          <span className="text-xl font-bold tracking-tight">Convinder</span>
         </Link>
 
         {/* Desktop Navigation */}
@@ -80,7 +79,7 @@ export function Header() {
               <Button
                 variant={isActive(item.href) ? "default" : "ghost"}
                 size="sm"
-                className={`gap-2 ${isLanding && !isActive(item.href) ? 'text-white hover:bg-white/10' : ''}`}
+                className="gap-2"
               >
                 <item.icon className="h-4 w-4" />
                 {item.label}
@@ -121,7 +120,7 @@ export function Header() {
           ) : (
             <div className="hidden md:flex items-center gap-2">
               <Link to="/login">
-                <Button variant="ghost" size="sm" className={isLanding ? 'text-white hover:bg-white/10' : ''}>
+                <Button variant="ghost" size="sm">
                   {t('nav.login')}
                 </Button>
               </Link>
@@ -152,7 +151,7 @@ export function Header() {
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            className={`md:hidden border-t ${isLanding ? 'border-white/20 bg-black/50 backdrop-blur-sm' : 'border-border/40 bg-background'}`}
+            className="md:hidden border-t border-border/40 bg-background"
           >
             <nav className="container py-4 flex flex-col gap-2">
               {navItems.map((item) => (
