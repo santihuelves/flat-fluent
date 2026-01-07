@@ -35,28 +35,36 @@ export default function Landing() {
   return (
     <Layout showMobileNav={false}>
       {/* Hero Section */}
-      <section className="relative overflow-hidden py-20 md:py-32">
-        {/* Background decoration */}
-        <div className="absolute inset-0 -z-10 overflow-hidden">
-          <div className="absolute top-20 left-1/4 w-72 h-72 bg-primary/10 rounded-full blur-3xl animate-pulse-soft" />
-          <div className="absolute bottom-20 right-1/4 w-96 h-96 bg-accent/10 rounded-full blur-3xl animate-pulse-soft" style={{ animationDelay: '1s' }} />
-        </div>
+      <section className="relative overflow-hidden min-h-screen flex items-center justify-center">
+        {/* Video de fondo */}
+        <video
+          autoPlay
+          muted
+          loop
+          playsInline
+          className="absolute inset-0 w-full h-full object-cover -z-20"
+        >
+          <source src="/videos/hero-background.mp4" type="video/mp4" />
+        </video>
+        
+        {/* Overlay oscuro para legibilidad */}
+        <div className="absolute inset-0 bg-black/50 -z-10" />
 
-        <div className="container">
+        <div className="container relative z-10">
           <motion.div 
             className="max-w-3xl mx-auto text-center space-y-8"
             initial="initial"
             animate="animate"
             variants={staggerContainer}
           >
-            <motion.div variants={fadeInUp} className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium">
+            <motion.div variants={fadeInUp} className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/20 text-white text-sm font-medium backdrop-blur-sm">
               <Sparkles className="h-4 w-4" />
               <span>Test de compatibilidad real</span>
             </motion.div>
             
             <motion.h1 
               variants={fadeInUp}
-              className="text-4xl md:text-6xl lg:text-7xl font-bold tracking-tight text-balance"
+              className="text-4xl md:text-6xl lg:text-7xl font-bold tracking-tight text-balance text-white"
             >
               {t('landing.hero.title').split(' ').map((word, i, arr) => 
                 i >= arr.length - 2 ? (
@@ -69,7 +77,7 @@ export default function Landing() {
 
             <motion.p 
               variants={fadeInUp}
-              className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto text-balance"
+              className="text-lg md:text-xl text-white/80 max-w-2xl mx-auto text-balance"
             >
               {t('landing.hero.subtitle')}
             </motion.p>
@@ -82,7 +90,7 @@ export default function Landing() {
                 </Button>
               </Link>
               <a href="#how-it-works">
-                <Button variant="hero-outline" size="xl">
+                <Button variant="hero-outline" size="xl" className="border-white/30 text-white hover:bg-white/10">
                   {t('landing.hero.ctaSecondary')}
                 </Button>
               </a>
@@ -102,11 +110,11 @@ export default function Landing() {
               { value: '50+', label: t('landing.stats.cities'), icon: MapPin },
             ].map((stat, i) => (
               <div key={i} className="text-center">
-                <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-primary/10 text-primary mb-3">
+                <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-white/20 text-white mb-3 backdrop-blur-sm">
                   <stat.icon className="h-6 w-6" />
                 </div>
-                <div className="text-2xl md:text-3xl font-bold">{stat.value}</div>
-                <div className="text-sm text-muted-foreground">{stat.label}</div>
+                <div className="text-2xl md:text-3xl font-bold text-white">{stat.value}</div>
+                <div className="text-sm text-white/70">{stat.label}</div>
               </div>
             ))}
           </motion.div>
