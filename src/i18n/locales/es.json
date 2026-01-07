@@ -141,7 +141,8 @@
     "saveError": "Error al guardar el perfil",
     "cropImage": "Recortar imagen",
     "zoom": "Zoom",
-    "confirm": "Confirmar"
+    "confirm": "Confirmar",
+    "dragToReorder": "Arrastra para reordenar. La primera foto será la principal."
   },
   "test": {
     "title": "Test de Convivencia",
