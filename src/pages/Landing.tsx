@@ -35,14 +35,14 @@ export default function Landing() {
   return (
     <Layout showMobileNav={false}>
       {/* Hero Section */}
-      <section className="relative overflow-hidden min-h-screen flex items-center justify-center">
+      <section className="relative overflow-hidden min-h-screen flex items-center justify-center pt-16">
         {/* Video de fondo */}
         <video
           autoPlay
           muted
           loop
           playsInline
-          className="absolute inset-0 w-full h-full object-cover -z-20"
+          className="absolute inset-0 w-full h-full object-cover object-top -z-20"
         >
           <source src="/videos/hero-background.mp4" type="video/mp4" />
         </video>
