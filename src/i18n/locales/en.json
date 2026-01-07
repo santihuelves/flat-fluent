@@ -138,7 +138,10 @@
     "saveChanges": "Save changes",
     "saved": "Profile saved",
     "savedDesc": "Your changes have been saved successfully",
-    "saveError": "Error saving profile"
+    "saveError": "Error saving profile",
+    "cropImage": "Crop image",
+    "zoom": "Zoom",
+    "confirm": "Confirm"
   },
   "test": {
     "title": "Cohabitation Test",
