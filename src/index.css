@@ -134,6 +134,14 @@
     font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
   }
 
+  body.landing-page {
+    background: transparent !important;
+  }
+
+  html.landing-page {
+    background: transparent !important;
+  }
+
   h1, h2, h3, h4, h5, h6 {
     @apply font-bold tracking-tight;
   }
