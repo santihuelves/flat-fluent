@@ -130,12 +130,12 @@ export default function Profile() {
             className="glass-card rounded-2xl overflow-hidden mb-6"
           >
             {/* Photo Section */}
-            <div className="relative h-48 bg-muted flex items-center justify-center">
+            <div className="relative h-64 bg-muted flex items-center justify-center">
               {mainPhoto ? (
                 <img 
                   src={mainPhoto} 
                   alt={profile.name || ''}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-cover object-top"
                 />
               ) : (
                 <div className="text-center">
