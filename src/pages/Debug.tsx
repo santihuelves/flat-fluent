@@ -108,9 +108,22 @@ const Debug = () => {
               <div className="text-sm space-y-1">
                 <p><strong>User ID:</strong> <code className="bg-muted px-1 rounded">{user.id}</code></p>
                 <p><strong>Email:</strong> {user.email}</p>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="mt-2"
+                  onClick={() => supabase.auth.signOut()}
+                >
+                  Logout
+                </Button>
               </div>
             ) : (
-              <p className="text-muted-foreground">Not authenticated. Login to test RPCs.</p>
+              <div className="space-y-3">
+                <p className="text-muted-foreground">Not authenticated. Login to test RPCs.</p>
+                <Button asChild>
+                  <a href="/login">Go to Login</a>
+                </Button>
+              </div>
             )}
           </CardContent>
         </Card>
