@@ -141,7 +141,8 @@
     "saveError": "Error saving profile",
     "cropImage": "Crop image",
     "zoom": "Zoom",
-    "confirm": "Confirm"
+    "confirm": "Confirm",
+    "dragToReorder": "Drag to reorder. The first photo will be the main one."
   },
   "test": {
     "title": "Cohabitation Test",

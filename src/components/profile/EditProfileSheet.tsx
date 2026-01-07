@@ -10,6 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useTranslation } from 'react-i18next';
 import { ImageCropperDialog } from './ImageCropperDialog';
+import { Reorder } from 'framer-motion';
 
 interface ProfileData {
   id: string;
@@ -128,10 +129,10 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
     }
   };
 
-  const removePhoto = (index: number) => {
+  const removePhoto = (photoUrl: string) => {
     setFormData(prev => ({
       ...prev,
-      photos: prev.photos.filter((_, i) => i !== index)
+      photos: prev.photos.filter(p => p !== photoUrl)
     }));
   };
 
@@ -227,33 +228,51 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
           {/* Photos */}
           <div className="space-y-3">
             <Label>{t('profile.photos')}</Label>
-            <div className="flex flex-wrap gap-2">
-              {formData.photos.map((photo, index) => (
-                <div key={index} className="relative w-20 h-20 rounded-lg overflow-hidden">
-                  <img src={photo} alt="" className="w-full h-full object-cover" />
+            <p className="text-xs text-muted-foreground">{t('profile.dragToReorder')}</p>
+            
+            <Reorder.Group 
+              axis="x" 
+              values={formData.photos} 
+              onReorder={(newOrder) => setFormData(prev => ({ ...prev, photos: newOrder }))}
+              className="flex flex-wrap gap-2"
+            >
+              {formData.photos.map((photo) => (
+                <Reorder.Item 
+                  key={photo} 
+                  value={photo}
+                  className="relative w-20 h-20 rounded-lg overflow-hidden cursor-grab active:cursor-grabbing"
+                  whileDrag={{ scale: 1.1, zIndex: 50 }}
+                >
+                  <img src={photo} alt="" className="w-full h-full object-cover pointer-events-none" />
                   <button
-                    onClick={() => removePhoto(index)}
+                    onClick={() => removePhoto(photo)}
                     className="absolute top-1 right-1 p-1 bg-background/80 rounded-full"
                   >
                     <X className="h-3 w-3" />
                   </button>
-                </div>
+                  {formData.photos.indexOf(photo) === 0 && (
+                    <div className="absolute bottom-1 left-1 bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5 rounded">
+                      1ª
+                    </div>
+                  )}
+                </Reorder.Item>
               ))}
-              <label className="w-20 h-20 flex items-center justify-center border-2 border-dashed border-border rounded-lg cursor-pointer hover:border-primary transition-colors">
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={handleFileSelect}
-                  disabled={uploading}
-                />
-                {uploading ? (
-                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                ) : (
-                  <Camera className="h-6 w-6 text-muted-foreground" />
-                )}
-              </label>
-            </div>
+            </Reorder.Group>
+            
+            <label className="inline-flex w-20 h-20 items-center justify-center border-2 border-dashed border-border rounded-lg cursor-pointer hover:border-primary transition-colors">
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleFileSelect}
+                disabled={uploading}
+              />
+              {uploading ? (
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              ) : (
+                <Camera className="h-6 w-6 text-muted-foreground" />
+              )}
+            </label>
           </div>
 
           {/* Basic Info */}
