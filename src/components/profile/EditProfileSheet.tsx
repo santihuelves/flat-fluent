@@ -9,6 +9,7 @@ import { Camera, X, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useTranslation } from 'react-i18next';
+import { ImageCropperDialog } from './ImageCropperDialog';
 
 interface ProfileData {
   id: string;
@@ -51,6 +52,8 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
   const { toast } = useToast();
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [cropperOpen, setCropperOpen] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
   
   const [formData, setFormData] = useState({
     name: profile.name || '',
@@ -70,18 +73,28 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
 
   const [neighborhoodInput, setNeighborhoodInput] = useState('');
 
-  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // Create temporary URL for the cropper
+    const imageUrl = URL.createObjectURL(file);
+    setSelectedImage(imageUrl);
+    setCropperOpen(true);
+    
+    // Reset input so the same file can be selected again
+    e.target.value = '';
+  };
+
+  const handleCropComplete = async (croppedBlob: Blob) => {
     setUploading(true);
+    
     try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${profile.id}/${Date.now()}.${fileExt}`;
+      const fileName = `${profile.id}/${Date.now()}.jpg`;
       
       const { error: uploadError } = await supabase.storage
         .from('profile-photos')
-        .upload(fileName, file);
+        .upload(fileName, croppedBlob, { contentType: 'image/jpeg' });
 
       if (uploadError) throw uploadError;
 
@@ -106,6 +119,11 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
         variant: 'destructive',
       });
     } finally {
+      // Clean up temporary URL
+      if (selectedImage) {
+        URL.revokeObjectURL(selectedImage);
+        setSelectedImage(null);
+      }
       setUploading(false);
     }
   };
@@ -226,7 +244,7 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
                   type="file"
                   accept="image/*"
                   className="hidden"
-                  onChange={handlePhotoUpload}
+                  onChange={handleFileSelect}
                   disabled={uploading}
                 />
                 {uploading ? (
@@ -422,6 +440,13 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
             )}
           </Button>
         </div>
+
+        <ImageCropperDialog
+          open={cropperOpen}
+          onOpenChange={setCropperOpen}
+          imageSrc={selectedImage || ''}
+          onCropComplete={handleCropComplete}
+        />
       </SheetContent>
     </Sheet>
   );

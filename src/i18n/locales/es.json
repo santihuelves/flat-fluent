@@ -138,7 +138,10 @@
     "saveChanges": "Guardar cambios",
     "saved": "Perfil guardado",
     "savedDesc": "Tus cambios se han guardado correctamente",
-    "saveError": "Error al guardar el perfil"
+    "saveError": "Error al guardar el perfil",
+    "cropImage": "Recortar imagen",
+    "zoom": "Zoom",
+    "confirm": "Confirmar"
   },
   "test": {
     "title": "Test de Convivencia",
