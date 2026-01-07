@@ -1,11 +1,14 @@
 import { Layout } from '@/components/layout/Layout';
 import { motion } from 'framer-motion';
-import { Search, MapPin, Euro, Calendar, Filter, Heart, X, Star } from 'lucide-react';
+import { Search, MapPin, Euro, Filter, Heart, X, Star, ChevronDown, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useTranslation } from 'react-i18next';
-import { useState } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Slider } from '@/components/ui/slider';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 
 // Mock data for demo
 const mockProfiles = [
@@ -303,156 +306,342 @@ const mockProfiles = [
   },
 ];
 
+// Helper to parse budget string to number range
+const parseBudget = (budget: string): { min: number; max: number } => {
+  const match = budget.match(/(\d+)-(\d+)/);
+  if (match) {
+    return { min: parseInt(match[1]), max: parseInt(match[2]) };
+  }
+  return { min: 0, max: 1000 };
+};
+
+// Get unique cities from profiles
+const uniqueCities = [...new Set(mockProfiles.map(p => p.city))].sort();
+
 export default function Discover() {
   const { t } = useTranslation();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [direction, setDirection] = useState<'left' | 'right' | null>(null);
+  
+  // Filter states
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCity, setSelectedCity] = useState<string | null>(null);
+  const [priceRange, setPriceRange] = useState<[number, number]>([200, 800]);
+  const [minCompatibility, setMinCompatibility] = useState(0);
+  const [cityOpen, setCityOpen] = useState(false);
+  const [filterOpen, setFilterOpen] = useState(false);
 
-  const currentProfile = mockProfiles[currentIndex];
+  // Filtered profiles based on all criteria
+  const filteredProfiles = useMemo(() => {
+    return mockProfiles.filter(profile => {
+      // Search filter (name, city, neighborhood, tags)
+      const matchesSearch = !searchTerm || 
+        profile.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        profile.city.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        profile.neighborhood.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        profile.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()));
+      
+      // City filter
+      const matchesCity = !selectedCity || profile.city === selectedCity;
+      
+      // Budget filter
+      const budget = parseBudget(profile.budget);
+      const matchesBudget = budget.min <= priceRange[1] && budget.max >= priceRange[0];
+      
+      // Compatibility filter
+      const matchesCompatibility = profile.score >= minCompatibility;
+      
+      return matchesSearch && matchesCity && matchesBudget && matchesCompatibility;
+    });
+  }, [searchTerm, selectedCity, priceRange, minCompatibility]);
+
+  // Reset index when filters change
+  useEffect(() => {
+    setCurrentIndex(0);
+  }, [searchTerm, selectedCity, priceRange, minCompatibility]);
+
+  const currentProfile = filteredProfiles[currentIndex];
 
   const handleLike = () => {
+    if (filteredProfiles.length === 0) return;
     setDirection('right');
     setTimeout(() => {
       setDirection(null);
-      setCurrentIndex((prev) => (prev + 1) % mockProfiles.length);
+      setCurrentIndex((prev) => (prev + 1) % filteredProfiles.length);
     }, 300);
   };
 
   const handlePass = () => {
+    if (filteredProfiles.length === 0) return;
     setDirection('left');
     setTimeout(() => {
       setDirection(null);
-      setCurrentIndex((prev) => (prev + 1) % mockProfiles.length);
+      setCurrentIndex((prev) => (prev + 1) % filteredProfiles.length);
     }, 300);
   };
+
+  const clearFilters = () => {
+    setSearchTerm('');
+    setSelectedCity(null);
+    setPriceRange([200, 800]);
+    setMinCompatibility(0);
+  };
+
+  const hasActiveFilters = searchTerm || selectedCity || priceRange[0] !== 200 || priceRange[1] !== 800 || minCompatibility > 0;
 
   return (
     <Layout>
       <div className="container py-6">
         {/* Search Bar */}
-        <div className="flex flex-col md:flex-row gap-4 mb-8">
+        <div className="flex flex-col md:flex-row gap-4 mb-4">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
             <Input 
               placeholder={t('common.search') + '...'} 
               className="pl-10"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" className="gap-2">
-              <MapPin className="h-4 w-4" />
-              Madrid
-            </Button>
-            <Button variant="outline" className="gap-2">
-              <Euro className="h-4 w-4" />
-              300-500€
-            </Button>
-            <Button variant="outline" size="icon">
-              <Filter className="h-4 w-4" />
-            </Button>
+          <div className="flex gap-2 flex-wrap">
+            {/* City Selector */}
+            <Popover open={cityOpen} onOpenChange={setCityOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="gap-2 min-w-[120px] justify-between">
+                  <div className="flex items-center gap-2">
+                    <MapPin className="h-4 w-4" />
+                    <span>{selectedCity || 'Toda España'}</span>
+                  </div>
+                  <ChevronDown className="h-4 w-4 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[200px] p-0 bg-popover z-50" align="start">
+                <Command>
+                  <CommandInput placeholder="Buscar ciudad..." />
+                  <CommandList>
+                    <CommandEmpty>No encontrada</CommandEmpty>
+                    <CommandGroup>
+                      <CommandItem
+                        onSelect={() => {
+                          setSelectedCity(null);
+                          setCityOpen(false);
+                        }}
+                      >
+                        Toda España
+                      </CommandItem>
+                      {uniqueCities.map((city) => (
+                        <CommandItem
+                          key={city}
+                          onSelect={() => {
+                            setSelectedCity(city);
+                            setCityOpen(false);
+                          }}
+                        >
+                          {city}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+
+            {/* Price Range Selector */}
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="gap-2 min-w-[140px] justify-between">
+                  <div className="flex items-center gap-2">
+                    <Euro className="h-4 w-4" />
+                    <span>{priceRange[0]}-{priceRange[1]}€</span>
+                  </div>
+                  <ChevronDown className="h-4 w-4 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[280px] bg-popover z-50" align="start">
+                <div className="space-y-4">
+                  <div className="flex justify-between text-sm">
+                    <span>Rango de presupuesto</span>
+                    <span className="font-medium">{priceRange[0]}€ - {priceRange[1]}€</span>
+                  </div>
+                  <Slider
+                    value={priceRange}
+                    onValueChange={(value) => setPriceRange(value as [number, number])}
+                    min={100}
+                    max={1000}
+                    step={50}
+                  />
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>100€</span>
+                    <span>1000€</span>
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
+
+            {/* Compatibility Filter */}
+            <Popover open={filterOpen} onOpenChange={setFilterOpen}>
+              <PopoverTrigger asChild>
+                <Button variant={minCompatibility > 0 ? "default" : "outline"} size="icon" className="relative">
+                  <Filter className="h-4 w-4" />
+                  {minCompatibility > 0 && (
+                    <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-primary text-[10px] flex items-center justify-center text-primary-foreground">
+                      ✓
+                    </span>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[280px] bg-popover z-50" align="end">
+                <div className="space-y-4">
+                  <div className="flex justify-between text-sm">
+                    <span>Compatibilidad mínima</span>
+                    <span className="font-medium">{minCompatibility}%</span>
+                  </div>
+                  <Slider
+                    value={[minCompatibility]}
+                    onValueChange={(value) => setMinCompatibility(value[0])}
+                    min={0}
+                    max={100}
+                    step={5}
+                  />
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>Todos</span>
+                    <span>100%</span>
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
+
+            {/* Clear Filters */}
+            {hasActiveFilters && (
+              <Button variant="ghost" size="icon" onClick={clearFilters} title="Limpiar filtros">
+                <RotateCcw className="h-4 w-4" />
+              </Button>
+            )}
           </div>
+        </div>
+
+        {/* Results Counter */}
+        <div className="mb-6 text-sm text-muted-foreground text-center">
+          {hasActiveFilters 
+            ? `Mostrando ${currentIndex + 1} de ${filteredProfiles.length} perfiles`
+            : `${mockProfiles.length} perfiles disponibles`
+          }
         </div>
 
         {/* Profile Card */}
         <div className="max-w-lg mx-auto">
-          <motion.div
-            key={currentProfile.id}
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ 
-              opacity: 1, 
-              scale: 1,
-              x: direction === 'left' ? -300 : direction === 'right' ? 300 : 0,
-              rotate: direction === 'left' ? -10 : direction === 'right' ? 10 : 0,
-            }}
-            transition={{ duration: 0.3 }}
-            className="glass-card rounded-2xl overflow-hidden shadow-lg"
-          >
-            {/* Photo */}
-            <div className="relative h-80">
-              <img 
-                src={currentProfile.photo} 
-                alt={currentProfile.name}
-                className="w-full h-full object-cover"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-              
-              {/* Score Badge */}
-              <div className="absolute top-4 right-4 flex items-center gap-1 px-3 py-1.5 rounded-full bg-success text-success-foreground font-semibold">
-                <Star className="h-4 w-4" />
-                {currentProfile.score}%
-              </div>
+          {filteredProfiles.length === 0 ? (
+            <div className="glass-card rounded-2xl p-12 text-center">
+              <div className="text-6xl mb-4">🔍</div>
+              <h3 className="text-xl font-semibold mb-2">No hay perfiles</h3>
+              <p className="text-muted-foreground mb-4">
+                No se encontraron perfiles con estos filtros. Prueba a ajustar los criterios de búsqueda.
+              </p>
+              <Button variant="outline" onClick={clearFilters}>
+                <RotateCcw className="h-4 w-4 mr-2" />
+                Limpiar filtros
+              </Button>
+            </div>
+          ) : currentProfile && (
+            <motion.div
+              key={currentProfile.id}
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ 
+                opacity: 1, 
+                scale: 1,
+                x: direction === 'left' ? -300 : direction === 'right' ? 300 : 0,
+                rotate: direction === 'left' ? -10 : direction === 'right' ? 10 : 0,
+              }}
+              transition={{ duration: 0.3 }}
+              className="glass-card rounded-2xl overflow-hidden shadow-lg"
+            >
+              {/* Photo */}
+              <div className="relative h-80">
+                <img 
+                  src={currentProfile.photo} 
+                  alt={currentProfile.name}
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+                
+                {/* Score Badge */}
+                <div className="absolute top-4 right-4 flex items-center gap-1 px-3 py-1.5 rounded-full bg-success text-success-foreground font-semibold">
+                  <Star className="h-4 w-4" />
+                  {currentProfile.score}%
+                </div>
 
-              {/* Name & Info */}
-              <div className="absolute bottom-4 left-4 right-4 text-primary-foreground">
-                <h2 className="text-2xl font-bold">{currentProfile.name}, {currentProfile.age}</h2>
-                <div className="flex items-center gap-2 text-sm opacity-90">
-                  <MapPin className="h-4 w-4" />
-                  {currentProfile.neighborhood}, {currentProfile.city}
+                {/* Name & Info */}
+                <div className="absolute bottom-4 left-4 right-4 text-primary-foreground">
+                  <h2 className="text-2xl font-bold">{currentProfile.name}, {currentProfile.age}</h2>
+                  <div className="flex items-center gap-2 text-sm opacity-90">
+                    <MapPin className="h-4 w-4" />
+                    {currentProfile.neighborhood}, {currentProfile.city}
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* Content */}
-            <div className="p-6 space-y-4">
-              {/* Tags */}
-              <div className="flex flex-wrap gap-2">
-                {currentProfile.tags.map((tag, i) => (
-                  <Badge key={i} variant="secondary" className="rounded-full">
-                    {tag}
-                  </Badge>
-                ))}
-                <Badge variant="outline" className="rounded-full">
-                  <Euro className="h-3 w-3 mr-1" />
-                  {currentProfile.budget}
-                </Badge>
-              </div>
-
-              {/* Compatibility Reasons */}
-              <div className="space-y-2">
-                <h3 className="font-semibold text-sm text-muted-foreground">
-                  {t('matches.reasons')}
-                </h3>
-                <ul className="space-y-1">
-                  {currentProfile.reasons.map((reason, i) => (
-                    <li key={i} className="flex items-start gap-2 text-sm">
-                      <span className="text-success">✓</span>
-                      {reason}
-                    </li>
+              {/* Content */}
+              <div className="p-6 space-y-4">
+                {/* Tags */}
+                <div className="flex flex-wrap gap-2">
+                  {currentProfile.tags.map((tag, i) => (
+                    <Badge key={i} variant="secondary" className="rounded-full">
+                      {tag}
+                    </Badge>
                   ))}
-                </ul>
+                  <Badge variant="outline" className="rounded-full">
+                    <Euro className="h-3 w-3 mr-1" />
+                    {currentProfile.budget}
+                  </Badge>
+                </div>
+
+                {/* Compatibility Reasons */}
+                <div className="space-y-2">
+                  <h3 className="font-semibold text-sm text-muted-foreground">
+                    {t('matches.reasons')}
+                  </h3>
+                  <ul className="space-y-1">
+                    {currentProfile.reasons.map((reason, i) => (
+                      <li key={i} className="flex items-start gap-2 text-sm">
+                        <span className="text-success">✓</span>
+                        {reason}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                {/* Friction Warning */}
+                {currentProfile.friction && (
+                  <div className="p-3 rounded-lg bg-accent/20 border border-accent/30">
+                    <h3 className="font-semibold text-sm text-accent-foreground mb-1">
+                      {t('matches.friction')}
+                    </h3>
+                    <p className="text-sm text-muted-foreground">{currentProfile.friction}</p>
+                  </div>
+                )}
               </div>
 
-              {/* Friction Warning */}
-              {currentProfile.friction && (
-                <div className="p-3 rounded-lg bg-accent/20 border border-accent/30">
-                  <h3 className="font-semibold text-sm text-accent-foreground mb-1">
-                    {t('matches.friction')}
-                  </h3>
-                  <p className="text-sm text-muted-foreground">{currentProfile.friction}</p>
-                </div>
-              )}
-            </div>
-
-            {/* Actions */}
-            <div className="flex items-center justify-center gap-6 p-6 pt-0">
-              <Button 
-                variant="outline" 
-                size="icon" 
-                className="h-16 w-16 rounded-full border-2 border-destructive/30 hover:bg-destructive/10 hover:border-destructive"
-                onClick={handlePass}
-              >
-                <X className="h-8 w-8 text-destructive" />
-              </Button>
-              <Button 
-                variant="hero" 
-                size="icon" 
-                className="h-20 w-20 rounded-full"
-                onClick={handleLike}
-              >
-                <Heart className="h-10 w-10" />
-              </Button>
-            </div>
-          </motion.div>
+              {/* Actions */}
+              <div className="flex items-center justify-center gap-6 p-6 pt-0">
+                <Button 
+                  variant="outline" 
+                  size="icon" 
+                  className="h-16 w-16 rounded-full border-2 border-destructive/30 hover:bg-destructive/10 hover:border-destructive"
+                  onClick={handlePass}
+                >
+                  <X className="h-8 w-8 text-destructive" />
+                </Button>
+                <Button 
+                  variant="hero" 
+                  size="icon" 
+                  className="h-20 w-20 rounded-full"
+                  onClick={handleLike}
+                >
+                  <Heart className="h-10 w-10" />
+                </Button>
+              </div>
+            </motion.div>
+          )}
         </div>
       </div>
     </Layout>
