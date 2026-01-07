@@ -92,6 +92,33 @@ export type Database = {
         }
         Relationships: []
       }
+      convinter_compat_cache: {
+        Row: {
+          breakdown: Json
+          computed_at: string
+          detail_level: number
+          score: number
+          user_a: string
+          user_b: string
+        }
+        Insert: {
+          breakdown?: Json
+          computed_at?: string
+          detail_level: number
+          score: number
+          user_a: string
+          user_b: string
+        }
+        Update: {
+          breakdown?: Json
+          computed_at?: string
+          detail_level?: number
+          score?: number
+          user_a?: string
+          user_b?: string
+        }
+        Relationships: []
+      }
       convinter_consent_requests: {
         Row: {
           created_at: string | null
@@ -693,8 +720,22 @@ export type Database = {
         }
         Returns: undefined
       }
+      convinter_compute_and_cache_guarded: {
+        Args: { p_detail_level?: number; p_other_user: string }
+        Returns: Json
+      }
+      convinter_create_chat: { Args: { p_other: string }; Returns: Json }
       convinter_enqueue_listing_doc_deletions: { Args: never; Returns: number }
       convinter_enqueue_selfie_deletions: { Args: never; Returns: number }
+      convinter_get_listing_detail: {
+        Args: { p_listing_id: string }
+        Returns: Json
+      }
+      convinter_get_my_trust: { Args: never; Returns: Json }
+      convinter_get_profile_detail: {
+        Args: { p_locale?: string; p_user: string }
+        Returns: Json
+      }
       convinter_guard: { Args: { p_action: string }; Returns: undefined }
       convinter_is_blocked: {
         Args: { p_user_a: string; p_user_b: string }
@@ -705,6 +746,18 @@ export type Database = {
       convinter_mark_deletion_done: {
         Args: { p_id: number }
         Returns: undefined
+      }
+      convinter_mod_list_reports: {
+        Args: { p_limit?: number; p_offset?: number; p_status?: string }
+        Returns: Json
+      }
+      convinter_mod_refresh_trust_for_user: {
+        Args: { p_user: string }
+        Returns: Json
+      }
+      convinter_mod_resolve_report: {
+        Args: { p_action: string; p_note?: string; p_report_id: number }
+        Returns: Json
       }
       convinter_mod_review_listing_verification: {
         Args: {
@@ -754,8 +807,48 @@ export type Database = {
         }
         Returns: Json
       }
+      convinter_request_consent: {
+        Args: { p_requested_level?: number; p_to_user: string }
+        Returns: Json
+      }
+      convinter_resolve_handle: { Args: { p_handle: string }; Returns: string }
+      convinter_respond_consent_request: {
+        Args: { p_accept: boolean; p_request_id: number }
+        Returns: Json
+      }
       convinter_save_answer: {
         Args: { p_answer_value: Json; p_question_id: string; p_test_id: string }
+        Returns: Json
+      }
+      convinter_search_listings: {
+        Args: {
+          p_bills_included?: boolean
+          p_city?: string
+          p_limit?: number
+          p_listing_type?: string
+          p_listing_verified_only?: boolean
+          p_offset?: number
+          p_price_max?: number
+          p_price_min?: number
+          p_province_code?: string
+          p_trust_min?: number
+          p_verified_only?: boolean
+        }
+        Returns: Json
+      }
+      convinter_search_profiles: {
+        Args: {
+          p_city?: string
+          p_limit?: number
+          p_offset?: number
+          p_province_code?: string
+          p_trust_min?: number
+          p_verified_only?: boolean
+        }
+        Returns: Json
+      }
+      convinter_send_message: {
+        Args: { p_body: string; p_chat_id: string }
         Returns: Json
       }
       convinter_submit_listing_verification: {
