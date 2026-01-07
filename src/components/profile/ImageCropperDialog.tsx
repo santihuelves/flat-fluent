@@ -116,7 +116,7 @@ export function ImageCropperDialog({
               image={imageSrc}
               crop={crop}
               zoom={zoom}
-              aspect={1}
+              aspect={16 / 9}
               onCropChange={setCrop}
               onCropComplete={onCropCompleteHandler}
               onZoomChange={setZoom}

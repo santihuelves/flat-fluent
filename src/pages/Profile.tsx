@@ -1,13 +1,20 @@
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { motion } from 'framer-motion';
-import { User, Camera, MapPin, Euro, Calendar, FileText, Edit2, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
+import { User, Camera, MapPin, Euro, Calendar, FileText, Edit2, CheckCircle, AlertCircle, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { EditProfileSheet } from '@/components/profile/EditProfileSheet';
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+} from '@/components/ui/carousel';
 
 interface ProfileData {
   id: string;
@@ -108,7 +115,7 @@ export default function Profile() {
     );
   }
 
-  const mainPhoto = profile.photos?.[0];
+  
 
   return (
     <Layout>
@@ -129,15 +136,43 @@ export default function Profile() {
             animate={{ opacity: 1, y: 0 }}
             className="glass-card rounded-2xl overflow-hidden mb-6"
           >
-            {/* Photo Section */}
-            <div className="relative h-64 bg-muted flex items-center justify-center">
-              {mainPhoto ? (
-                <img 
-                  src={mainPhoto} 
-                  alt={profile.name || ''}
-                  className="w-full h-full object-cover object-top"
-                />
-              ) : (
+            {/* Photo Section with Carousel */}
+            {profile.photos && profile.photos.length > 0 ? (
+              <div className="relative">
+                <Carousel className="w-full">
+                  <CarouselContent>
+                    {profile.photos.map((photo, index) => (
+                      <CarouselItem key={index}>
+                        <div className="relative aspect-video bg-muted">
+                          <img 
+                            src={photo} 
+                            alt={`${profile.name} - ${index + 1}`}
+                            className="w-full h-full object-cover object-top"
+                          />
+                        </div>
+                      </CarouselItem>
+                    ))}
+                  </CarouselContent>
+                  {profile.photos.length > 1 && (
+                    <>
+                      <CarouselPrevious className="left-2" />
+                      <CarouselNext className="right-2" />
+                    </>
+                  )}
+                </Carousel>
+                {profile.photos.length > 1 && (
+                  <div className="flex justify-center gap-1.5 py-2 bg-background/80">
+                    {profile.photos.map((_, index) => (
+                      <div 
+                        key={index}
+                        className="w-2 h-2 rounded-full bg-muted-foreground/40"
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="relative aspect-video bg-muted flex items-center justify-center">
                 <div className="text-center">
                   <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-background border-2 border-dashed border-border mb-2">
                     <User className="h-8 w-8 text-muted-foreground" />
@@ -147,8 +182,8 @@ export default function Profile() {
                     {t('profile.addPhoto')}
                   </Button>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
 
             <div className="p-6 space-y-6">
               {/* Basic Info */}
