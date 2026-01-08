@@ -4,11 +4,13 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, ArrowRight, CheckCircle, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, ArrowRight, CheckCircle, AlertTriangle, Loader2 } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 const testQuestions = [
   {
@@ -108,6 +110,7 @@ export default function Test() {
   const [currentStep, setCurrentStep] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [selectedDealbreakers, setSelectedDealbreakers] = useState<string[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const totalSteps = testQuestions.length + 1; // +1 for dealbreakers
   const progress = ((currentStep + 1) / totalSteps) * 100;
@@ -130,13 +133,61 @@ export default function Test() {
     return currentCategory?.questions.every((q) => answers[q.id]);
   };
 
+  const handleComplete = async () => {
+    setIsSubmitting(true);
+    
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        toast.error('Debes iniciar sesión para guardar el test');
+        navigate('/login');
+        return;
+      }
+
+      // Save each answer using the RPC
+      for (const [questionId, value] of Object.entries(answers)) {
+        const { error } = await supabase.rpc('convinter_save_answer', {
+          p_test_id: 'convinter_v2',
+          p_question_id: questionId,
+          p_answer_value: { value }
+        });
+
+        if (error) {
+          console.error('Error saving answer:', questionId, error);
+          throw error;
+        }
+      }
+
+      // Update profile with dealbreakers and test_completed
+      const { error: profileError } = await supabase
+        .from('convinter_profiles')
+        .update({
+          dealbreakers: selectedDealbreakers,
+          test_completed: true
+        })
+        .eq('user_id', session.user.id);
+
+      if (profileError) {
+        console.error('Error updating profile:', profileError);
+        throw profileError;
+      }
+
+      toast.success('¡Test completado! Ya puedes descubrir compañeros compatibles.');
+      navigate('/discover');
+    } catch (error) {
+      console.error('Error completing test:', error);
+      toast.error('Error al guardar el test. Inténtalo de nuevo.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handleNext = () => {
     if (currentStep < totalSteps - 1) {
       setCurrentStep((prev) => prev + 1);
     } else {
-      // Submit test
-      console.log('Test completed:', { answers, dealbreakers: selectedDealbreakers });
-      navigate('/profile');
+      handleComplete();
     }
   };
 
@@ -249,7 +300,7 @@ export default function Test() {
           <Button
             variant="outline"
             onClick={handlePrev}
-            disabled={currentStep === 0}
+            disabled={currentStep === 0 || isSubmitting}
             className="gap-2"
           >
             <ArrowLeft className="h-4 w-4" />
@@ -258,10 +309,15 @@ export default function Test() {
           <Button
             variant="hero"
             onClick={handleNext}
-            disabled={!canProceed()}
+            disabled={!canProceed() || isSubmitting}
             className="gap-2"
           >
-            {currentStep === totalSteps - 1 ? (
+            {isSubmitting ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Guardando...
+              </>
+            ) : currentStep === totalSteps - 1 ? (
               <>
                 <CheckCircle className="h-4 w-4" />
                 {t('test.complete')}

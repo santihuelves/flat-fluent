@@ -1,366 +1,180 @@
 import { Layout } from '@/components/layout/Layout';
 import { motion } from 'framer-motion';
-import { Search, MapPin, Euro, Filter, Heart, X, Star, ChevronDown, RotateCcw } from 'lucide-react';
+import { Search, MapPin, Euro, Filter, Heart, X, Star, ChevronDown, RotateCcw, Lock, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useTranslation } from 'react-i18next';
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Slider } from '@/components/ui/slider';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+import { useNavigate } from 'react-router-dom';
 
-// Mock data for demo
-const mockProfiles = [
-  // Madrid
-  {
-    id: 1,
-    name: 'María García',
-    age: 28,
-    photo: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400',
-    city: 'Madrid',
-    neighborhood: 'Malasaña',
-    budget: '400-500€',
-    score: 92,
-    reasons: ['Horarios similares', 'Ambos trabajan desde casa', 'Prefieren casa tranquila'],
-    friction: 'Ella tiene un gato, revisa si tienes alergias',
-    tags: ['No fumador', 'Teletrabajo', 'Tranquilo'],
-    testDone: true,
-  },
-  {
-    id: 2,
-    name: 'Carlos Ruiz',
-    age: 25,
-    photo: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400',
-    city: 'Madrid',
-    neighborhood: 'Lavapiés',
-    budget: '350-450€',
-    score: 85,
-    reasons: ['Limpieza similar (4/5)', 'Ambos madrugadores', 'Gastos compartidos OK'],
-    friction: 'Él es más social, tú prefieres tranquilidad',
-    tags: ['No fumador', 'Estudiante', 'Social'],
-    testDone: true,
-  },
-  {
-    id: 3,
-    name: 'Laura Fernández',
-    age: 30,
-    photo: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=400',
-    city: 'Madrid',
-    neighborhood: 'Chamberí',
-    budget: '500-600€',
-    score: 88,
-    reasons: ['Profesionales ambos', 'Mismo nivel de orden', 'Horarios compatibles'],
-    friction: 'Ella prefiere más silencio por las noches',
-    tags: ['Profesional', 'Ordenada', 'Tranquilo'],
-    testDone: true,
-  },
-  // Barcelona
-  {
-    id: 4,
-    name: 'Ana Martínez',
-    age: 31,
-    photo: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=400',
-    city: 'Barcelona',
-    neighborhood: 'Gràcia',
-    budget: '500-600€',
-    score: 78,
-    reasons: ['Ambos trabajan fuera', 'Sin mascotas', 'Horarios compatibles'],
-    friction: 'Diferente nivel de limpieza',
-    tags: ['No fumador', 'Profesional', 'Tranquilo'],
-    testDone: true,
-  },
-  {
-    id: 5,
-    name: 'Marc Soler',
-    age: 27,
-    photo: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400',
-    city: 'Barcelona',
-    neighborhood: 'El Born',
-    budget: '450-550€',
-    score: 91,
-    reasons: ['Estilo de vida similar', 'Ambos creativos', 'Horarios flexibles'],
-    friction: 'Él trabaja desde casa, puede haber ruido',
-    tags: ['Creativo', 'Freelance', 'Flexible'],
-    testDone: true,
-  },
-  {
-    id: 6,
-    name: 'Laia Puig',
-    age: 26,
-    photo: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400',
-    city: 'Barcelona',
-    neighborhood: 'Eixample',
-    budget: '550-650€',
-    score: 82,
-    reasons: ['Ambas profesionales', 'Gustan de cocinar', 'Mismo nivel de orden'],
-    friction: 'Diferentes gustos musicales',
-    tags: ['Profesional', 'Cocinera', 'Social'],
-    testDone: true,
-  },
-  // Valencia
-  {
-    id: 7,
-    name: 'Lucía Navarro',
-    age: 24,
-    photo: 'https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=400',
-    city: 'Valencia',
-    neighborhood: 'Ruzafa',
-    budget: '350-450€',
-    score: 95,
-    reasons: ['Artistas ambos', 'Horarios nocturnos', 'Les gusta socializar'],
-    friction: 'Puede haber visitas frecuentes',
-    tags: ['Artista', 'Nocturno', 'Social'],
-    testDone: true,
-  },
-  {
-    id: 8,
-    name: 'Pablo Hernández',
-    age: 29,
-    photo: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=400',
-    city: 'Valencia',
-    neighborhood: 'El Carmen',
-    budget: '300-400€',
-    score: 76,
-    reasons: ['Estudiantes ambos', 'Presupuesto similar', 'Zona preferida igual'],
-    friction: 'Él tiene mascota (perro pequeño)',
-    tags: ['Estudiante', 'Mascota', 'Activo'],
-    testDone: true,
-  },
-  // Sevilla
-  {
-    id: 9,
-    name: 'Carmen López',
-    age: 32,
-    photo: 'https://images.unsplash.com/photo-1488426862026-3ee34a7d66df?w=400',
-    city: 'Sevilla',
-    neighborhood: 'Triana',
-    budget: '280-380€',
-    score: 89,
-    reasons: ['Profesionales ambas', 'Tranquilas', 'Les gusta el orden'],
-    friction: 'Ella viaja mucho por trabajo',
-    tags: ['Profesional', 'Viajera', 'Ordenada'],
-    testDone: true,
-  },
-  {
-    id: 10,
-    name: 'Javier Moreno',
-    age: 26,
-    photo: 'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=400',
-    city: 'Sevilla',
-    neighborhood: 'Nervión',
-    budget: '300-400€',
-    score: 71,
-    reasons: ['Deportistas ambos', 'Madrugadores', 'Sin mascotas'],
-    friction: 'Diferentes niveles de limpieza',
-    tags: ['Deportista', 'Madrugador', 'Activo'],
-    testDone: true,
-  },
-  // Bilbao
-  {
-    id: 11,
-    name: 'Ane Etxebarria',
-    age: 28,
-    photo: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=400',
-    city: 'Bilbao',
-    neighborhood: 'Casco Viejo',
-    budget: '380-480€',
-    score: 86,
-    reasons: ['Profesionales ambas', 'Teletrabajo', 'Tranquilas'],
-    friction: 'Ella prefiere temperatura más alta',
-    tags: ['Profesional', 'Teletrabajo', 'Tranquila'],
-    testDone: true,
-  },
-  {
-    id: 12,
-    name: 'Mikel Aguirre',
-    age: 24,
-    photo: 'https://images.unsplash.com/photo-1463453091185-61582044d556?w=400',
-    city: 'Bilbao',
-    neighborhood: 'Deusto',
-    budget: '320-420€',
-    score: 79,
-    reasons: ['Universitarios ambos', 'Horarios similares', 'Presupuesto ajustado'],
-    friction: 'Él estudia de noche, puede haber luz',
-    tags: ['Universitario', 'Nocturno', 'Estudioso'],
-    testDone: true,
-  },
-  // Zaragoza
-  {
-    id: 13,
-    name: 'Sara Pérez',
-    age: 27,
-    photo: 'https://images.unsplash.com/photo-1544725176-7c40e5a71c5e?w=400',
-    city: 'Zaragoza',
-    neighborhood: 'Centro',
-    budget: '250-350€',
-    score: 93,
-    reasons: ['Horarios similares', 'Ordenadas', 'Les gusta cocinar juntas'],
-    friction: 'Ninguna destacable',
-    tags: ['Profesional', 'Cocinera', 'Ordenada'],
-    testDone: true,
-  },
-  // Málaga
-  {
-    id: 14,
-    name: 'Marina Costa',
-    age: 29,
-    photo: 'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=400',
-    city: 'Málaga',
-    neighborhood: 'Centro',
-    budget: '350-450€',
-    score: 84,
-    reasons: ['Profesionales ambas', 'Les gusta la playa', 'Sociables'],
-    friction: 'Ella tiene horarios irregulares',
-    tags: ['Profesional', 'Playera', 'Social'],
-    testDone: true,
-  },
-  {
-    id: 15,
-    name: 'Alejandro Ruiz',
-    age: 31,
-    photo: 'https://images.unsplash.com/photo-1556157382-97eda2d62296?w=400',
-    city: 'Málaga',
-    neighborhood: 'El Palo',
-    budget: '380-480€',
-    score: 77,
-    reasons: ['Profesionales ambos', 'Deportistas', 'Madrugadores'],
-    friction: 'Él hace deporte en casa',
-    tags: ['Profesional', 'Deportista', 'Madrugador'],
-    testDone: true,
-  },
-  // San Sebastián
-  {
-    id: 16,
-    name: 'Amaia Gómez',
-    age: 26,
-    photo: 'https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?w=400',
-    city: 'San Sebastián',
-    neighborhood: 'Gros',
-    budget: '480-580€',
-    score: 90,
-    reasons: ['Profesionales ambas', 'Tranquilas', 'Amantes del surf'],
-    friction: 'Ella tiene tabla de surf que ocupa espacio',
-    tags: ['Profesional', 'Surfer', 'Tranquila'],
-    testDone: true,
-  },
-  // Granada
-  {
-    id: 17,
-    name: 'Fernando García',
-    age: 25,
-    photo: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=400',
-    city: 'Granada',
-    neighborhood: 'Albaicín',
-    budget: '280-350€',
-    score: 87,
-    reasons: ['Estudiantes ambos', 'Les gusta la cultura', 'Presupuesto similar'],
-    friction: 'Él toca la guitarra (con horarios)',
-    tags: ['Estudiante', 'Músico', 'Cultural'],
-    testDone: true,
-  },
-  // Alicante
-  {
-    id: 18,
-    name: 'Elena Vidal',
-    age: 30,
-    photo: 'https://images.unsplash.com/photo-1548142813-c348350df52b?w=400',
-    city: 'Alicante',
-    neighborhood: 'Centro',
-    budget: '320-420€',
-    score: 81,
-    reasons: ['Profesionales ambas', 'Playeras', 'Ordenadas'],
-    friction: 'Diferentes horarios de trabajo',
-    tags: ['Profesional', 'Playera', 'Ordenada'],
-    testDone: true,
-  },
-  // A Coruña
-  {
-    id: 19,
-    name: 'Martín Iglesias',
-    age: 28,
-    photo: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=400',
-    city: 'A Coruña',
-    neighborhood: 'Centro',
-    budget: '300-400€',
-    score: 73,
-    reasons: ['Profesionales ambos', 'Les gusta el mar', 'Tranquilos'],
-    friction: 'Él tiene un gato',
-    tags: ['Profesional', 'Mascota', 'Tranquilo'],
-    testDone: true,
-  },
-  // Palma
-  {
-    id: 20,
-    name: 'Claudia Serra',
-    age: 27,
-    photo: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=400',
-    city: 'Palma',
-    neighborhood: 'Centro',
-    budget: '450-550€',
-    score: 88,
-    reasons: ['Profesionales ambas', 'Activas', 'Les gusta viajar'],
-    friction: 'Ella recibe visitas de familia',
-    tags: ['Profesional', 'Viajera', 'Activa'],
-    testDone: true,
-  },
+interface ProfileData {
+  user_id: string;
+  display_name: string | null;
+  handle: string | null;
+  photo_url: string | null;
+  city: string | null;
+  province_code: string | null;
+  trust_score: number;
+  trust_badge: string;
+  selfie_verified: boolean;
+  bio: string | null;
+  languages: string[];
+}
+
+interface CompatibilityData {
+  score: number;
+  breakdown: {
+    reasons?: string[];
+    friction?: string;
+  };
+  hasConsent: boolean;
+}
+
+// Spanish cities for filter
+const spanishCities = [
+  'Madrid', 'Barcelona', 'Valencia', 'Sevilla', 'Zaragoza',
+  'Málaga', 'Murcia', 'Palma', 'Bilbao', 'Alicante',
+  'A Coruña', 'Granada', 'San Sebastián', 'Valladolid', 'Vitoria'
 ];
-
-// Helper to parse budget string to number range
-const parseBudget = (budget: string): { min: number; max: number } => {
-  const match = budget.match(/(\d+)-(\d+)/);
-  if (match) {
-    return { min: parseInt(match[1]), max: parseInt(match[2]) };
-  }
-  return { min: 0, max: 1000 };
-};
-
-// Get unique cities from profiles
-const uniqueCities = [...new Set(mockProfiles.map(p => p.city))].sort();
 
 export default function Discover() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [direction, setDirection] = useState<'left' | 'right' | null>(null);
+  
+  // Data states
+  const [profiles, setProfiles] = useState<ProfileData[]>([]);
+  const [compatibilityCache, setCompatibilityCache] = useState<Record<string, CompatibilityData>>({});
+  const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingCompatibility, setIsLoadingCompatibility] = useState(false);
   
   // Filter states
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCity, setSelectedCity] = useState<string | null>(null);
   const [priceRange, setPriceRange] = useState<[number, number]>([200, 800]);
-  const [minCompatibility, setMinCompatibility] = useState(0);
+  const [minTrustScore, setMinTrustScore] = useState(0);
   const [cityOpen, setCityOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
 
-  // Filtered profiles based on all criteria
-  const filteredProfiles = useMemo(() => {
-    return mockProfiles.filter(profile => {
-      // Search filter (name, city, neighborhood, tags)
-      const matchesSearch = !searchTerm || 
-        profile.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        profile.city.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        profile.neighborhood.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        profile.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()));
-      
-      // City filter
-      const matchesCity = !selectedCity || profile.city === selectedCity;
-      
-      // Budget filter
-      const budget = parseBudget(profile.budget);
-      const matchesBudget = budget.min <= priceRange[1] && budget.max >= priceRange[0];
-      
-      // Compatibility filter
-      const matchesCompatibility = profile.score >= minCompatibility;
-      
-      return matchesSearch && matchesCity && matchesBudget && matchesCompatibility;
-    });
-  }, [searchTerm, selectedCity, priceRange, minCompatibility]);
-
-  // Reset index when filters change
+  // Load profiles from backend
   useEffect(() => {
-    setCurrentIndex(0);
-  }, [searchTerm, selectedCity, priceRange, minCompatibility]);
+    loadProfiles();
+  }, [selectedCity, minTrustScore]);
+
+  const loadProfiles = async () => {
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase.rpc('convinter_search_profiles', {
+        p_city: selectedCity,
+        p_trust_min: minTrustScore > 0 ? minTrustScore : null,
+        p_limit: 50
+      });
+
+      if (error) throw error;
+
+      const result = data as unknown as { ok: boolean; items: ProfileData[] };
+      if (result.ok && result.items) {
+        setProfiles(result.items);
+        setCurrentIndex(0);
+      }
+    } catch (error) {
+      console.error('Error loading profiles:', error);
+      toast.error('Error al cargar perfiles');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Load compatibility for current profile
+  const loadCompatibility = async (userId: string) => {
+    if (compatibilityCache[userId]) return;
+    
+    setIsLoadingCompatibility(true);
+    try {
+      const { data, error } = await supabase.rpc('convinter_compute_and_cache_guarded', {
+        p_other_user: userId,
+        p_detail_level: 1
+      });
+
+      if (error) {
+        // If no consent, show locked state
+        if (error.message.includes('consent') || error.code === 'P0001') {
+          setCompatibilityCache(prev => ({
+            ...prev,
+            [userId]: { score: 0, breakdown: {}, hasConsent: false }
+          }));
+        } else {
+          throw error;
+        }
+      } else {
+        const result = data as unknown as { ok: boolean; score: number; breakdown: Record<string, unknown> };
+        if (result.ok) {
+          setCompatibilityCache(prev => ({
+            ...prev,
+            [userId]: { 
+              score: result.score, 
+              breakdown: result.breakdown as CompatibilityData['breakdown'],
+              hasConsent: true 
+            }
+          }));
+        }
+      }
+    } catch (error) {
+      console.error('Error loading compatibility:', error);
+    } finally {
+      setIsLoadingCompatibility(false);
+    }
+  };
+
+  // Load compatibility when current profile changes
+  useEffect(() => {
+    const currentProfile = filteredProfiles[currentIndex];
+    if (currentProfile) {
+      loadCompatibility(currentProfile.user_id);
+    }
+  }, [currentIndex, profiles]);
+
+  // Filter profiles by search term
+  const filteredProfiles = profiles.filter(profile => {
+    if (!searchTerm) return true;
+    const search = searchTerm.toLowerCase();
+    return (
+      profile.display_name?.toLowerCase().includes(search) ||
+      profile.handle?.toLowerCase().includes(search) ||
+      profile.city?.toLowerCase().includes(search)
+    );
+  });
 
   const currentProfile = filteredProfiles[currentIndex];
+  const currentCompatibility = currentProfile ? compatibilityCache[currentProfile.user_id] : null;
+
+  const handleRequestConsent = async () => {
+    if (!currentProfile) return;
+    
+    try {
+      const { data, error } = await supabase.rpc('convinter_request_consent', {
+        p_to_user: currentProfile.user_id,
+        p_requested_level: 1
+      });
+
+      if (error) throw error;
+
+      const result = data as unknown as { ok: boolean };
+      if (result.ok) {
+        toast.success('Solicitud de compatibilidad enviada');
+      }
+    } catch (error) {
+      console.error('Error requesting consent:', error);
+      toast.error('Error al enviar solicitud');
+    }
+  };
 
   const handleLike = () => {
     if (filteredProfiles.length === 0) return;
@@ -384,10 +198,20 @@ export default function Discover() {
     setSearchTerm('');
     setSelectedCity(null);
     setPriceRange([200, 800]);
-    setMinCompatibility(0);
+    setMinTrustScore(0);
   };
 
-  const hasActiveFilters = searchTerm || selectedCity || priceRange[0] !== 200 || priceRange[1] !== 800 || minCompatibility > 0;
+  const hasActiveFilters = searchTerm || selectedCity || priceRange[0] !== 200 || priceRange[1] !== 800 || minTrustScore > 0;
+
+  const getTrustBadgeColor = (badge: string) => {
+    switch (badge) {
+      case 'gold': return 'bg-yellow-500/20 text-yellow-600';
+      case 'silver': return 'bg-gray-400/20 text-gray-600';
+      case 'bronze': return 'bg-orange-500/20 text-orange-600';
+      case 'verified': return 'bg-green-500/20 text-green-600';
+      default: return 'bg-muted text-muted-foreground';
+    }
+  };
 
   return (
     <Layout>
@@ -429,7 +253,7 @@ export default function Discover() {
                       >
                         Toda España
                       </CommandItem>
-                      {uniqueCities.map((city) => (
+                      {spanishCities.map((city) => (
                         <CommandItem
                           key={city}
                           onSelect={() => {
@@ -478,12 +302,12 @@ export default function Discover() {
               </PopoverContent>
             </Popover>
 
-            {/* Compatibility Filter */}
+            {/* Trust Score Filter */}
             <Popover open={filterOpen} onOpenChange={setFilterOpen}>
               <PopoverTrigger asChild>
-                <Button variant={minCompatibility > 0 ? "default" : "outline"} size="icon" className="relative">
+                <Button variant={minTrustScore > 0 ? "default" : "outline"} size="icon" className="relative">
                   <Filter className="h-4 w-4" />
-                  {minCompatibility > 0 && (
+                  {minTrustScore > 0 && (
                     <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-primary text-[10px] flex items-center justify-center text-primary-foreground">
                       ✓
                     </span>
@@ -493,19 +317,19 @@ export default function Discover() {
               <PopoverContent className="w-[280px] bg-popover z-50" align="end">
                 <div className="space-y-4">
                   <div className="flex justify-between text-sm">
-                    <span>Compatibilidad mínima</span>
-                    <span className="font-medium">{minCompatibility}%</span>
+                    <span>Confianza mínima</span>
+                    <span className="font-medium">{minTrustScore}</span>
                   </div>
                   <Slider
-                    value={[minCompatibility]}
-                    onValueChange={(value) => setMinCompatibility(value[0])}
+                    value={[minTrustScore]}
+                    onValueChange={(value) => setMinTrustScore(value[0])}
                     min={0}
                     max={100}
-                    step={5}
+                    step={10}
                   />
                   <div className="flex justify-between text-xs text-muted-foreground">
                     <span>Todos</span>
-                    <span>100%</span>
+                    <span>100</span>
                   </div>
                 </div>
               </PopoverContent>
@@ -522,15 +346,25 @@ export default function Discover() {
 
         {/* Results Counter */}
         <div className="mb-6 text-sm text-muted-foreground text-center">
-          {hasActiveFilters 
+          {isLoading ? (
+            <span className="flex items-center justify-center gap-2">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Cargando perfiles...
+            </span>
+          ) : hasActiveFilters 
             ? `Mostrando ${currentIndex + 1} de ${filteredProfiles.length} perfiles`
-            : `${mockProfiles.length} perfiles disponibles`
+            : `${profiles.length} perfiles disponibles`
           }
         </div>
 
         {/* Profile Card */}
         <div className="max-w-lg mx-auto">
-          {filteredProfiles.length === 0 ? (
+          {isLoading ? (
+            <div className="glass-card rounded-2xl p-12 text-center">
+              <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4 text-primary" />
+              <p className="text-muted-foreground">Buscando perfiles compatibles...</p>
+            </div>
+          ) : filteredProfiles.length === 0 ? (
             <div className="glass-card rounded-2xl p-12 text-center">
               <div className="text-6xl mb-4">🔍</div>
               <h3 className="text-xl font-semibold mb-2">No hay perfiles</h3>
@@ -544,7 +378,7 @@ export default function Discover() {
             </div>
           ) : currentProfile && (
             <motion.div
-              key={currentProfile.id}
+              key={currentProfile.user_id}
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ 
                 opacity: 1, 
@@ -557,66 +391,131 @@ export default function Discover() {
             >
               {/* Photo */}
               <div className="relative h-80">
-                <img 
-                  src={currentProfile.photo} 
-                  alt={currentProfile.name}
-                  className="w-full h-full object-cover"
-                />
+                {currentProfile.photo_url ? (
+                  <img 
+                    src={currentProfile.photo_url} 
+                    alt={currentProfile.display_name || 'Profile'}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center">
+                    <span className="text-8xl">👤</span>
+                  </div>
+                )}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
                 
                 {/* Score Badge */}
-                <div className="absolute top-4 right-4 flex items-center gap-1 px-3 py-1.5 rounded-full bg-success text-success-foreground font-semibold">
-                  <Star className="h-4 w-4" />
-                  {currentProfile.score}%
+                <div className="absolute top-4 right-4">
+                  {isLoadingCompatibility ? (
+                    <div className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-muted">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    </div>
+                  ) : currentCompatibility?.hasConsent ? (
+                    <div className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-success text-success-foreground font-semibold">
+                      <Star className="h-4 w-4" />
+                      {currentCompatibility.score}%
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-muted text-muted-foreground font-semibold">
+                      <Lock className="h-4 w-4" />
+                      Oculto
+                    </div>
+                  )}
                 </div>
+
+                {/* Trust Badge */}
+                {currentProfile.trust_badge !== 'none' && (
+                  <div className={`absolute top-4 left-4 px-2 py-1 rounded-full text-xs font-medium ${getTrustBadgeColor(currentProfile.trust_badge)}`}>
+                    {currentProfile.trust_badge === 'verified' && '✓ Verificado'}
+                    {currentProfile.trust_badge === 'gold' && '🏆 Gold'}
+                    {currentProfile.trust_badge === 'silver' && '🥈 Silver'}
+                    {currentProfile.trust_badge === 'bronze' && '🥉 Bronze'}
+                  </div>
+                )}
 
                 {/* Name & Info */}
                 <div className="absolute bottom-4 left-4 right-4 text-primary-foreground">
-                  <h2 className="text-2xl font-bold">{currentProfile.name}, {currentProfile.age}</h2>
-                  <div className="flex items-center gap-2 text-sm opacity-90">
-                    <MapPin className="h-4 w-4" />
-                    {currentProfile.neighborhood}, {currentProfile.city}
-                  </div>
+                  <h2 className="text-2xl font-bold">
+                    {currentProfile.display_name || currentProfile.handle || 'Usuario'}
+                  </h2>
+                  {currentProfile.city && (
+                    <div className="flex items-center gap-2 text-sm opacity-90">
+                      <MapPin className="h-4 w-4" />
+                      {currentProfile.city}
+                    </div>
+                  )}
                 </div>
               </div>
 
               {/* Content */}
               <div className="p-6 space-y-4">
-                {/* Tags */}
+                {/* Trust & Verification Tags */}
                 <div className="flex flex-wrap gap-2">
-                  {currentProfile.tags.map((tag, i) => (
-                    <Badge key={i} variant="secondary" className="rounded-full">
-                      {tag}
+                  {currentProfile.selfie_verified && (
+                    <Badge variant="secondary" className="rounded-full">
+                      ✓ Selfie verificado
+                    </Badge>
+                  )}
+                  {currentProfile.languages?.map((lang, i) => (
+                    <Badge key={i} variant="outline" className="rounded-full">
+                      {lang}
                     </Badge>
                   ))}
-                  <Badge variant="outline" className="rounded-full">
-                    <Euro className="h-3 w-3 mr-1" />
-                    {currentProfile.budget}
-                  </Badge>
                 </div>
 
-                {/* Compatibility Reasons */}
-                <div className="space-y-2">
-                  <h3 className="font-semibold text-sm text-muted-foreground">
-                    {t('matches.reasons')}
-                  </h3>
-                  <ul className="space-y-1">
-                    {currentProfile.reasons.map((reason, i) => (
-                      <li key={i} className="flex items-start gap-2 text-sm">
-                        <span className="text-success">✓</span>
-                        {reason}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
+                {/* Bio */}
+                {currentProfile.bio && (
+                  <p className="text-sm text-muted-foreground">
+                    {currentProfile.bio}
+                  </p>
+                )}
 
-                {/* Friction Warning */}
-                {currentProfile.friction && (
-                  <div className="p-3 rounded-lg bg-accent/20 border border-accent/30">
-                    <h3 className="font-semibold text-sm text-accent-foreground mb-1">
-                      {t('matches.friction')}
+                {/* Compatibility Details or Request */}
+                {currentCompatibility?.hasConsent ? (
+                  <div className="space-y-2">
+                    <h3 className="font-semibold text-sm text-muted-foreground">
+                      {t('matches.reasons')}
                     </h3>
-                    <p className="text-sm text-muted-foreground">{currentProfile.friction}</p>
+                    {currentCompatibility.breakdown.reasons?.length ? (
+                      <ul className="space-y-1">
+                        {currentCompatibility.breakdown.reasons.map((reason, i) => (
+                          <li key={i} className="flex items-start gap-2 text-sm">
+                            <span className="text-success">✓</span>
+                            {reason}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">
+                        Compatibilidad calculada basada en vuestras respuestas del test.
+                      </p>
+                    )}
+
+                    {/* Friction Warning */}
+                    {currentCompatibility.breakdown.friction && (
+                      <div className="p-3 rounded-lg bg-accent/20 border border-accent/30">
+                        <h3 className="font-semibold text-sm text-accent-foreground mb-1">
+                          {t('matches.friction')}
+                        </h3>
+                        <p className="text-sm text-muted-foreground">
+                          {currentCompatibility.breakdown.friction}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="p-4 rounded-lg bg-muted/50 border border-border text-center">
+                    <Lock className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                    <p className="text-sm text-muted-foreground mb-3">
+                      Solicita ver la compatibilidad detallada
+                    </p>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={handleRequestConsent}
+                    >
+                      Solicitar compatibilidad
+                    </Button>
                   </div>
                 )}
               </div>
