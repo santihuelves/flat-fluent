@@ -48,8 +48,14 @@ const Debug = () => {
     
     const cleanParams: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(params)) {
-      if (v === '' || v === null || v === undefined) continue;
-      if (typeof v === 'string' && !isNaN(Number(v)) && v.trim() !== '') {
+      // Skip undefined, but keep null (null means parameter exists but is empty)
+      if (v === undefined) continue;
+      
+      // Convert empty strings to null for UUID/ID fields
+      if (v === '') {
+        cleanParams[k] = null;
+      } else if (typeof v === 'string' && !isNaN(Number(v)) && v.trim() !== '' && (k.includes('level') || k.includes('limit') || k.includes('offset') || k.includes('min') || k.includes('max') || k.includes('count'))) {
+        // Convert numeric strings to numbers for numeric parameters
         cleanParams[k] = Number(v);
       } else {
         cleanParams[k] = v;
@@ -195,7 +201,7 @@ const Debug = () => {
               <Input placeholder="User UUID" value={profileDetailParams.user_id} onChange={e => setProfileDetailParams({ user_id: e.target.value })} />
               <Button
                 size="sm"
-                onClick={() => callRpc('convinter_get_profile_detail', { p_user: profileDetailParams.user_id })}
+                onClick={() => callRpc('convinter_get_profile_detail', { p_user: profileDetailParams.user_id || null })}
                 disabled={results['convinter_get_profile_detail']?.loading}
               >
                 {results['convinter_get_profile_detail']?.loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
@@ -212,7 +218,7 @@ const Debug = () => {
               <Input placeholder="Listing UUID" value={listingDetailParams.listing_id} onChange={e => setListingDetailParams({ listing_id: e.target.value })} />
               <Button
                 size="sm"
-                onClick={() => callRpc('convinter_get_listing_detail', { p_listing_id: listingDetailParams.listing_id })}
+                onClick={() => callRpc('convinter_get_listing_detail', { p_listing_id: listingDetailParams.listing_id || null })}
                 disabled={results['convinter_get_listing_detail']?.loading}
               >
                 {results['convinter_get_listing_detail']?.loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
@@ -230,7 +236,10 @@ const Debug = () => {
               <Input placeholder="Level (1 or 2)" value={requestConsentParams.requested_level} onChange={e => setRequestConsentParams(p => ({ ...p, requested_level: e.target.value }))} />
               <Button
                 size="sm"
-                onClick={() => callRpc('convinter_request_consent', { p_to_user: requestConsentParams.to_user, p_requested_level: requestConsentParams.requested_level })}
+                onClick={() => callRpc('convinter_request_consent', { 
+                  p_to_user: requestConsentParams.to_user || null, 
+                  p_requested_level: requestConsentParams.requested_level ? Number(requestConsentParams.requested_level) : 1 
+                })}
                 disabled={results['convinter_request_consent']?.loading}
               >
                 {results['convinter_request_consent']?.loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
