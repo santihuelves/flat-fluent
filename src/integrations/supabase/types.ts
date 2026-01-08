@@ -408,6 +408,7 @@ export type Database = {
           bio: string | null
           city: string | null
           created_at: string | null
+          dealbreakers: string[] | null
           display_name: string | null
           handle: string | null
           languages: string[] | null
@@ -415,6 +416,7 @@ export type Database = {
           province_code: string | null
           selfie_verified: boolean | null
           selfie_verified_at: string | null
+          test_completed: boolean | null
           trust_badge:
             | Database["public"]["Enums"]["convinter_trust_badge"]
             | null
@@ -427,6 +429,7 @@ export type Database = {
           bio?: string | null
           city?: string | null
           created_at?: string | null
+          dealbreakers?: string[] | null
           display_name?: string | null
           handle?: string | null
           languages?: string[] | null
@@ -434,6 +437,7 @@ export type Database = {
           province_code?: string | null
           selfie_verified?: boolean | null
           selfie_verified_at?: string | null
+          test_completed?: boolean | null
           trust_badge?:
             | Database["public"]["Enums"]["convinter_trust_badge"]
             | null
@@ -448,6 +452,7 @@ export type Database = {
           bio?: string | null
           city?: string | null
           created_at?: string | null
+          dealbreakers?: string[] | null
           display_name?: string | null
           handle?: string | null
           languages?: string[] | null
@@ -455,6 +460,7 @@ export type Database = {
           province_code?: string | null
           selfie_verified?: boolean | null
           selfie_verified_at?: string | null
+          test_completed?: boolean | null
           trust_badge?:
             | Database["public"]["Enums"]["convinter_trust_badge"]
             | null
