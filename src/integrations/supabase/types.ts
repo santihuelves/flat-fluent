@@ -413,7 +413,13 @@ export type Database = {
           handle: string | null
           languages: string[] | null
           photo_url: string | null
+          full_test_completed: boolean | null
+          full_test_completed_at: string | null
+          full_test_requested_at: string | null
+          full_test_requested_by: string | null
           province_code: string | null
+          quick_test_completed: boolean | null
+          quick_test_completed_at: string | null
           selfie_verified: boolean | null
           selfie_verified_at: string | null
           test_completed: boolean | null
@@ -434,7 +440,13 @@ export type Database = {
           handle?: string | null
           languages?: string[] | null
           photo_url?: string | null
+          full_test_completed?: boolean | null
+          full_test_completed_at?: string | null
+          full_test_requested_at?: string | null
+          full_test_requested_by?: string | null
           province_code?: string | null
+          quick_test_completed?: boolean | null
+          quick_test_completed_at?: string | null
           selfie_verified?: boolean | null
           selfie_verified_at?: string | null
           test_completed?: boolean | null
@@ -457,7 +469,13 @@ export type Database = {
           handle?: string | null
           languages?: string[] | null
           photo_url?: string | null
+          full_test_completed?: boolean | null
+          full_test_completed_at?: string | null
+          full_test_requested_at?: string | null
+          full_test_requested_by?: string | null
           province_code?: string | null
+          quick_test_completed?: boolean | null
+          quick_test_completed_at?: string | null
           selfie_verified?: boolean | null
           selfie_verified_at?: string | null
           test_completed?: boolean | null
@@ -815,6 +833,10 @@ export type Database = {
       }
       convinter_request_consent: {
         Args: { p_requested_level?: number; p_to_user: string }
+        Returns: Json
+      }
+      convinter_request_full_test: {
+        Args: { p_target: string }
         Returns: Json
       }
       convinter_resolve_handle: { Args: { p_handle: string }; Returns: string }

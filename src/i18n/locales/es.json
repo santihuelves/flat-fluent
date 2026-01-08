@@ -147,6 +147,13 @@
   "test": {
     "title": "Test de Convivencia",
     "subtitle": "Responde honestamente. Esto nos ayuda a encontrar tu match perfecto.",
+    "modeSubtitle": "Elige entre test rápido o exhaustivo",
+    "modes": {
+      "quick": "Test rápido (~3 min)",
+      "full": "Test exhaustivo (~5-8 min)"
+    },
+    "tipQuick": "Rápido y orientativo. Úsalo si solo quieres una primera impresión.",
+    "tipFull": "Más de 30 preguntas para compatibilidad real. Recomendado.",
     "tip": "Responde como VIVES, no como te gustaría vivir.",
     "categories": {
       "cleaning": "Limpieza y orden",
@@ -154,12 +161,305 @@
       "social": "Social y visitas",
       "noise": "Ruido y convivencia",
       "expenses": "Gastos compartidos",
-      "lifestyle": "Estilo de vida"
+      "cooking": "Cocina y comida",
+      "lifestyle": "Estilo de vida",
+      "personality": "Personalidad y valores"
+    },
+    "common": {
+      "scale": {
+        "very_relaxed": "Muy relajado",
+        "relaxed": "Relajado",
+        "neutral": "Normal",
+        "organized": "Ordenado",
+        "very_organized": "Muy ordenado"
+      },
+      "tolerance": {
+        "low": "Muy baja",
+        "mid_low": "Baja",
+        "medium": "Media",
+        "mid_high": "Alta",
+        "high": "Muy alta"
+      },
+      "frequency": {
+        "rarely": "Casi nunca",
+        "sometimes": "A veces",
+        "often": "Frecuente",
+        "mostly": "Casi siempre",
+        "daily": "A diario",
+        "twice_week": "2 veces/semana",
+        "weekly": "Semanal",
+        "biweekly": "Quincenal"
+      },
+      "time": {
+        "before_7": "Antes de las 7:00",
+        "between_7_9": "7:00 - 9:00",
+        "between_9_11": "9:00 - 11:00",
+        "after_11": "Después de las 11:00",
+        "before_22": "Antes de las 22:00",
+        "between_22_24": "22:00 - 00:00",
+        "between_24_2": "00:00 - 02:00",
+        "after_2": "Después de las 02:00"
+      },
+      "binary": {
+        "yes": "Sí",
+        "no": "No"
+      }
+    },
+    "questions": {
+      "cleaning_level": {
+        "question": "¿Cómo describirías tu nivel de limpieza?"
+      },
+      "dishes_time": {
+        "question": "Si hay platos en el fregadero, ¿cuánto tardas en lavarlos?",
+        "options": {
+          "immediate": "Los lavo inmediatamente",
+          "same_day": "El mismo día",
+          "next_day": "Al día siguiente",
+          "whenever": "Cuando me acuerde"
+        }
+      },
+      "cleaning_common_frequency": {
+        "question": "¿Con qué frecuencia limpias zonas comunes?"
+      },
+      "cleaning_tolerance_mess": {
+        "question": "¿Qué tolerancia tienes al desorden ajeno?"
+      },
+      "cleaning_responsibility": {
+        "question": "¿Cómo prefieres organizar la limpieza?",
+        "options": {
+          "schedule": "Con turnos fijos",
+          "split": "Dividiendo zonas",
+          "spontaneous": "Cada uno cuando toca",
+          "service": "Servicio externo"
+        }
+      },
+      "wake_time": {
+        "question": "¿A qué hora sueles despertarte entre semana?"
+      },
+      "sleep_time": {
+        "question": "¿A qué hora sueles acostarte entre semana?"
+      },
+      "weekend_change": {
+        "question": "¿Cambias horarios en fin de semana?",
+        "options": {
+          "same": "Casi igual",
+          "later": "Un poco más tarde",
+          "much_later": "Mucho más tarde",
+          "depends": "Depende"
+        }
+      },
+      "noise_sensitivity": {
+        "question": "¿Qué tan sensible eres al ruido nocturno?"
+      },
+      "social_visits": {
+        "question": "¿Con qué frecuencia quieres visitas en casa?",
+        "options": {
+          "never": "Nunca o casi nunca",
+          "rarely": "Ocasionalmente (1-2/mes)",
+          "sometimes": "A veces (1/semana)",
+          "often": "Frecuente (varias/semana)"
+        }
+      },
+      "parties": {
+        "question": "¿Qué opinas de las fiestas en casa?",
+        "options": {
+          "never": "Prefiero que no haya",
+          "rarely": "Solo ocasiones especiales",
+          "sometimes": "De vez en cuando",
+          "often": "Me encanta organizar"
+        }
+      },
+      "sleepover_guests": {
+        "question": "¿Invitados que se queden a dormir?",
+        "options": {
+          "never": "Nunca",
+          "monthly": "Alguna vez al mes",
+          "weekly": "Una vez a la semana",
+          "often": "Varias veces por semana"
+        }
+      },
+      "social_common_areas": {
+        "question": "Uso de zonas comunes para socializar"
+      },
+      "social_preference": {
+        "question": "Prefieres convivir...",
+        "options": {
+          "independent": "Cada uno a su aire",
+          "balanced": "Balance entre juntos y separados",
+          "together": "Compartir mucho tiempo"
+        }
+      },
+      "noise_tolerance_general": {
+        "question": "Tolerancia general al ruido en casa"
+      },
+      "noise_music_tv": {
+        "question": "Música/TV en zonas comunes",
+        "options": {
+          "headphones": "Siempre con cascos",
+          "low_volume": "Volumen bajo",
+          "normal": "Volumen normal",
+          "loud_ok": "Volumen alto aceptable"
+        }
+      },
+      "noise_calls_common": {
+        "question": "Llamadas/videollamadas en zonas comunes",
+        "options": {
+          "avoid": "Prefiero evitarlas",
+          "short": "Cortas y puntuales",
+          "ok": "Sin problema",
+          "long": "Largas y frecuentes"
+        }
+      },
+      "noise_remote_work": {
+        "question": "Trabajo desde casa (ruido de reuniones)",
+        "options": {
+          "rare": "Raras veces",
+          "sometimes": "Algunas reuniones",
+          "often": "A menudo",
+          "daily_calls": "Reuniones diarias"
+        }
+      },
+      "expenses_split": {
+        "question": "¿Cómo dividir gastos comunes?",
+        "options": {
+          "equal": "50/50 siempre",
+          "proportional": "Proporcional a ingresos/hab.",
+          "per_use": "Según uso",
+          "other": "Otro acuerdo"
+        }
+      },
+      "expenses_shared_purchases": {
+        "question": "Compras comunes (comida/limpieza)",
+        "options": {
+          "separate": "Cada uno lo suyo",
+          "basics": "Solo básicos compartidos",
+          "most": "La mayoría compartidas",
+          "all": "Todo compartido"
+        }
+      },
+      "expenses_punctuality": {
+        "question": "Puntualidad en pagos",
+        "options": {
+          "strict": "Muy estricto (día exacto)",
+          "flexible_days": "Flexible unos días",
+          "flexible_week": "Flexible hasta 1 semana",
+          "very_flexible": "Muy flexible"
+        }
+      },
+      "expenses_tracking": {
+        "question": "Control de gastos",
+        "options": {
+          "app": "App de gastos",
+          "sheet": "Hoja compartida",
+          "trust": "Confianza / memoria",
+          "cash": "Caja común/efectivo"
+        }
+      },
+      "cooking_shared": {
+        "question": "¿Comida compartida o separada?",
+        "options": {
+          "separate": "Totalmente separado",
+          "sometimes": "A veces juntos",
+          "weekly": "Alguna comida semanal",
+          "often": "A menudo compartido"
+        }
+      },
+      "cooking_frequency": {
+        "question": "Frecuencia con la que cocinas",
+        "options": {
+          "few_week": "Pocas veces por semana",
+          "twice_daily": "Dos veces al día"
+        }
+      },
+      "cooking_order": {
+        "question": "Orden y limpieza en cocina"
+      },
+      "cooking_diet": {
+        "question": "Dietas/restricciones que afectan a la convivencia",
+        "options": {
+          "none": "Ninguna",
+          "preferences": "Preferencias leves",
+          "vegetarian": "Vegetariano",
+          "vegan": "Vegano",
+          "allergies": "Alergias/intolerancias"
+        }
+      },
+      "lifestyle_smoking": {
+        "question": "¿Fumas?",
+        "options": {
+          "outdoor": "Solo fuera",
+          "indoor": "También dentro",
+          "cannabis": "Cannabis ocasional"
+        }
+      },
+      "lifestyle_pets": {
+        "question": "Mascotas",
+        "options": {
+          "none": "No tengo",
+          "have": "Tengo",
+          "want": "Quiero tener",
+          "allergic": "Alergia a mascotas"
+        }
+      },
+      "lifestyle_home_workout": {
+        "question": "Actividad física en casa",
+        "options": {
+          "intense": "Entreno intenso en casa"
+        }
+      },
+      "remote_work_freq": {
+        "question": "Frecuencia de teletrabajo",
+        "options": {
+          "few_week": "Algunas veces/semana",
+          "most_week": "Casi toda la semana",
+          "full_remote": "100% remoto"
+        }
+      },
+      "personality_intro_extro": {
+        "question": "¿Te consideras introvertido o extrovertido?",
+        "options": {
+          "introvert": "Introvertido",
+          "balanced": "Equilibrado",
+          "extrovert": "Extrovertido"
+        }
+      },
+      "personality_conflict": {
+        "question": "Cómo prefieres comunicar problemas",
+        "options": {
+          "direct": "Directo y rápido",
+          "talk": "Hablar con calma",
+          "message": "Mensaje primero",
+          "avoid": "Prefiero evitar conflictos"
+        }
+      },
+      "personality_flexibility": {
+        "question": "Flexibilidad ante cambios y normas"
+      }
     },
     "dealbreakers": {
       "title": "Líneas rojas",
-      "subtitle": "Estas son cosas que NO negociamos"
+      "subtitle": "Cosas que NO negociamos",
+      "items": {
+        "no_smokers": "No fumadores",
+        "no_pets": "No mascotas",
+        "no_parties": "No fiestas",
+        "no_overnight_guests": "No invitados que pernocten frecuentemente",
+        "silence_after_23": "Silencio absoluto después de las 23h",
+        "no_drugs": "No drogas de ningún tipo",
+        "single_gender_only": "Solo convivir con un género",
+        "no_couples_staying": "No parejas quedándose a menudo",
+        "strict_cleaning": "Limpieza exhaustiva obligatoria",
+        "strict_50_50": "Gastos siempre 50/50 estricto",
+        "no_remote_calls": "No teletrabajo con reuniones en casa",
+        "veg_only_kitchen": "Cocina común solo vegetariana/vegana"
+      }
     },
+    "success": "¡Test guardado!",
+    "errors": {
+      "auth": "Debes iniciar sesión para guardar el test",
+      "generic": "Error al guardar el test. Intenta de nuevo."
+    },
+    "saving": "Guardando...",
     "complete": "Completar test",
     "next": "Siguiente",
     "prev": "Anterior"
