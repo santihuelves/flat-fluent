@@ -1,6 +1,6 @@
 import { Layout } from '@/components/layout/Layout';
 import { motion } from 'framer-motion';
-import { Search, MapPin, Euro, Filter, Heart, X, Star, ChevronDown, RotateCcw, Lock, Loader2 } from 'lucide-react';
+import { Search, MapPin, Euro, Filter, Heart, X, Star, ChevronDown, RotateCcw, Lock, Loader2, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -25,6 +25,8 @@ interface ProfileData {
   selfie_verified: boolean;
   bio: string | null;
   languages: string[];
+  quick_test_completed?: boolean;
+  full_test_completed?: boolean;
 }
 
 interface CompatibilityData {
@@ -173,6 +175,26 @@ export default function Discover() {
     } catch (error) {
       console.error('Error requesting consent:', error);
       toast.error('Error al enviar solicitud');
+    }
+  };
+
+  const handleRequestFullTest = async () => {
+    if (!currentProfile) return;
+    
+    try {
+      const { data, error } = await supabase.rpc('convinter_request_full_test', {
+        p_target: currentProfile.user_id
+      });
+
+      if (error) throw error;
+
+      const result = data as unknown as { ok: boolean };
+      if (result.ok) {
+        toast.success('Solicitud de test exhaustivo enviada');
+      }
+    } catch (error) {
+      console.error('Error requesting full test:', error);
+      toast.error('Error al solicitar test exhaustivo');
     }
   };
 
@@ -456,6 +478,19 @@ export default function Discover() {
                       ✓ Selfie verificado
                     </Badge>
                   )}
+                  {currentProfile.full_test_completed ? (
+                    <Badge variant="default" className="rounded-full bg-success/20 text-success border-success/30">
+                      ✓ Test exhaustivo
+                    </Badge>
+                  ) : currentProfile.quick_test_completed ? (
+                    <Badge variant="default" className="rounded-full bg-primary/20 text-primary border-primary/30">
+                      ✓ Test rápido
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="rounded-full text-muted-foreground">
+                      Sin test
+                    </Badge>
+                  )}
                   {currentProfile.languages?.map((lang, i) => (
                     <Badge key={i} variant="outline" className="rounded-full">
                       {lang}
@@ -515,6 +550,23 @@ export default function Discover() {
                       onClick={handleRequestConsent}
                     >
                       Solicitar compatibilidad
+                    </Button>
+                  </div>
+                )}
+
+                {/* Request Full Test */}
+                {currentProfile.quick_test_completed && !currentProfile.full_test_completed && (
+                  <div className="p-4 rounded-lg bg-primary/10 border border-primary/30 text-center">
+                    <FileText className="h-8 w-8 mx-auto mb-2 text-primary" />
+                    <p className="text-sm text-muted-foreground mb-3">
+                      Este usuario solo ha completado el test rápido. Puedes pedirle que complete el exhaustivo para mayor precisión.
+                    </p>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={handleRequestFullTest}
+                    >
+                      Solicitar test exhaustivo
                     </Button>
                   </div>
                 )}
