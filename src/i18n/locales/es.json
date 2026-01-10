@@ -142,7 +142,24 @@
     "cropImage": "Recortar imagen",
     "zoom": "Zoom",
     "confirm": "Confirmar",
-    "dragToReorder": "Arrastra para reordenar. La primera foto será la principal."
+    "dragToReorder": "Arrastra para reordenar. La primera foto será la principal.",
+    "verified": "Verificado",
+    "trustScore": "Puntuación de Confianza",
+    "trustBadges": {
+      "gold": "Gold",
+      "silver": "Silver",
+      "bronze": "Bronze"
+    },
+    "testQuickCompleted": "Test rápido completado",
+    "testQuickPending": "Test rápido pendiente",
+    "testFullCompleted": "Test exhaustivo completado",
+    "testFullPending": "Test exhaustivo pendiente",
+    "testFullRequested": "Alguien ha solicitado que completes el test exhaustivo",
+    "testFullRequestedDate": "Solicitud recibida el",
+    "completeQuickTest": "Completar test rápido",
+    "completeFullTest": "Completar test exhaustivo",
+    "errorLoading": "Error al cargar el perfil",
+    "errorCreating": "Error al crear el perfil"
   },
   "test": {
     "title": "Test de Convivencia",
@@ -512,6 +529,18 @@
     "friction": "Posibles fricciones",
     "chat": "Chatear"
   },
+  "discover": {
+    "filters": {
+      "allIntentions": "Todas",
+      "selected": "seleccionadas",
+      "intentionTitle": "Tipo de búsqueda",
+      "intentions": {
+        "seek_room": "Busca habitación",
+        "offer_room": "Ofrece habitación",
+        "seek_flatmate": "Busca compañero"
+      }
+    }
+  },
   "common": {
     "loading": "Cargando...",
     "error": "Ha ocurrido un error",
@@ -526,7 +555,14 @@
     "search": "Buscar",
     "noResults": "Sin resultados",
     "verified": "Verificado",
-    "months": "meses"
+    "months": "meses",
+    "primary": "Principal"
+  },
+  "errors": {
+    "generic": "Ha ocurrido un error. Por favor, inténtalo de nuevo.",
+    "auth": "Debes iniciar sesión para continuar",
+    "dataFetch": "Error al cargar los datos",
+    "operation": "Error al realizar la operación"
   },
   "onboarding": {
     "step": "Paso",
@@ -539,9 +575,14 @@
     "step1": {
       "title": "¿Qué estás buscando?",
       "subtitle": "Cuéntanos qué tipo de alojamiento necesitas",
+      "multipleHint": "Puedes seleccionar múltiples opciones",
       "seekingRoom": "Busco habitación",
+      "seekingRoomDesc": "Quiero alquilar una habitación en un piso compartido",
       "offeringRoom": "Ofrezco habitación",
-      "seekingRoommate": "Busco compañero/a para alquilar piso"
+      "offeringRoomDesc": "Tengo una habitación disponible para alquilar",
+      "seekingRoommate": "Busco compañero/a para alquilar piso",
+      "seekingRoommateDesc": "Quiero encontrar personas para alquilar un piso completo juntos",
+      "makePrimary": "Marcar como principal"
     },
     "step2": {
       "title": "¿Dónde quieres vivir?",

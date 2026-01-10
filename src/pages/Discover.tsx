@@ -1,6 +1,6 @@
 import { Layout } from '@/components/layout/Layout';
 import { motion } from 'framer-motion';
-import { Search, MapPin, Euro, Filter, Heart, X, Star, ChevronDown, RotateCcw, Lock, Loader2, FileText } from 'lucide-react';
+import { Search, MapPin, Euro, Filter, Heart, X, Star, ChevronDown, RotateCcw, Lock, Loader2, FileText, Home, Key, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -9,6 +9,8 @@ import { useState, useEffect } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Slider } from '@/components/ui/slider';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Checkbox } from '@/components/ui/checkbox';
+import { IntentionBadges } from '@/components/IntentionBadge';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
@@ -27,6 +29,11 @@ interface ProfileData {
   languages: string[];
   quick_test_completed?: boolean;
   full_test_completed?: boolean;
+  intentions?: Array<{
+    intention_type: 'seek_room' | 'offer_room' | 'seek_flatmate';
+    is_primary: boolean;
+    urgency: string;
+  }>;
 }
 
 interface CompatibilityData {
@@ -62,8 +69,10 @@ export default function Discover() {
   const [selectedCity, setSelectedCity] = useState<string | null>(null);
   const [priceRange, setPriceRange] = useState<[number, number]>([200, 800]);
   const [minTrustScore, setMinTrustScore] = useState(0);
+  const [selectedIntentions, setSelectedIntentions] = useState<string[]>([]);
   const [cityOpen, setCityOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
+  const [intentionOpen, setIntentionOpen] = useState(false);
 
   // Load profiles from backend
   useEffect(() => {
@@ -143,15 +152,27 @@ export default function Discover() {
     }
   }, [currentIndex, profiles]);
 
-  // Filter profiles by search term
+  // Filter profiles by search term and intentions
   const filteredProfiles = profiles.filter(profile => {
-    if (!searchTerm) return true;
-    const search = searchTerm.toLowerCase();
-    return (
-      profile.display_name?.toLowerCase().includes(search) ||
-      profile.handle?.toLowerCase().includes(search) ||
-      profile.city?.toLowerCase().includes(search)
-    );
+    // Search term filter
+    if (searchTerm) {
+      const search = searchTerm.toLowerCase();
+      const matchesSearch = profile.display_name?.toLowerCase().includes(search) ||
+                           profile.handle?.toLowerCase().includes(search) ||
+                           profile.city?.toLowerCase().includes(search);
+      if (!matchesSearch) return false;
+    }
+    
+    // Intentions filter
+    if (selectedIntentions.length > 0) {
+      const profileIntentionTypes = profile.intentions?.map(i => i.intention_type) || [];
+      const hasMatchingIntention = selectedIntentions.some(selected => 
+        profileIntentionTypes.includes(selected as any)
+      );
+      if (!hasMatchingIntention) return false;
+    }
+    
+    return true;
   });
 
   const currentProfile = filteredProfiles[currentIndex];
@@ -216,14 +237,23 @@ export default function Discover() {
     }, 300);
   };
 
+  const handleIntentionToggle = (intentionType: string) => {
+    setSelectedIntentions(prev => 
+      prev.includes(intentionType)
+        ? prev.filter(i => i !== intentionType)
+        : [...prev, intentionType]
+    );
+  };
+
   const clearFilters = () => {
     setSearchTerm('');
     setSelectedCity(null);
     setPriceRange([200, 800]);
     setMinTrustScore(0);
+    setSelectedIntentions([]);
   };
 
-  const hasActiveFilters = searchTerm || selectedCity || priceRange[0] !== 200 || priceRange[1] !== 800 || minTrustScore > 0;
+  const hasActiveFilters = searchTerm || selectedCity || priceRange[0] !== 200 || priceRange[1] !== 800 || minTrustScore > 0 || selectedIntentions.length > 0;
 
   const getTrustBadgeColor = (badge: string) => {
     switch (badge) {
@@ -289,6 +319,48 @@ export default function Discover() {
                     </CommandGroup>
                   </CommandList>
                 </Command>
+              </PopoverContent>
+            </Popover>
+
+            {/* Intention Type Filter */}
+            <Popover open={intentionOpen} onOpenChange={setIntentionOpen}>
+              <PopoverTrigger asChild>
+                <Button variant={selectedIntentions.length > 0 ? "default" : "outline"} className="gap-2 min-w-[140px] justify-between">
+                  <div className="flex items-center gap-2">
+                    <Users className="h-4 w-4" />
+                    <span>
+                      {selectedIntentions.length === 0 
+                        ? t('discover.filters.allIntentions')
+                        : selectedIntentions.length === 1
+                          ? t(`discover.filters.intentions.${selectedIntentions[0]}`)
+                          : `${selectedIntentions.length} ${t('discover.filters.selected')}`
+                      }
+                    </span>
+                  </div>
+                  <ChevronDown className="h-4 w-4 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[280px] bg-popover z-50" align="start">
+                <div className="space-y-3">
+                  <div className="font-semibold text-sm">{t('discover.filters.intentionTitle')}</div>
+                  {[
+                    { type: 'seek_room', icon: Home, label: t('discover.filters.intentions.seek_room') },
+                    { type: 'offer_room', icon: Key, label: t('discover.filters.intentions.offer_room') },
+                    { type: 'seek_flatmate', icon: Users, label: t('discover.filters.intentions.seek_flatmate') },
+                  ].map(({ type, icon: Icon, label }) => (
+                    <label
+                      key={type}
+                      className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
+                    >
+                      <Checkbox
+                        checked={selectedIntentions.includes(type)}
+                        onCheckedChange={() => handleIntentionToggle(type)}
+                      />
+                      <Icon className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm">{label}</span>
+                    </label>
+                  ))}
+                </div>
               </PopoverContent>
             </Popover>
 
@@ -471,6 +543,13 @@ export default function Discover() {
 
               {/* Content */}
               <div className="p-6 space-y-4">
+                {/* Intentions */}
+                {currentProfile.intentions && currentProfile.intentions.length > 0 && (
+                  <div>
+                    <IntentionBadges intentions={currentProfile.intentions} variant="compact" />
+                  </div>
+                )}
+
                 {/* Trust & Verification Tags */}
                 <div className="flex flex-wrap gap-2">
                   {currentProfile.selfie_verified && (

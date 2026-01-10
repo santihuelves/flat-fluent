@@ -12,10 +12,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
-type UserType = 'seeking_room' | 'offering_room' | 'seeking_roommate';
+type IntentionType = 'seek_room' | 'offer_room' | 'seek_flatmate';
 
 interface OnboardingData {
-  userType: UserType | null;
+  intentions: IntentionType[];
+  primaryIntention: IntentionType | null;
   autonomousCommunity: string;
   province: string;
   city: string;
@@ -25,6 +26,7 @@ interface OnboardingData {
   minStayMonths: string;
   languages: string[];
   occupation: string;
+  urgency: 'urgent' | 'soon' | 'flexible' | 'exploring';
 }
 
 const AUTONOMOUS_COMMUNITIES = [
@@ -72,7 +74,8 @@ const Onboarding = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const [data, setData] = useState<OnboardingData>({
-    userType: null,
+    intentions: [],
+    primaryIntention: null,
     autonomousCommunity: '',
     province: '',
     city: '',
@@ -82,6 +85,7 @@ const Onboarding = () => {
     minStayMonths: '',
     languages: [],
     occupation: '',
+    urgency: 'flexible',
   });
 
   const totalSteps = 4;
@@ -97,8 +101,33 @@ const Onboarding = () => {
     checkAuth();
   }, [navigate]);
 
-  const handleUserTypeSelect = (type: UserType) => {
-    setData(prev => ({ ...prev, userType: type }));
+  const handleIntentionToggle = (type: IntentionType) => {
+    setData(prev => {
+      const isSelected = prev.intentions.includes(type);
+      const newIntentions = isSelected
+        ? prev.intentions.filter(t => t !== type)
+        : [...prev.intentions, type];
+      
+      // Si deseleccionamos la intención primaria, asignar otra como primaria
+      let newPrimaryIntention = prev.primaryIntention;
+      if (isSelected && prev.primaryIntention === type) {
+        newPrimaryIntention = newIntentions[0] || null;
+      }
+      // Si es la primera intención, hacerla primaria automáticamente
+      else if (!prev.primaryIntention && newIntentions.length === 1) {
+        newPrimaryIntention = newIntentions[0];
+      }
+      
+      return {
+        ...prev,
+        intentions: newIntentions,
+        primaryIntention: newPrimaryIntention
+      };
+    });
+  };
+
+  const handlePrimaryIntentionSelect = (type: IntentionType) => {
+    setData(prev => ({ ...prev, primaryIntention: type }));
   };
 
   const handleLanguageToggle = (langId: string) => {
@@ -113,7 +142,7 @@ const Onboarding = () => {
   const canProceed = () => {
     switch (currentStep) {
       case 1:
-        return data.userType !== null;
+        return data.intentions.length > 0;
       case 2:
         return data.autonomousCommunity !== '';
       case 3:
@@ -142,33 +171,58 @@ const Onboarding = () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
-        toast.error(t('common.error'));
+        toast.error(t('errors.auth'));
         return;
       }
 
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          user_type: data.userType,
-          autonomous_community: data.autonomousCommunity,
-          province: data.province,
-          city: data.city,
+      // 1. Actualizar perfil básico (convinter_profiles o profiles según tu esquema)
+      const { error: profileError } = await supabase
+        .from('convinter_profiles')
+        .upsert({
+          user_id: session.user.id,
+          city: data.city || null,
+          province_code: data.province || null,
+          languages: data.languages,
+        });
+
+      if (profileError) {
+        console.error('Error updating profile:', profileError);
+        throw profileError;
+      }
+
+      // 2. Guardar cada intención usando el RPC
+      for (const intention of data.intentions) {
+        const isPrimary = intention === data.primaryIntention;
+        const intentionDetails = {
           budget_min: data.budgetMin ? parseInt(data.budgetMin) : null,
           budget_max: data.budgetMax ? parseInt(data.budgetMax) : null,
           move_in_date: data.moveInDate || null,
           min_stay_months: data.minStayMonths ? parseInt(data.minStayMonths) : null,
-          languages: data.languages,
           occupation: data.occupation || null,
-          onboarding_completed: true,
-        })
-        .eq('id', session.user.id);
+          autonomous_community: data.autonomousCommunity || null,
+        };
 
-      if (error) throw error;
+        const { data: rpcData, error: intentionError } = await supabase.rpc('convinter_set_intention', {
+          p_intention_type: intention,
+          p_is_primary: isPrimary,
+          p_urgency: data.urgency || 'flexible',
+          p_details: intentionDetails
+        });
+
+        if (intentionError) {
+          console.error(`Error setting intention ${intention}:`, intentionError);
+          console.error('RPC Error details:', JSON.stringify(intentionError, null, 2));
+          toast.error(t('errors.operation') + ': ' + (intentionError.message || 'Unknown error'));
+          throw intentionError;
+        }
+
+        console.log(`Intention ${intention} saved successfully:`, rpcData);
+      }
 
       toast.success(t('onboarding.success'));
       navigate(goToTest ? '/test' : '/discover');
     } catch (error) {
-      console.error('Error saving profile:', error);
+      console.error('Error completing onboarding:', error);
       toast.error(t('common.error'));
     } finally {
       setIsLoading(false);
@@ -183,31 +237,63 @@ const Onboarding = () => {
             <div className="text-center mb-8">
               <h2 className="text-2xl font-bold text-foreground mb-2">{t('onboarding.step1.title')}</h2>
               <p className="text-muted-foreground">{t('onboarding.step1.subtitle')}</p>
+              <p className="text-sm text-muted-foreground mt-2">💡 {t('onboarding.step1.multipleHint')}</p>
             </div>
             <div className="grid gap-4">
               {[
-                { type: 'seeking_room' as UserType, icon: Home, label: t('onboarding.step1.seekingRoom') },
-                { type: 'offering_room' as UserType, icon: Key, label: t('onboarding.step1.offeringRoom') },
-                { type: 'seeking_roommate' as UserType, icon: Users, label: t('onboarding.step1.seekingRoommate') },
-              ].map(({ type, icon: Icon, label }) => (
-                <button
-                  key={type}
-                  onClick={() => handleUserTypeSelect(type)}
-                  className={`flex items-center gap-4 p-6 rounded-xl border-2 transition-all ${
-                    data.userType === type
-                      ? 'border-primary bg-primary/10 shadow-md'
-                      : 'border-border hover:border-primary/50 hover:bg-muted/50'
-                  }`}
-                >
-                  <div className={`p-3 rounded-full ${data.userType === type ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
-                    <Icon className="h-6 w-6" />
-                  </div>
-                  <span className="text-lg font-medium">{label}</span>
-                  {data.userType === type && (
-                    <Check className="h-5 w-5 text-primary ml-auto" />
-                  )}
-                </button>
-              ))}
+                { type: 'seek_room' as IntentionType, icon: Home, label: t('onboarding.step1.seekingRoom'), desc: t('onboarding.step1.seekingRoomDesc') },
+                { type: 'offer_room' as IntentionType, icon: Key, label: t('onboarding.step1.offeringRoom'), desc: t('onboarding.step1.offeringRoomDesc') },
+                { type: 'seek_flatmate' as IntentionType, icon: Users, label: t('onboarding.step1.seekingRoommate'), desc: t('onboarding.step1.seekingRoommateDesc') },
+              ].map(({ type, icon: Icon, label, desc }) => {
+                const isSelected = data.intentions.includes(type);
+                const isPrimary = data.primaryIntention === type;
+                
+                return (
+                  <button
+                    key={type}
+                    onClick={() => handleIntentionToggle(type)}
+                    className={`flex flex-col gap-3 p-5 rounded-xl border-2 transition-all text-left relative ${
+                      isSelected
+                        ? 'border-primary bg-primary/10 shadow-md'
+                        : 'border-border hover:border-primary/50 hover:bg-muted/50'
+                    }`}
+                  >
+                    <div className="flex items-start gap-4">
+                      <div className={`p-3 rounded-full flex-shrink-0 ${isSelected ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
+                        <Icon className="h-6 w-6" />
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-lg font-medium">{label}</span>
+                          {isSelected && (
+                            <Check className="h-5 w-5 text-primary" />
+                          )}
+                          {isPrimary && (
+                            <span className="px-2 py-0.5 text-xs font-medium bg-primary text-primary-foreground rounded-full">
+                              {t('common.primary')}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-sm text-muted-foreground mt-1">{desc}</p>
+                      </div>
+                    </div>
+                    
+                    {/* Botón para marcar como primaria */}
+                    {isSelected && !isPrimary && data.intentions.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handlePrimaryIntentionSelect(type);
+                        }}
+                        className="text-xs text-primary hover:underline self-start ml-16"
+                      >
+                        {t('onboarding.step1.makePrimary')}
+                      </button>
+                    )}
+                  </button>
+                );
+              })}
             </div>
           </div>
         );

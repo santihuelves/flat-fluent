@@ -142,7 +142,24 @@
     "cropImage": "Crop image",
     "zoom": "Zoom",
     "confirm": "Confirm",
-    "dragToReorder": "Drag to reorder. The first photo will be the main one."
+    "dragToReorder": "Drag to reorder. The first photo will be the main one.",
+    "verified": "Verified",
+    "trustScore": "Trust Score",
+    "trustBadges": {
+      "gold": "Gold",
+      "silver": "Silver",
+      "bronze": "Bronze"
+    },
+    "testQuickCompleted": "Quick test completed",
+    "testQuickPending": "Quick test pending",
+    "testFullCompleted": "Full test completed",
+    "testFullPending": "Full test pending",
+    "testFullRequested": "Someone has requested you complete the full test",
+    "testFullRequestedDate": "Request received on",
+    "completeQuickTest": "Complete quick test",
+    "completeFullTest": "Complete full test",
+    "errorLoading": "Error loading profile",
+    "errorCreating": "Error creating profile"
   },
   "test": {
     "title": "Cohabitation Test",
@@ -512,6 +529,18 @@
     "friction": "Possible friction",
     "chat": "Chat"
   },
+  "discover": {
+    "filters": {
+      "allIntentions": "All",
+      "selected": "selected",
+      "intentionTitle": "Search type",
+      "intentions": {
+        "seek_room": "Looking for room",
+        "offer_room": "Offering room",
+        "seek_flatmate": "Looking for flatmate"
+      }
+    }
+  },
   "common": {
     "loading": "Loading...",
     "error": "An error occurred",
@@ -526,7 +555,14 @@
     "search": "Search",
     "noResults": "No results",
     "verified": "Verified",
-    "months": "months"
+    "months": "months",
+    "primary": "Primary"
+  },
+  "errors": {
+    "generic": "An error occurred. Please try again.",
+    "auth": "You must log in to continue",
+    "dataFetch": "Error loading data",
+    "operation": "Error performing operation"
   },
   "onboarding": {
     "step": "Step",
@@ -539,9 +575,14 @@
     "step1": {
       "title": "What are you looking for?",
       "subtitle": "Tell us what type of accommodation you need",
+      "multipleHint": "You can select multiple options",
       "seekingRoom": "Looking for a room",
+      "seekingRoomDesc": "I want to rent a room in a shared flat",
       "offeringRoom": "Offering a room",
-      "seekingRoommate": "Looking for a roommate to rent together"
+      "offeringRoomDesc": "I have a room available to rent",
+      "seekingRoommate": "Looking for a roommate to rent together",
+      "seekingRoommateDesc": "I want to find people to rent a complete flat together",
+      "makePrimary": "Make primary"
     },
     "step2": {
       "title": "Where do you want to live?",

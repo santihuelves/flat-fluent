@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { motion } from 'framer-motion';
 import { User, Camera, MapPin, FileText, Edit2, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
@@ -8,6 +8,7 @@ import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { EditProfileSheet } from '@/components/profile/EditProfileSheet';
+import { toast } from 'sonner';
 
 interface ProfileData {
   user_id: string;
@@ -37,11 +38,13 @@ export default function Profile() {
   const [loading, setLoading] = useState(true);
   const [editOpen, setEditOpen] = useState(false);
 
-  const fetchProfile = async () => {
+  const fetchProfile = useCallback(async () => {
     try {
+      setLoading(true);
       const { data: { user } } = await supabase.auth.getUser();
       
       if (!user) {
+        toast.error(t('errors.auth'));
         navigate('/login');
         return;
       }
@@ -58,30 +61,38 @@ export default function Profile() {
           .from('convinter_profiles')
           .insert({
             user_id: user.id,
-            display_name: user.email?.split('@')[0] || 'Usuario'
+            display_name: user.email?.split('@')[0] || t('profile.noName')
           })
           .select()
           .single();
         
-        if (!insertError) {
-          data = newProfile;
-        } else {
+        if (insertError) {
           console.error('Error creating profile:', insertError);
+          toast.error(t('profile.errorCreating'));
+          throw insertError;
         }
+        
+        data = newProfile;
       }
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching profile:', error);
+        toast.error(t('profile.errorLoading'));
+        throw error;
+      }
+      
       setProfile(data as ProfileData);
     } catch (error) {
-      console.error('Error fetching profile:', error);
+      console.error('Unexpected error in fetchProfile:', error);
+      toast.error(t('common.error'));
     } finally {
       setLoading(false);
     }
-  };
+  }, [navigate, t]);
 
   useEffect(() => {
     fetchProfile();
-  }, [navigate]);
+  }, [fetchProfile]);
 
   if (loading) {
     return (
@@ -160,14 +171,14 @@ export default function Profile() {
                   )}
                   {profile.selfie_verified && (
                     <Badge variant="secondary" className="rounded-full">
-                      ✓ Verificado
+                      ✓ {t('profile.verified')}
                     </Badge>
                   )}
                   {profile.trust_badge && profile.trust_badge !== 'none' && (
                     <Badge variant="outline" className="rounded-full">
-                      {profile.trust_badge === 'gold' && '🏆 Gold'}
-                      {profile.trust_badge === 'silver' && '🥈 Silver'}
-                      {profile.trust_badge === 'bronze' && '🥉 Bronze'}
+                      {profile.trust_badge === 'gold' && `🏆 ${t('profile.trustBadges.gold')}`}
+                      {profile.trust_badge === 'silver' && `🥈 ${t('profile.trustBadges.silver')}`}
+                      {profile.trust_badge === 'bronze' && `🥉 ${t('profile.trustBadges.bronze')}`}
                     </Badge>
                   )}
                 </div>
@@ -197,7 +208,7 @@ export default function Profile() {
 
               {/* Trust Score */}
               <div>
-                <h3 className="text-sm font-semibold text-muted-foreground mb-2">Puntuación de Confianza</h3>
+                <h3 className="text-sm font-semibold text-muted-foreground mb-2">{t('profile.trustScore')}</h3>
                 <div className="flex items-center gap-2">
                   <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
                     <div 
@@ -238,17 +249,17 @@ export default function Profile() {
                   {profile.quick_test_completed ? (
                     <div className="flex items-center gap-2 text-sm">
                       <CheckCircle className="h-4 w-4 text-success" />
-                      <span>Test rápido completado</span>
+                      <span>{t('profile.testQuickCompleted')}</span>
                       {profile.quick_test_completed_at && (
                         <span className="text-muted-foreground text-xs">
-                          ({new Date(profile.quick_test_completed_at).toLocaleDateString('es')})
+                          ({new Date(profile.quick_test_completed_at).toLocaleDateString()})
                         </span>
                       )}
                     </div>
                   ) : (
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <AlertCircle className="h-4 w-4" />
-                      <span>Test rápido pendiente</span>
+                      <span>{t('profile.testQuickPending')}</span>
                     </div>
                   )}
                 </div>
@@ -258,17 +269,17 @@ export default function Profile() {
                   {profile.full_test_completed ? (
                     <div className="flex items-center gap-2 text-sm">
                       <CheckCircle className="h-4 w-4 text-success" />
-                      <span>Test exhaustivo completado</span>
+                      <span>{t('profile.testFullCompleted')}</span>
                       {profile.full_test_completed_at && (
                         <span className="text-muted-foreground text-xs">
-                          ({new Date(profile.full_test_completed_at).toLocaleDateString('es')})
+                          ({new Date(profile.full_test_completed_at).toLocaleDateString()})
                         </span>
                       )}
                     </div>
                   ) : (
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <AlertCircle className="h-4 w-4" />
-                      <span>Test exhaustivo pendiente</span>
+                      <span>{t('profile.testFullPending')}</span>
                     </div>
                   )}
                 </div>
@@ -277,10 +288,10 @@ export default function Profile() {
                 {profile.full_test_requested_at && !profile.full_test_completed && (
                   <div className="mt-3 p-3 rounded-lg bg-primary/10 border border-primary/30">
                     <p className="text-sm text-primary font-medium">
-                      💬 Alguien ha solicitado que completes el test exhaustivo
+                      💬 {t('profile.testFullRequested')}
                     </p>
                     <p className="text-xs text-muted-foreground mt-1">
-                      Solicitud recibida el {new Date(profile.full_test_requested_at).toLocaleDateString('es')}
+                      {t('profile.testFullRequestedDate')} {new Date(profile.full_test_requested_at).toLocaleDateString()}
                     </p>
                   </div>
                 )}
@@ -291,7 +302,7 @@ export default function Profile() {
                     <Link to="/test">
                       <Button variant="hero" size="sm" className="gap-2">
                         <FileText className="h-4 w-4" />
-                        Completar test rápido
+                        {t('profile.completeQuickTest')}
                       </Button>
                     </Link>
                   )}
@@ -299,7 +310,7 @@ export default function Profile() {
                     <Link to="/test">
                       <Button variant="outline" size="sm" className="gap-2">
                         <FileText className="h-4 w-4" />
-                        Completar test exhaustivo
+                        {t('profile.completeFullTest')}
                       </Button>
                     </Link>
                   )}
