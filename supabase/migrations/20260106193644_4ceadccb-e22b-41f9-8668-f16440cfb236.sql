@@ -1,9 +1,10 @@
 -- Insert missing profile for current user
-INSERT INTO public.profiles (id, name, created_at, updated_at)
-VALUES (
-  '70cf6bbe-be1d-4fb2-93e6-0bbc089b90a7',
-  'santihuelves',
-  now(),
-  now()
-)
-ON CONFLICT (id) DO NOTHING;
+-- COMENTADO: Este usuario no existe en auth.users
+-- INSERT INTO public.profiles (id, name, created_at, updated_at)
+-- VALUES (
+--   '70cf6bbe-be1d-4fb2-93e6-0bbc089b90a7',
+--   'santihuelves',
+--   now(),
+--   now()
+-- )
+-- ON CONFLICT (id) DO NOTHING;
