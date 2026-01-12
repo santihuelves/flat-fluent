@@ -10,23 +10,26 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useTranslation } from 'react-i18next';
 import { ImageCropperDialog } from './ImageCropperDialog';
-import { Reorder } from 'framer-motion';
 
 interface ProfileData {
-  id: string;
-  name: string | null;
+  user_id: string;
+  display_name: string | null;
+  handle: string | null;
   bio: string | null;
-  occupation: string | null;
-  autonomous_community: string | null;
-  province: string | null;
-  city: string | null;
-  neighborhoods: string[] | null;
-  budget_min: number | null;
-  budget_max: number | null;
-  move_in_date: string | null;
-  min_stay_months: number | null;
+  photo_url: string | null;
   languages: string[] | null;
-  photos: string[] | null;
+  city: string | null;
+  province_code: string | null;
+  test_completed: boolean | null;
+  quick_test_completed?: boolean | null;
+  quick_test_completed_at?: string | null;
+  full_test_completed?: boolean | null;
+  full_test_completed_at?: string | null;
+  full_test_requested_at?: string | null;
+  full_test_requested_by?: string | null;
+  trust_score: number;
+  trust_badge: string;
+  selfie_verified: boolean;
 }
 
 interface EditProfileSheetProps {
@@ -36,17 +39,7 @@ interface EditProfileSheetProps {
   onProfileUpdated: () => void;
 }
 
-const AVAILABLE_LANGUAGES = ['Español', 'Inglés', 'Francés', 'Alemán', 'Italiano', 'Portugués', 'Chino', 'Árabe'];
-
-const NEIGHBORHOODS_BY_CITY: Record<string, string[]> = {
-  'Madrid': ['Malasaña', 'Chueca', 'Lavapiés', 'Salamanca', 'Chamberí', 'Retiro', 'Tetuán', 'Usera', 'Vallecas', 'Moncloa', 'Arganzuela', 'Chamartín', 'La Latina'],
-  'Barcelona': ['Gràcia', 'El Born', 'Raval', 'Eixample', 'Poble Sec', 'Sant Antoni', 'Sants', 'Barceloneta', 'Les Corts', 'Sarrià', 'Horta', 'Poblenou'],
-  'Valencia': ['Ruzafa', 'El Carmen', 'Benimaclet', 'Patraix', 'Campanar', 'Ciutat Vella', 'Extramurs', 'La Saïdia', 'Poblats Marítims'],
-  'Sevilla': ['Triana', 'Macarena', 'Nervión', 'Santa Cruz', 'Los Remedios', 'San Pablo', 'Alameda', 'Centro'],
-  'Bilbao': ['Casco Viejo', 'Deusto', 'Abando', 'Indautxu', 'San Ignacio', 'Santutxu', 'Rekalde'],
-  'Zaragoza': ['Centro', 'Delicias', 'La Almozara', 'San José', 'Las Fuentes', 'Actur', 'El Rabal'],
-  'Málaga': ['Centro', 'La Malagueta', 'El Palo', 'Teatinos', 'Carretera de Cádiz', 'Cruz de Humilladero'],
-};
+const AVAILABLE_LANGUAGES = ['Español', 'English', 'Français', 'Deutsch', 'Italiano', 'Português', '中文', 'العربية'];
 
 export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated }: EditProfileSheetProps) {
   const { t } = useTranslation();
@@ -57,33 +50,21 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   
   const [formData, setFormData] = useState({
-    name: profile.name || '',
+    display_name: profile.display_name || '',
     bio: profile.bio || '',
-    occupation: profile.occupation || '',
-    autonomous_community: profile.autonomous_community || '',
-    province: profile.province || '',
     city: profile.city || '',
-    neighborhoods: profile.neighborhoods || [],
-    budget_min: profile.budget_min || 0,
-    budget_max: profile.budget_max || 0,
-    move_in_date: profile.move_in_date || '',
-    min_stay_months: profile.min_stay_months || 1,
+    province_code: profile.province_code || '',
     languages: profile.languages || [],
-    photos: profile.photos || [],
+    photo_url: profile.photo_url || '',
   });
-
-  const [neighborhoodInput, setNeighborhoodInput] = useState('');
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Create temporary URL for the cropper
     const imageUrl = URL.createObjectURL(file);
     setSelectedImage(imageUrl);
     setCropperOpen(true);
-    
-    // Reset input so the same file can be selected again
     e.target.value = '';
   };
 
@@ -91,7 +72,7 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
     setUploading(true);
     
     try {
-      const fileName = `${profile.id}/${Date.now()}.jpg`;
+      const fileName = `${profile.user_id}/${Date.now()}.jpg`;
       
       const { error: uploadError } = await supabase.storage
         .from('profile-photos')
@@ -105,7 +86,7 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
 
       setFormData(prev => ({
         ...prev,
-        photos: [...prev.photos, publicUrl]
+        photo_url: publicUrl
       }));
 
       toast({
@@ -120,7 +101,6 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
         variant: 'destructive',
       });
     } finally {
-      // Clean up temporary URL
       if (selectedImage) {
         URL.revokeObjectURL(selectedImage);
         setSelectedImage(null);
@@ -129,40 +109,12 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
     }
   };
 
-  const removePhoto = (photoUrl: string) => {
+  const removePhoto = () => {
     setFormData(prev => ({
       ...prev,
-      photos: prev.photos.filter(p => p !== photoUrl)
+      photo_url: ''
     }));
   };
-
-  const addNeighborhood = () => {
-    if (neighborhoodInput.trim() && !formData.neighborhoods.includes(neighborhoodInput.trim())) {
-      setFormData(prev => ({
-        ...prev,
-        neighborhoods: [...prev.neighborhoods, neighborhoodInput.trim()]
-      }));
-      setNeighborhoodInput('');
-    }
-  };
-
-  const removeNeighborhood = (neighborhood: string) => {
-    setFormData(prev => ({
-      ...prev,
-      neighborhoods: prev.neighborhoods.filter(n => n !== neighborhood)
-    }));
-  };
-
-  const toggleNeighborhood = (neighborhood: string) => {
-    setFormData(prev => ({
-      ...prev,
-      neighborhoods: prev.neighborhoods.includes(neighborhood)
-        ? prev.neighborhoods.filter(n => n !== neighborhood)
-        : [...prev.neighborhoods, neighborhood]
-    }));
-  };
-
-  const availableNeighborhoods = NEIGHBORHOODS_BY_CITY[formData.city] || [];
 
   const toggleLanguage = (language: string) => {
     setFormData(prev => ({
@@ -177,23 +129,16 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
     setSaving(true);
     try {
       const { error } = await supabase
-        .from('profiles')
+        .from('convinter_profiles')
         .update({
-          name: formData.name || null,
+          display_name: formData.display_name || null,
           bio: formData.bio || null,
-          occupation: formData.occupation || null,
-          autonomous_community: formData.autonomous_community || null,
-          province: formData.province || null,
           city: formData.city || null,
-          neighborhoods: formData.neighborhoods.length > 0 ? formData.neighborhoods : null,
-          budget_min: formData.budget_min || null,
-          budget_max: formData.budget_max || null,
-          move_in_date: formData.move_in_date || null,
-          min_stay_months: formData.min_stay_months || null,
+          province_code: formData.province_code || null,
           languages: formData.languages.length > 0 ? formData.languages : null,
-          photos: formData.photos.length > 0 ? formData.photos : null,
+          photo_url: formData.photo_url || null,
         })
-        .eq('id', profile.id);
+        .eq('user_id', profile.user_id);
 
       if (error) throw error;
 
@@ -225,77 +170,52 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
         </SheetHeader>
 
         <div className="space-y-6 py-6">
-          {/* Photos */}
+          {/* Photo */}
           <div className="space-y-3">
-            <Label>{t('profile.photos')}</Label>
-            <p className="text-xs text-muted-foreground">{t('profile.dragToReorder')}</p>
+            <Label>{t('profile.photo')}</Label>
             
-            <Reorder.Group 
-              axis="x" 
-              values={formData.photos} 
-              onReorder={(newOrder) => setFormData(prev => ({ ...prev, photos: newOrder }))}
-              className="flex flex-wrap gap-2"
-            >
-              {formData.photos.map((photo) => (
-                <Reorder.Item 
-                  key={photo} 
-                  value={photo}
-                  className="relative w-20 h-20 rounded-lg overflow-hidden cursor-grab active:cursor-grabbing"
-                  whileDrag={{ scale: 1.1, zIndex: 50 }}
-                >
-                  <img src={photo} alt="" className="w-full h-full object-cover pointer-events-none" />
+            <div className="flex items-center gap-4">
+              {formData.photo_url ? (
+                <div className="relative w-24 h-24 rounded-xl overflow-hidden">
+                  <img src={formData.photo_url} alt="" className="w-full h-full object-cover" />
                   <button
-                    onClick={() => removePhoto(photo)}
-                    className="absolute top-1 right-1 p-1 bg-background/80 rounded-full"
+                    onClick={removePhoto}
+                    className="absolute top-1 right-1 p-1 bg-background/80 rounded-full hover:bg-background"
                   >
-                    <X className="h-3 w-3" />
+                    <X className="h-4 w-4" />
                   </button>
-                  {formData.photos.indexOf(photo) === 0 && (
-                    <div className="absolute bottom-1 left-1 bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5 rounded">
-                      1ª
-                    </div>
-                  )}
-                </Reorder.Item>
-              ))}
-            </Reorder.Group>
-            
-            <label className="inline-flex w-20 h-20 items-center justify-center border-2 border-dashed border-border rounded-lg cursor-pointer hover:border-primary transition-colors">
-              <input
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={handleFileSelect}
-                disabled={uploading}
-              />
-              {uploading ? (
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
               ) : (
-                <Camera className="h-6 w-6 text-muted-foreground" />
+                <label className="flex w-24 h-24 items-center justify-center border-2 border-dashed border-border rounded-xl cursor-pointer hover:border-primary transition-colors">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleFileSelect}
+                    disabled={uploading}
+                  />
+                  {uploading ? (
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  ) : (
+                    <Camera className="h-6 w-6 text-muted-foreground" />
+                  )}
+                </label>
               )}
-            </label>
+            </div>
           </div>
 
-          {/* Basic Info */}
+          {/* Display Name */}
           <div className="space-y-3">
-            <Label htmlFor="name">{t('profile.name')}</Label>
+            <Label htmlFor="display_name">{t('profile.name')}</Label>
             <Input
-              id="name"
-              value={formData.name}
-              onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+              id="display_name"
+              value={formData.display_name}
+              onChange={(e) => setFormData(prev => ({ ...prev, display_name: e.target.value }))}
               placeholder={t('profile.namePlaceholder')}
             />
           </div>
 
-          <div className="space-y-3">
-            <Label htmlFor="occupation">{t('profile.occupation')}</Label>
-            <Input
-              id="occupation"
-              value={formData.occupation}
-              onChange={(e) => setFormData(prev => ({ ...prev, occupation: e.target.value }))}
-              placeholder={t('profile.occupationPlaceholder')}
-            />
-          </div>
-
+          {/* Bio */}
           <div className="space-y-3">
             <Label htmlFor="bio">{t('profile.bioLabel')}</Label>
             <Textarea
@@ -312,117 +232,16 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
             <Label>{t('profile.location')}</Label>
             <div className="grid grid-cols-2 gap-2">
               <Input
-                value={formData.autonomous_community}
-                onChange={(e) => setFormData(prev => ({ ...prev, autonomous_community: e.target.value }))}
-                placeholder={t('profile.autonomousCommunity')}
+                value={formData.city}
+                onChange={(e) => setFormData(prev => ({ ...prev, city: e.target.value }))}
+                placeholder={t('profile.city')}
               />
               <Input
-                value={formData.province}
-                onChange={(e) => setFormData(prev => ({ ...prev, province: e.target.value }))}
+                value={formData.province_code}
+                onChange={(e) => setFormData(prev => ({ ...prev, province_code: e.target.value }))}
                 placeholder={t('profile.province')}
               />
             </div>
-            <Input
-              value={formData.city}
-              onChange={(e) => setFormData(prev => ({ ...prev, city: e.target.value }))}
-              placeholder={t('profile.city')}
-            />
-          </div>
-
-          {/* Neighborhoods */}
-          <div className="space-y-3">
-            <Label>{t('profile.neighborhoods')}</Label>
-            
-            {/* Predefined neighborhoods for selected city */}
-            {availableNeighborhoods.length > 0 && (
-              <div className="flex flex-wrap gap-2">
-                {availableNeighborhoods.map((neighborhood) => (
-                  <Badge
-                    key={neighborhood}
-                    variant={formData.neighborhoods.includes(neighborhood) ? 'default' : 'outline'}
-                    className="rounded-full cursor-pointer transition-colors"
-                    onClick={() => toggleNeighborhood(neighborhood)}
-                  >
-                    {neighborhood}
-                  </Badge>
-                ))}
-              </div>
-            )}
-            
-            {/* Manual input for custom neighborhoods */}
-            <div className="flex gap-2">
-              <Input
-                value={neighborhoodInput}
-                onChange={(e) => setNeighborhoodInput(e.target.value)}
-                placeholder={availableNeighborhoods.length > 0 ? t('profile.otherNeighborhood') : t('profile.neighborhoodPlaceholder')}
-                onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addNeighborhood())}
-              />
-              <Button type="button" variant="outline" onClick={addNeighborhood}>
-                +
-              </Button>
-            </div>
-            
-            {/* Selected neighborhoods (custom ones not in predefined list) */}
-            {formData.neighborhoods.filter(n => !availableNeighborhoods.includes(n)).length > 0 && (
-              <div className="flex flex-wrap gap-2">
-                {formData.neighborhoods
-                  .filter(n => !availableNeighborhoods.includes(n))
-                  .map((n, i) => (
-                    <Badge key={i} variant="secondary" className="rounded-full gap-1">
-                      {n}
-                      <button onClick={() => removeNeighborhood(n)}>
-                        <X className="h-3 w-3" />
-                      </button>
-                    </Badge>
-                  ))}
-              </div>
-            )}
-          </div>
-
-          {/* Budget */}
-          <div className="space-y-3">
-            <Label>{t('profile.budget')}</Label>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <Input
-                  type="number"
-                  value={formData.budget_min || ''}
-                  onChange={(e) => setFormData(prev => ({ ...prev, budget_min: parseInt(e.target.value) || 0 }))}
-                  placeholder={t('profile.budgetMin')}
-                />
-              </div>
-              <div>
-                <Input
-                  type="number"
-                  value={formData.budget_max || ''}
-                  onChange={(e) => setFormData(prev => ({ ...prev, budget_max: parseInt(e.target.value) || 0 }))}
-                  placeholder={t('profile.budgetMax')}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Dates */}
-          <div className="space-y-3">
-            <Label htmlFor="move_in_date">{t('profile.moveInDate')}</Label>
-            <Input
-              id="move_in_date"
-              type="date"
-              value={formData.move_in_date}
-              onChange={(e) => setFormData(prev => ({ ...prev, move_in_date: e.target.value }))}
-            />
-          </div>
-
-          <div className="space-y-3">
-            <Label htmlFor="min_stay">{t('profile.minStay')}</Label>
-            <Input
-              id="min_stay"
-              type="number"
-              min="1"
-              value={formData.min_stay_months || ''}
-              onChange={(e) => setFormData(prev => ({ ...prev, min_stay_months: parseInt(e.target.value) || 1 }))}
-              placeholder={t('profile.minStayPlaceholder')}
-            />
           </div>
 
           {/* Languages */}
@@ -433,7 +252,7 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
                 <Badge
                   key={lang}
                   variant={formData.languages.includes(lang) ? 'default' : 'outline'}
-                  className="rounded-full cursor-pointer"
+                  className="rounded-full cursor-pointer transition-colors"
                   onClick={() => toggleLanguage(lang)}
                 >
                   {lang}

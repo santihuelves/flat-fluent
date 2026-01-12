@@ -20,15 +20,16 @@ interface ProfileData {
   city: string | null;
   province_code: string | null;
   test_completed: boolean | null;
-  quick_test_completed: boolean | null;
-  quick_test_completed_at: string | null;
-  full_test_completed: boolean | null;
-  full_test_completed_at: string | null;
-  full_test_requested_at: string | null;
-  full_test_requested_by: string | null;
   trust_score: number;
   trust_badge: string;
   selfie_verified: boolean;
+  // Campos opcionales para test exhaustivo (pueden no existir en la DB aún)
+  quick_test_completed?: boolean | null;
+  quick_test_completed_at?: string | null;
+  full_test_completed?: boolean | null;
+  full_test_completed_at?: string | null;
+  full_test_requested_at?: string | null;
+  full_test_requested_by?: string | null;
 }
 
 export default function Profile() {

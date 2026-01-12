@@ -203,16 +203,19 @@ export default function Discover() {
     if (!currentProfile) return;
     
     try {
-      const { data, error } = await supabase.rpc('convinter_request_full_test', {
-        p_target: currentProfile.user_id
-      });
+      // Por ahora, usar el sistema de notificaciones existente
+      // TODO: Implementar convinter_request_full_test cuando se cree el RPC
+      const { error } = await supabase
+        .from('convinter_notifications')
+        .insert({
+          user_id: currentProfile.user_id,
+          notification_type: 'full_test_request',
+          payload: { from_user: (await supabase.auth.getUser()).data.user?.id }
+        });
 
       if (error) throw error;
 
-      const result = data as unknown as { ok: boolean };
-      if (result.ok) {
-        toast.success('Solicitud de test exhaustivo enviada');
-      }
+      toast.success('Solicitud de test exhaustivo enviada');
     } catch (error) {
       console.error('Error requesting full test:', error);
       toast.error('Error al solicitar test exhaustivo');
