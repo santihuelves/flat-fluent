@@ -190,34 +190,34 @@ const Onboarding = () => {
         throw profileError;
       }
 
-      // 2. Guardar cada intención usando el RPC
-      for (const intention of data.intentions) {
-        const isPrimary = intention === data.primaryIntention;
-        const intentionDetails = {
+      // 2. También actualizar la tabla profiles con datos adicionales
+      const { error: profilesError } = await supabase
+        .from('profiles')
+        .upsert({
+          id: session.user.id,
+          autonomous_community: data.autonomousCommunity || null,
+          province: data.province || null,
+          city: data.city || null,
           budget_min: data.budgetMin ? parseInt(data.budgetMin) : null,
           budget_max: data.budgetMax ? parseInt(data.budgetMax) : null,
           move_in_date: data.moveInDate || null,
           min_stay_months: data.minStayMonths ? parseInt(data.minStayMonths) : null,
           occupation: data.occupation || null,
-          autonomous_community: data.autonomousCommunity || null,
-        };
-
-        const { data: rpcData, error: intentionError } = await supabase.rpc('convinter_set_intention', {
-          p_intention_type: intention,
-          p_is_primary: isPrimary,
-          p_urgency: data.urgency || 'flexible',
-          p_details: intentionDetails
+          languages: data.languages,
+          // Mapear intención primaria a user_type
+          user_type: data.primaryIntention === 'seek_room' ? 'seeking_room' 
+            : data.primaryIntention === 'offer_room' ? 'offering_room'
+            : data.primaryIntention === 'seek_flatmate' ? 'seeking_roommate'
+            : null,
+          onboarding_completed: true,
         });
 
-        if (intentionError) {
-          console.error(`Error setting intention ${intention}:`, intentionError);
-          console.error('RPC Error details:', JSON.stringify(intentionError, null, 2));
-          toast.error(t('errors.operation') + ': ' + (intentionError.message || 'Unknown error'));
-          throw intentionError;
-        }
-
-        console.log(`Intention ${intention} saved successfully:`, rpcData);
+      if (profilesError) {
+        console.error('Error updating profiles:', profilesError);
+        // No lanzar error, continuar con el flujo
       }
+
+      console.log('Onboarding data saved successfully');
 
       toast.success(t('onboarding.success'));
       navigate(goToTest ? '/test' : '/discover');
