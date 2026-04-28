@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useMemo, useState, type KeyboardEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { ArrowLeft, Send, Phone, Video, MoreVertical, Loader2 } from 'lucide-react';
+import { ArrowLeft, Send, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -16,6 +16,14 @@ type Message = {
   body: string;
   created_at: string;
   optimistic?: boolean;
+};
+
+type MessageRow = {
+  id: number;
+  chat_id: string;
+  sender_id: string;
+  body: string;
+  created_at: string | null;
 };
 
 type ProfileLite = {
@@ -31,8 +39,23 @@ type CreateChatResponse = {
   code?: string;
 };
 
+type SendMessageResponse = {
+  ok?: boolean;
+  message_id?: number;
+  code?: string;
+};
+
+const toMessage = (message: MessageRow): Message => ({
+  id: message.id,
+  chat_id: message.chat_id,
+  sender_id: message.sender_id,
+  body: message.body,
+  created_at: message.created_at ?? new Date().toISOString(),
+});
+
 export default function Chat() {
   const { matchId } = useParams<{ matchId: string }>();
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const [chatId, setChatId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
@@ -72,15 +95,17 @@ export default function Chat() {
       return;
     }
 
-    setMessages(
-      (data ?? []).map(m => ({
-        id: m.id,
-        chat_id: m.chat_id,
-        sender_id: m.sender_id,
-        body: m.body,
-        created_at: m.created_at ?? new Date().toISOString(),
-      }))
-    );
+    setMessages((data ?? []).map(toMessage));
+  }, []);
+
+  const markChatRead = useCallback(async (chat: string) => {
+    const { error: readError } = await supabase.rpc('convinter_mark_chat_read', {
+      p_chat_id: chat,
+    });
+
+    if (readError) {
+      console.warn('No se pudo marcar el chat como leido', readError);
+    }
   }, []);
 
   const initializeChat = useCallback(async () => {
@@ -118,18 +143,60 @@ export default function Chat() {
 
       setChatId(result.chat_id);
 
-      await Promise.all([loadMessages(result.chat_id), loadOtherProfile(matchId)]);
+      await Promise.all([loadMessages(result.chat_id), loadOtherProfile(matchId), markChatRead(result.chat_id)]);
     } catch (err) {
       console.error('Error inicializando chat', err);
       setError('No se pudo cargar el chat. Inténtalo de nuevo.');
     } finally {
       setIsLoading(false);
     }
-  }, [loadMessages, loadOtherProfile, matchId]);
+  }, [loadMessages, loadOtherProfile, markChatRead, matchId]);
 
   useEffect(() => {
     initializeChat();
   }, [initializeChat]);
+
+  useEffect(() => {
+    if (!chatId) return;
+
+    const channel = supabase
+      .channel(`convinter-chat-${chatId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'convinter_messages',
+          filter: `chat_id=eq.${chatId}`,
+        },
+        (payload) => {
+          const inserted = payload.new as MessageRow;
+
+          setMessages((current) => {
+            if (current.some((message) => String(message.id) === String(inserted.id))) {
+              return current;
+            }
+
+            const withoutMatchingOptimistic = current.filter((message) => {
+              return !(message.optimistic && message.sender_id === inserted.sender_id && message.body === inserted.body);
+            });
+
+            return [...withoutMatchingOptimistic, toMessage(inserted)];
+          });
+
+          void markChatRead(chatId);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [chatId, markChatRead]);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+  }, [messages, isLoading]);
 
   const handleSend = async () => {
     if (!newMessage.trim() || !chatId) return;
@@ -153,30 +220,38 @@ export default function Chat() {
     setNewMessage('');
     setIsSending(true);
 
-    const { data, error: sendError } = await supabase.rpc('convinter_send_message', {
-      p_chat_id: chatId,
-      p_body: body,
-    });
+    try {
+      const { data, error: sendError } = await supabase.rpc('convinter_send_message', {
+        p_chat_id: chatId,
+        p_body: body,
+      });
 
-    if (sendError) {
-      console.error('Error enviando mensaje', sendError);
+      if (sendError) throw sendError;
+
+      const result = data as unknown as SendMessageResponse;
+      if (result.ok === false) {
+        toast.error(result.code === 'NOT_A_PARTICIPANT' ? 'No perteneces a este chat' : 'No se pudo enviar el mensaje');
+        setMessages(prev => prev.filter(m => m.id !== optimisticId));
+        return;
+      }
+
+      if (result.message_id) {
+        setMessages(prev =>
+          prev.map(m =>
+            m.id === optimisticId ? { ...m, id: result.message_id!, optimistic: false } : m
+          )
+        );
+      }
+
+      await loadMessages(chatId);
+      await markChatRead(chatId);
+    } catch (err) {
+      console.error('Error enviando mensaje', err);
       toast.error('No se pudo enviar el mensaje');
       setMessages(prev => prev.filter(m => m.id !== optimisticId));
+    } finally {
       setIsSending(false);
-      return;
     }
-
-    const messageId = (data as { message_id?: number })?.message_id;
-    if (messageId) {
-      setMessages(prev =>
-        prev.map(m =>
-          m.id === optimisticId ? { ...m, id: messageId, optimistic: false } : m
-        )
-      );
-    }
-
-    await loadMessages(chatId);
-    setIsSending(false);
   };
 
   const handleKeyPress = (e: KeyboardEvent<HTMLInputElement>) => {
@@ -218,17 +293,9 @@ export default function Chat() {
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon">
-              <Phone className="h-5 w-5" />
-            </Button>
-            <Button variant="ghost" size="icon">
-              <Video className="h-5 w-5" />
-            </Button>
-            <Button variant="ghost" size="icon">
-              <MoreVertical className="h-5 w-5" />
-            </Button>
-          </div>
+          <Button asChild variant="outline" size="sm">
+            <Link to={`/u/${matchId}`}>Ver perfil</Link>
+          </Button>
         </div>
 
         {/* Messages */}
@@ -246,7 +313,9 @@ export default function Chat() {
           )}
 
           {!isLoading && !error && messages.length === 0 && (
-            <div className="text-center text-muted-foreground text-sm">No hay mensajes todavía.</div>
+            <div className="text-center text-muted-foreground text-sm py-8">
+              No hay mensajes todavia. Empieza la conversacion cuando quieras.
+            </div>
           )}
 
           {messages.map((message, index) => (
@@ -286,6 +355,7 @@ export default function Chat() {
               </div>
             </motion.div>
           ))}
+          <div ref={messagesEndRef} />
         </div>
 
         {/* Input */}
