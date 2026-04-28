@@ -749,6 +749,27 @@ export type Database = {
         Returns: Json
       }
       convinter_create_chat: { Args: { p_other: string }; Returns: Json }
+      convinter_create_listing: {
+        Args: {
+          p_available_from?: string
+          p_bills_included?: boolean
+          p_city: string
+          p_description: string
+          p_listing_type: string
+          p_min_stay_months?: number
+          p_pets_allowed?: boolean
+          p_photos?: string[]
+          p_price_monthly?: number
+          p_province_code?: string
+          p_smoking_allowed?: boolean
+          p_title: string
+        }
+        Returns: Json
+      }
+      convinter_delete_listing: {
+        Args: { p_listing_id: string }
+        Returns: Json
+      }
       convinter_enqueue_listing_doc_deletions: { Args: never; Returns: number }
       convinter_enqueue_selfie_deletions: { Args: never; Returns: number }
       convinter_get_listing_detail: {
@@ -891,6 +912,24 @@ export type Database = {
         Returns: Json
       }
       convinter_unblock_user: { Args: { p_target: string }; Returns: Json }
+      convinter_update_listing: {
+        Args: {
+          p_available_from?: string
+          p_bills_included?: boolean
+          p_city?: string
+          p_description?: string
+          p_listing_id: string
+          p_min_stay_months?: number
+          p_pets_allowed?: boolean
+          p_photos?: string[]
+          p_price_monthly?: number
+          p_province_code?: string
+          p_smoking_allowed?: boolean
+          p_status?: string
+          p_title?: string
+        }
+        Returns: Json
+      }
     }
     Enums: {
       convinter_consent_status: "pending" | "accepted" | "rejected"
