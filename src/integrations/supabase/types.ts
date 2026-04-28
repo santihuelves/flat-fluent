@@ -755,11 +755,16 @@ export type Database = {
         Args: { p_listing_id: string }
         Returns: Json
       }
+      convinter_get_my_matches: {
+        Args: { p_limit?: number; p_offset?: number }
+        Returns: Json
+      }
       convinter_get_my_trust: { Args: never; Returns: Json }
       convinter_get_profile_detail: {
         Args: { p_locale?: string; p_user: string }
         Returns: Json
       }
+      convinter_get_test_status: { Args: { p_user?: string }; Returns: Json }
       convinter_guard: { Args: { p_action: string }; Returns: undefined }
       convinter_is_blocked: {
         Args: { p_user_a: string; p_user_b: string }
@@ -767,6 +772,7 @@ export type Database = {
       }
       convinter_is_moderator: { Args: { p_user: string }; Returns: boolean }
       convinter_make_fingerprint: { Args: { p_text: string }; Returns: string }
+      convinter_mark_chat_read: { Args: { p_chat_id: string }; Returns: Json }
       convinter_mark_deletion_done: {
         Args: { p_id: number }
         Returns: undefined
