@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
@@ -14,6 +14,8 @@ import {
   Plus,
   RotateCcw,
   Save,
+  Upload,
+  X,
 } from 'lucide-react';
 import { Layout } from '@/components/layout/Layout';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
@@ -52,6 +54,7 @@ type EditForm = {
   billsIncluded: boolean;
   smokingAllowed: boolean;
   petsAllowed: boolean;
+  photos: string[];
 };
 
 const cities = [
@@ -90,6 +93,14 @@ const getListingTypeLabel = (listingType: Listing['listing_type']) => (
   listingType === 'room' ? 'Habitacion' : 'Busca piso'
 );
 
+const getListingImage = (listing: Listing) => {
+  if (Array.isArray(listing.photos)) {
+    return listing.photos[0] || '/placeholder.svg';
+  }
+
+  return listing.thumbnail_url || '/placeholder.svg';
+};
+
 const getErrorMessage = (code?: string) => {
   if (code === 'NOT_AUTHENTICATED') return 'Inicia sesion para gestionar tus anuncios.';
   if (code === 'LISTING_NOT_FOUND') return 'No se ha encontrado el anuncio.';
@@ -107,19 +118,32 @@ const toEditForm = (listing: Listing): EditForm => ({
   billsIncluded: Boolean(listing.bills_included),
   smokingAllowed: Boolean(listing.smoking_allowed),
   petsAllowed: Boolean(listing.pets_allowed),
+  photos: listing.photos ?? [],
 });
+
+const sanitizeFileName = (name: string) => name.toLowerCase().replace(/[^a-z0-9.]+/g, '-');
 
 export default function MyListings() {
   const navigate = useNavigate();
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [listings, setListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [editingListing, setEditingListing] = useState<Listing | null>(null);
   const [editForm, setEditForm] = useState<EditForm | null>(null);
+  const [newPhotoFiles, setNewPhotoFiles] = useState<File[]>([]);
   const [pendingAction, setPendingAction] = useState<ListingAction>(null);
 
   const activeCount = useMemo(() => listings.filter((listing) => listing.status === 'active').length, [listings]);
   const inactiveCount = listings.length - activeCount;
+  const photoPreviews = useMemo(() => newPhotoFiles.map((file) => ({
+    file,
+    url: URL.createObjectURL(file),
+  })), [newPhotoFiles]);
+
+  useEffect(() => () => {
+    photoPreviews.forEach((preview) => URL.revokeObjectURL(preview.url));
+  }, [photoPreviews]);
 
   const loadListings = useCallback(async () => {
     setLoading(true);
@@ -158,12 +182,66 @@ export default function MyListings() {
   const openEditor = (listing: Listing) => {
     setEditingListing(listing);
     setEditForm(toEditForm(listing));
+    setNewPhotoFiles([]);
   };
 
   const closeEditor = () => {
     if (saving) return;
     setEditingListing(null);
     setEditForm(null);
+    setNewPhotoFiles([]);
+  };
+
+  const handlePhotosSelected = (event: ChangeEvent<HTMLInputElement>) => {
+    if (!editForm) return;
+
+    const files = Array.from(event.target.files ?? []);
+    const imageFiles = files.filter((file) => file.type.startsWith('image/'));
+    const validFiles = imageFiles.filter((file) => file.size <= 5 * 1024 * 1024);
+    const totalPhotos = editForm.photos.length + newPhotoFiles.length + validFiles.length;
+
+    if (validFiles.length !== files.length) {
+      toast.warning('Algunas fotos se han omitido: solo imagenes de hasta 5MB.');
+    }
+
+    if (totalPhotos > 8) {
+      toast.warning('Puedes tener un maximo de 8 fotos por anuncio.');
+    }
+
+    const remainingSlots = Math.max(0, 8 - editForm.photos.length - newPhotoFiles.length);
+    setNewPhotoFiles((current) => [...current, ...validFiles.slice(0, remainingSlots)]);
+    event.target.value = '';
+  };
+
+  const removeCurrentPhoto = (photoUrl: string) => {
+    if (!editForm) return;
+    setEditForm({
+      ...editForm,
+      photos: editForm.photos.filter((photo) => photo !== photoUrl),
+    });
+  };
+
+  const removeNewPhoto = (index: number) => {
+    setNewPhotoFiles((current) => current.filter((_, currentIndex) => currentIndex !== index));
+  };
+
+  const uploadPhotos = async (userId: string) => {
+    const uploadedUrls: string[] = [];
+
+    for (const [index, file] of newPhotoFiles.entries()) {
+      const path = `${userId}/${Date.now()}-${index}-${sanitizeFileName(file.name)}`;
+      const { error } = await supabase.storage.from('listing-photos').upload(path, file, {
+        cacheControl: '3600',
+        upsert: false,
+      });
+
+      if (error) throw error;
+
+      const { data } = supabase.storage.from('listing-photos').getPublicUrl(path);
+      uploadedUrls.push(data.publicUrl);
+    }
+
+    return uploadedUrls;
   };
 
   const saveListing = async () => {
@@ -182,6 +260,18 @@ export default function MyListings() {
     setSaving(true);
 
     try {
+      const { data: userData } = await supabase.auth.getUser();
+      const user = userData.user;
+
+      if (!user) {
+        toast.error('Inicia sesion para gestionar tus anuncios');
+        navigate('/login');
+        return;
+      }
+
+      const uploadedPhotos = await uploadPhotos(user.id);
+      const photos = [...editForm.photos, ...uploadedPhotos];
+
       const { data, error } = await supabase.rpc('convinter_update_listing', {
         p_listing_id: editingListing.id,
         p_title: editForm.title.trim(),
@@ -193,6 +283,7 @@ export default function MyListings() {
         p_bills_included: editForm.billsIncluded,
         p_smoking_allowed: editForm.smokingAllowed,
         p_pets_allowed: editForm.petsAllowed,
+        p_photos: photos,
       });
 
       if (error) throw error;
@@ -310,7 +401,7 @@ export default function MyListings() {
         ) : (
           <div className="grid gap-5 lg:grid-cols-2">
             {listings.map((listing) => {
-              const image = listing.thumbnail_url || listing.photos?.[0] || '/placeholder.svg';
+              const image = getListingImage(listing);
               const isActive = listing.status === 'active';
 
               return (
@@ -493,6 +584,84 @@ export default function MyListings() {
                   <Label>Mascotas</Label>
                   <Switch checked={editForm.petsAllowed} onCheckedChange={(checked) => setEditForm({ ...editForm, petsAllowed: checked })} />
                 </div>
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <Label>Fotos del anuncio</Label>
+                    <p className="text-xs text-muted-foreground">La primera foto se usara como portada.</p>
+                  </div>
+                  <Badge variant="outline" className="rounded-full">
+                    {editForm.photos.length + newPhotoFiles.length}/8
+                  </Badge>
+                </div>
+
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  multiple
+                  className="hidden"
+                  onChange={handlePhotosSelected}
+                />
+
+                {(editForm.photos.length > 0 || photoPreviews.length > 0) ? (
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    {editForm.photos.map((photo, index) => (
+                      <div key={photo} className="relative aspect-square rounded-lg overflow-hidden bg-muted border border-border">
+                        <img src={photo} alt={`Foto ${index + 1}`} className="h-full w-full object-cover" />
+                        {index === 0 && (
+                          <Badge className="absolute left-1 top-1 rounded-full">Portada</Badge>
+                        )}
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="icon"
+                          className="absolute right-1 top-1 h-7 w-7"
+                          onClick={() => removeCurrentPhoto(photo)}
+                          disabled={saving}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+
+                    {photoPreviews.map(({ file, url }, index) => (
+                      <div key={`${file.name}-${index}`} className="relative aspect-square rounded-lg overflow-hidden bg-muted border border-primary/40">
+                        <img src={url} alt={file.name} className="h-full w-full object-cover" />
+                        {editForm.photos.length === 0 && index === 0 && (
+                          <Badge className="absolute left-1 top-1 rounded-full">Portada</Badge>
+                        )}
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="icon"
+                          className="absolute right-1 top-1 h-7 w-7"
+                          onClick={() => removeNewPhoto(index)}
+                          disabled={saving}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+                    Este anuncio aun no tiene fotos.
+                  </div>
+                )}
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full gap-2"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={saving || editForm.photos.length + newPhotoFiles.length >= 8}
+                >
+                  <Upload className="h-4 w-4" />
+                  Anadir fotos
+                </Button>
               </div>
             </div>
           )}
