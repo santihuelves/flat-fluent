@@ -36,6 +36,7 @@ export default function Profile() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [profile, setProfile] = useState<ProfileData | null>(null);
+  const [authFallbackName, setAuthFallbackName] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [editOpen, setEditOpen] = useState(false);
 
@@ -49,6 +50,12 @@ export default function Profile() {
         navigate('/login');
         return;
       }
+
+      setAuthFallbackName(
+        typeof user.user_metadata?.display_name === 'string'
+          ? user.user_metadata.display_name
+          : user.email?.split('@')[0] || null
+      );
 
       const { data: profileData, error } = await supabase
         .from('convinter_profiles')
@@ -163,7 +170,9 @@ export default function Profile() {
             <div className="p-6 space-y-6">
               {/* Basic Info */}
               <div>
-                <h2 className="text-2xl font-bold mb-2">{profile.display_name || profile.handle || t('profile.noName')}</h2>
+                <h2 className="text-2xl font-bold mb-2">
+                  {profile.display_name || profile.handle || authFallbackName || t('profile.noName')}
+                </h2>
                 <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
                   {profile.city && (
                     <div className="flex items-center gap-1">

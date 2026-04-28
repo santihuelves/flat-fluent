@@ -63,6 +63,7 @@ export default function Discover() {
   // Data states
   const [profiles, setProfiles] = useState<ProfileData[]>([]);
   const [compatibilityCache, setCompatibilityCache] = useState<Record<string, CompatibilityData>>({});
+  const [requestedConsent, setRequestedConsent] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingCompatibility, setIsLoadingCompatibility] = useState(false);
   
@@ -193,6 +194,7 @@ export default function Discover() {
 
       const result = data as unknown as { ok: boolean };
       if (result.ok) {
+        setRequestedConsent(prev => new Set(prev).add(currentProfile.user_id));
         toast.success('Solicitud de compatibilidad enviada');
       }
     } catch (error) {
@@ -632,8 +634,9 @@ export default function Discover() {
                       variant="outline" 
                       size="sm"
                       onClick={handleRequestConsent}
+                      disabled={requestedConsent.has(currentProfile.user_id)}
                     >
-                      Solicitar compatibilidad
+                      {requestedConsent.has(currentProfile.user_id) ? 'Solicitud enviada' : 'Solicitar compatibilidad'}
                     </Button>
                   </div>
                 )}
