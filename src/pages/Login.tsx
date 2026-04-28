@@ -38,10 +38,11 @@ export default function Login() {
       });
       
       navigate('/discover');
-    } catch (error: any) {
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'No se pudo iniciar sesión';
       toast({
         title: 'Error',
-        description: error.message || 'No se pudo iniciar sesión',
+        description: message,
         variant: 'destructive',
       });
     } finally {

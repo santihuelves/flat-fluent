@@ -1,11 +1,11 @@
 import { Layout } from '@/components/layout/Layout';
 import { motion } from 'framer-motion';
-import { Search, MapPin, Euro, Filter, Heart, X, Star, ChevronDown, RotateCcw, Lock, Loader2, FileText, Home, Key, Users } from 'lucide-react';
+import { Search, MapPin, Euro, Filter, Heart, X, Star, ChevronDown, RotateCcw, Lock, Loader2, FileText, Home, Key, Users, type LucideIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useTranslation } from 'react-i18next';
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Slider } from '@/components/ui/slider';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
@@ -45,6 +45,8 @@ interface CompatibilityData {
   hasConsent: boolean;
 }
 
+type IntentionType = NonNullable<ProfileData['intentions']>[number]['intention_type'];
+
 // Spanish cities for filter
 const spanishCities = [
   'Madrid', 'Barcelona', 'Valencia', 'Sevilla', 'Zaragoza',
@@ -69,17 +71,12 @@ export default function Discover() {
   const [selectedCity, setSelectedCity] = useState<string | null>(null);
   const [priceRange, setPriceRange] = useState<[number, number]>([200, 800]);
   const [minTrustScore, setMinTrustScore] = useState(0);
-  const [selectedIntentions, setSelectedIntentions] = useState<string[]>([]);
+  const [selectedIntentions, setSelectedIntentions] = useState<IntentionType[]>([]);
   const [cityOpen, setCityOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
   const [intentionOpen, setIntentionOpen] = useState(false);
 
-  // Load profiles from backend
-  useEffect(() => {
-    loadProfiles();
-  }, [selectedCity, minTrustScore]);
-
-  const loadProfiles = async () => {
+  const loadProfiles = useCallback(async () => {
     setIsLoading(true);
     try {
       const { data, error } = await supabase.rpc('convinter_search_profiles', {
@@ -101,10 +98,15 @@ export default function Discover() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [minTrustScore, selectedCity]);
+
+  // Load profiles from backend
+  useEffect(() => {
+    loadProfiles();
+  }, [loadProfiles]);
 
   // Load compatibility for current profile
-  const loadCompatibility = async (userId: string) => {
+  const loadCompatibility = useCallback(async (userId: string) => {
     if (compatibilityCache[userId]) return;
     
     setIsLoadingCompatibility(true);
@@ -142,18 +144,10 @@ export default function Discover() {
     } finally {
       setIsLoadingCompatibility(false);
     }
-  };
-
-  // Load compatibility when current profile changes
-  useEffect(() => {
-    const currentProfile = filteredProfiles[currentIndex];
-    if (currentProfile) {
-      loadCompatibility(currentProfile.user_id);
-    }
-  }, [currentIndex, profiles]);
+  }, [compatibilityCache]);
 
   // Filter profiles by search term and intentions
-  const filteredProfiles = profiles.filter(profile => {
+  const filteredProfiles = useMemo(() => profiles.filter(profile => {
     // Search term filter
     if (searchTerm) {
       const search = searchTerm.toLowerCase();
@@ -167,13 +161,21 @@ export default function Discover() {
     if (selectedIntentions.length > 0) {
       const profileIntentionTypes = profile.intentions?.map(i => i.intention_type) || [];
       const hasMatchingIntention = selectedIntentions.some(selected => 
-        profileIntentionTypes.includes(selected as any)
+        profileIntentionTypes.includes(selected)
       );
       if (!hasMatchingIntention) return false;
     }
     
     return true;
-  });
+  }), [profiles, searchTerm, selectedIntentions]);
+
+  // Load compatibility when current profile changes
+  useEffect(() => {
+    const currentProfile = filteredProfiles[currentIndex];
+    if (currentProfile) {
+      loadCompatibility(currentProfile.user_id);
+    }
+  }, [currentIndex, filteredProfiles, loadCompatibility]);
 
   const currentProfile = filteredProfiles[currentIndex];
   const currentCompatibility = currentProfile ? compatibilityCache[currentProfile.user_id] : null;
@@ -240,7 +242,7 @@ export default function Discover() {
     }, 300);
   };
 
-  const handleIntentionToggle = (intentionType: string) => {
+  const handleIntentionToggle = (intentionType: IntentionType) => {
     setSelectedIntentions(prev => 
       prev.includes(intentionType)
         ? prev.filter(i => i !== intentionType)
@@ -346,11 +348,11 @@ export default function Discover() {
               <PopoverContent className="w-[280px] bg-popover z-50" align="start">
                 <div className="space-y-3">
                   <div className="font-semibold text-sm">{t('discover.filters.intentionTitle')}</div>
-                  {[
+                  {([
                     { type: 'seek_room', icon: Home, label: t('discover.filters.intentions.seek_room') },
                     { type: 'offer_room', icon: Key, label: t('discover.filters.intentions.offer_room') },
                     { type: 'seek_flatmate', icon: Users, label: t('discover.filters.intentions.seek_flatmate') },
-                  ].map(({ type, icon: Icon, label }) => (
+                  ] satisfies Array<{ type: IntentionType; icon: LucideIcon; label: string }>).map(({ type, icon: Icon, label }) => (
                     <label
                       key={type}
                       className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"

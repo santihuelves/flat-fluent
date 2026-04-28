@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type KeyboardEvent } from 'react';
+import { useCallback, useEffect, useMemo, useState, type KeyboardEvent } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
@@ -42,11 +42,48 @@ export default function Chat() {
   const [error, setError] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
 
-  useEffect(() => {
-    initializeChat();
-  }, [matchId]);
+  const loadOtherProfile = useCallback(async (user: string) => {
+    const { data, error: profileError } = await supabase
+      .from('convinter_profiles')
+      .select('display_name, photo_url, city, province_code')
+      .eq('user_id', user)
+      .maybeSingle();
 
-  const initializeChat = async () => {
+    if (profileError) {
+      console.warn('No se pudo cargar el perfil del otro usuario', profileError);
+      return;
+    }
+
+    if (data) {
+      setOtherProfile(data as ProfileLite);
+    }
+  }, []);
+
+  const loadMessages = useCallback(async (chat: string) => {
+    const { data, error: msgError } = await supabase
+      .from('convinter_messages')
+      .select('*')
+      .eq('chat_id', chat)
+      .order('created_at', { ascending: true });
+
+    if (msgError) {
+      console.error('Error cargando mensajes', msgError);
+      toast.error('No se pudieron cargar los mensajes');
+      return;
+    }
+
+    setMessages(
+      (data ?? []).map(m => ({
+        id: m.id,
+        chat_id: m.chat_id,
+        sender_id: m.sender_id,
+        body: m.body,
+        created_at: m.created_at ?? new Date().toISOString(),
+      }))
+    );
+  }, []);
+
+  const initializeChat = useCallback(async () => {
     setIsLoading(true);
     setError(null);
 
@@ -88,48 +125,11 @@ export default function Chat() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [loadMessages, loadOtherProfile, matchId]);
 
-  const loadOtherProfile = async (user: string) => {
-    const { data, error: profileError } = await supabase
-      .from('convinter_profiles')
-      .select('display_name, photo_url, city, province_code')
-      .eq('user_id', user)
-      .maybeSingle();
-
-    if (profileError) {
-      console.warn('No se pudo cargar el perfil del otro usuario', profileError);
-      return;
-    }
-
-    if (data) {
-      setOtherProfile(data as ProfileLite);
-    }
-  };
-
-  const loadMessages = async (chat: string) => {
-    const { data, error: msgError } = await supabase
-      .from('convinter_messages')
-      .select('*')
-      .eq('chat_id', chat)
-      .order('created_at', { ascending: true });
-
-    if (msgError) {
-      console.error('Error cargando mensajes', msgError);
-      toast.error('No se pudieron cargar los mensajes');
-      return;
-    }
-
-    setMessages(
-      (data ?? []).map(m => ({
-        id: m.id,
-        chat_id: m.chat_id,
-        sender_id: m.sender_id,
-        body: m.body,
-        created_at: m.created_at ?? new Date().toISOString(),
-      }))
-    );
-  };
+  useEffect(() => {
+    initializeChat();
+  }, [initializeChat]);
 
   const handleSend = async () => {
     if (!newMessage.trim() || !chatId) return;

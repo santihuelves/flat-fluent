@@ -67,9 +67,10 @@ export default function Signup() {
       });
       
       navigate('/onboarding');
-    } catch (error: any) {
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : '';
       let message = 'No se pudo crear la cuenta';
-      if (error.message?.includes('already registered')) {
+      if (errorMessage.includes('already registered')) {
         message = 'Este email ya está registrado';
       }
       toast({

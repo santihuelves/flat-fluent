@@ -1,152 +1,142 @@
-# Instrucciones para Aplicar Migraciones Críticas
+# Instrucciones Para Aplicar Migraciones
 
-## Resumen
-He creado 3 migraciones SQL que resuelven los puntos críticos del backend:
+## Estado Actual
 
-1. **20260110000000_create_storage_buckets.sql** - Crea buckets de Storage
-2. **20260110000001_add_critical_rpcs.sql** - Añade RPCs para test status y matches
-3. **20260110000002_create_listing_helper.sql** - RPCs para crear/editar listings
+El frontend ya usa backend real para:
 
-Además, necesitas aplicar la migración pendiente del test:
-4. **20260108120000_add_test_flags.sql** - Flags de test rápido/exhaustivo
+- `Listings.tsx` con `convinter_search_listings`
+- `ListingDetail.tsx` con `convinter_get_listing_detail`
+- `CreateListing.tsx` con `convinter_create_listing` y Storage `listing-photos`
+- `Matches.tsx` con `convinter_get_my_matches`
+- `PublicProfile.tsx` con `convinter_get_profile_detail`
 
----
+Para que todo funcione, esas funciones y buckets tienen que existir en la base de datos que usa Lovable/Supabase.
 
-## Pasos para Aplicar (en orden)
+## Camino Recomendado: Lovable Cloud
 
-### 1. Aplicar migración de flags de test (CRÍTICO - ya existe pero no aplicada)
+Si el proyecto esta desplegado/gestionado en Lovable Cloud, la opcion recomendada es aplicar los cambios con la herramienta de migraciones de Lovable, no pegando SQL manualmente en Supabase Dashboard.
 
-1. Ve a Supabase Dashboard → SQL Editor
-2. Pega el contenido de `supabase/migrations/20260108120000_add_test_flags.sql`
-3. Ejecuta
+Motivos:
 
-**Qué hace:**
-- Añade columnas `quick_test_completed`, `full_test_completed`, etc. a `convinter_profiles`
-- Crea RPC `convinter_request_full_test(p_target uuid)`
+- Lovable aplica el SQL en el proyecto correcto.
+- Regenera `src/integrations/supabase/types.ts` despues de los cambios.
+- Los cambios quedan trazados dentro del flujo de Lovable.
+- Si una policy, funcion o tipo ya existe, Lovable devuelve el error en el flujo de migracion y se puede corregir alli.
 
-**Impacto:** Sin esto, el test falla al guardar (ya lo parcheamos en frontend pero es temporal)
+Mensaje recomendado para Lovable:
 
----
+```text
+Aplica las migraciones pendientes con la herramienta de migracion de Lovable, una a una y verificando despues de cada bloque.
+No las voy a pegar manualmente en Supabase SQL Editor.
+```
 
-### 2. Crear Storage Buckets (CRÍTICO - bloqueante para fotos)
+Si Lovable ha creado una carpeta `migrations_manual/` con bloques consolidados y verificados contra el backend real, usa esos bloques en el orden que indique Lovable.
 
-1. Ve a Supabase Dashboard → SQL Editor
-2. Pega el contenido de `supabase/migrations/20260110000000_create_storage_buckets.sql`
-3. Ejecuta
+Nota: en esta copia local del repo no existe `migrations_manual/` ahora mismo. Si Lovable la crea en su entorno, conviene sincronizar despues esos cambios hacia este repo para que no haya dos fuentes de verdad.
 
-**Qué hace:**
-- Crea bucket `profile-photos` (URGENTE - EditProfileSheet ya lo usa)
-- Crea bucket `listing-photos` (para CreateListing)
-- Crea buckets de verificación (`verification-selfies`, `verification-docs`)
-- Configura políticas RLS para cada bucket
+## Lovable Y La Base De Datos
 
-**Impacto:** Sin esto, no se pueden subir fotos de perfil ni de anuncios
+Aunque el proyecto se gestione desde Lovable, la app esta usando Supabase como backend real:
 
----
+```text
+VITE_SUPABASE_PROJECT_ID
+VITE_SUPABASE_URL
+VITE_SUPABASE_PUBLISHABLE_KEY
+```
 
-### 3. Añadir RPCs críticos (ALTA PRIORIDAD)
+Eso significa que las migraciones no se aplican "en React", sino en la base de datos conectada al proyecto de Lovable. Puedes hacerlo de dos maneras:
 
-1. Ve a Supabase Dashboard → SQL Editor
-2. Pega el contenido de `supabase/migrations/20260110000001_add_critical_rpcs.sql`
-3. Ejecuta
+- Recomendado: desde Lovable, usando su herramienta de migraciones.
+- Alternativa: desde Supabase Dashboard, entrando al proyecto conectado a Lovable y usando SQL Editor.
 
-**Qué hace:**
-- Crea `convinter_get_test_status(p_user uuid)` - ver qué test completó un usuario
-- Crea `convinter_get_my_matches()` - listar matches reales con scores y últimos mensajes
-- Habilita Realtime para `convinter_messages` y `convinter_notifications`
-- Crea `convinter_mark_chat_read(p_chat_id uuid)` - marcar mensajes como leídos
+`supabase/config.toml` en esta copia local esta alineado con el project ref usado por el frontend. No subas `.env` al repositorio.
 
-**Impacto:** 
-- Matches.tsx dejará de ser mock
-- Profile/Discover podrán mostrar estado de test
-- Chat recibirá mensajes en tiempo real
+## Alternativa Manual: SQL Editor
 
----
+Usa esta ruta solo si Lovable no puede aplicar las migraciones por su herramienta.
 
-### 4. RPCs para Listings (ALTA PRIORIDAD)
+Supabase Dashboard -> SQL Editor -> New query
 
-1. Ve a Supabase Dashboard → SQL Editor
-2. Pega el contenido de `supabase/migrations/20260110000002_create_listing_helper.sql`
-3. Ejecuta
+Pega y ejecuta cada archivo en este orden:
 
-**Qué hace:**
-- Crea `convinter_create_listing(...)` - crear anuncio desde frontend
-- Crea `convinter_update_listing(...)` - editar anuncio
-- Crea `convinter_delete_listing(p_listing_id)` - desactivar anuncio
+1. `supabase/migrations/20260108120000_add_test_flags.sql`
+2. `supabase/migrations/20260110000000_create_storage_buckets.sql`
+3. `supabase/migrations/20260110000001_add_critical_rpcs.sql`
+4. `supabase/migrations/20260110000002_create_listing_helper.sql`
+5. `supabase/migrations/20260111000000_add_profile_intentions.sql`
+6. `supabase/migrations/20260113000000_include_listing_photos_in_detail.sql`
+7. `supabase/migrations/20260113000001_fix_get_my_matches.sql`
 
-**Impacto:** CreateListing.tsx dejará de ser mock y guardará en DB real
+Si Lovable te permite ejecutar SQL directamente, usa el mismo orden ahi. Si Lovable propone bloques consolidados en `migrations_manual/`, prioriza esos bloques porque estaran ajustados al estado real del backend.
 
----
+## Que Desbloquea Cada Bloque
 
-## Verificación Post-Migración
+`20260108120000_add_test_flags.sql`
+Anade flags del test rapido/completo y `convinter_request_full_test`.
 
-### Storage Buckets
-En Supabase Dashboard → Storage, deberías ver:
-- ✅ `profile-photos` (público)
-- ✅ `listing-photos` (público)
-- ✅ `verification-selfies` (privado)
-- ✅ `verification-docs` (privado)
+`20260110000000_create_storage_buckets.sql`
+Crea buckets de fotos:
 
-### Database Functions
-En Supabase Dashboard → Database → Functions, busca:
-- ✅ `convinter_get_test_status`
-- ✅ `convinter_get_my_matches`
-- ✅ `convinter_create_listing`
-- ✅ `convinter_update_listing`
-- ✅ `convinter_delete_listing`
-- ✅ `convinter_request_full_test`
-- ✅ `convinter_mark_chat_read`
+- `profile-photos`
+- `listing-photos`
+- `verification-selfies`
+- `verification-docs`
 
-### Realtime
-En Supabase Dashboard → Database → Replication:
-- ✅ `convinter_messages` debe estar en la publicación `supabase_realtime`
-- ✅ `convinter_notifications` debe estar en la publicación `supabase_realtime`
+`20260110000001_add_critical_rpcs.sql`
+Anade:
 
----
+- `convinter_get_test_status`
+- `convinter_get_my_matches`
+- `convinter_mark_chat_read`
+- Realtime para mensajes/notificaciones
 
-## Siguiente Paso: Actualizar Frontend
+`20260110000002_create_listing_helper.sql`
+Anade:
 
-Después de aplicar las migraciones, necesito actualizar el código frontend para usar las nuevas RPCs:
+- `convinter_create_listing`
+- `convinter_update_listing`
+- `convinter_delete_listing`
 
-1. **Matches.tsx** - conectar a `convinter_get_my_matches()`
-2. **Profile.tsx / Discover.tsx** - mostrar estado de test con `convinter_get_test_status()`
-3. **Chat.tsx** - añadir suscripción Realtime para mensajes
-4. **CreateListing.tsx** - conectar a `convinter_create_listing()`
-5. **Actualizar types.ts** - añadir nuevas funciones
+`20260111000000_add_profile_intentions.sql`
+Anade intenciones de perfil y RPCs relacionadas.
 
-¿Quieres que continúe con la actualización del frontend ahora o prefieres aplicar primero las migraciones y verificar que funcionan?
+`20260113000000_include_listing_photos_in_detail.sql`
+Actualiza `convinter_get_listing_detail` para devolver `photos`.
 
----
+`20260113000001_fix_get_my_matches.sql`
+Corrige `convinter_get_my_matches` para no mezclar datos del consentimiento con datos del perfil.
 
-## Troubleshooting
+## Verificacion
 
-### Error: "relation storage.buckets does not exist"
-- Tu instancia de Supabase no tiene Storage habilitado. Ve a Dashboard → Storage y actívalo.
+Storage:
 
-### Error: "permission denied for table storage.objects"
-- Las políticas RLS no se aplicaron correctamente. Re-ejecuta la migración de buckets.
+- Existe bucket publico `profile-photos`
+- Existe bucket publico `listing-photos`
+- Puedes subir una imagen autenticado a `listing-photos/<user-id>/...`
 
-### Error: "function convinter_get_test_status does not exist"
-- La migración 20260110000001 no se aplicó. Vuelve a ejecutarla.
+Database Functions:
 
-### Realtime no funciona
-- Ve a Dashboard → Database → Replication
-- Verifica que `supabase_realtime` incluye `convinter_messages` y `convinter_notifications`
-- Si no aparecen, ejecuta manualmente:
-  ```sql
-  ALTER PUBLICATION supabase_realtime ADD TABLE public.convinter_messages;
-  ALTER PUBLICATION supabase_realtime ADD TABLE public.convinter_notifications;
-  ```
+- `convinter_create_listing`
+- `convinter_search_listings`
+- `convinter_get_listing_detail`
+- `convinter_get_my_matches`
+- `convinter_get_profile_detail`
+- `convinter_compute_and_cache_guarded`
 
----
+Prueba minima despues de aplicar:
 
-## Notas Importantes
+1. Inicia sesion en la app.
+2. Ve a `/create-listing`.
+3. Crea un anuncio con una foto.
+4. Comprueba que navega a `/listing/<id>`.
+5. Comprueba que `/listings` muestra el anuncio.
 
-1. **Orden de ejecución**: Aplicar en el orden listado (1 → 2 → 3 → 4)
-2. **Backup**: Si tu DB tiene datos importantes, haz backup antes
-3. **Testing**: Después de aplicar, prueba subir una foto de perfil para verificar que el bucket funciona
-4. **Realtime**: Puede tardar 1-2 minutos en activarse después de la migración
+## CLI Opcional
 
----
+Si instalas Supabase CLI y haces login, tambien podrias aplicar con:
 
-¿Todo listo? Avísame cuando hayas aplicado las migraciones y continúo con la actualización del frontend.
+```sh
+supabase db push
+```
+
+Pero para este proyecto, prioriza Lovable Cloud si esta disponible. La CLI local solo conviene si el `project_id` y la sesion apuntan con certeza al mismo proyecto que usa Lovable.

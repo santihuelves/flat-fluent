@@ -528,32 +528,18 @@ export default function Test() {
         }
       }
 
-      const updateProfile = async (fields: Record<string, unknown>) => {
-        return supabase
-          .from('convinter_profiles')
-          .update(fields)
-          .eq('user_id', session.user.id);
-      };
-
-      // Intento con flags nuevas
-      let { error: profileError } = await updateProfile({
-        dealbreakers: selectedDealbreakers,
-        test_completed: true,
-        ...completedField,
-      });
-
-      // Si falla (p.ej. columnas no existen), reintenta sin las flags nuevas para no bloquear al usuario
-      if (profileError) {
-        console.warn('Fallo con flags de test, reintentando sin columnas nuevas', profileError);
-        const retry = await updateProfile({
+      const { error: profileError } = await supabase
+        .from('convinter_profiles')
+        .update({
           dealbreakers: selectedDealbreakers,
           test_completed: true,
-        });
-        profileError = retry.error ?? null;
-        if (profileError) throw profileError;
-        toast.warning(t('test.success') + ' (sin marcar modo quick/full: aplicar migración)');
-      }
+          ...completedField,
+        })
+        .eq('user_id', session.user.id);
 
+      if (profileError) {
+        throw profileError;
+      }
       toast.success(t('test.success'));
       navigate('/discover');
     } catch (error) {
