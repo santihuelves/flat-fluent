@@ -403,6 +403,45 @@ export type Database = {
         }
         Relationships: []
       }
+      convinter_profile_intentions: {
+        Row: {
+          active: boolean
+          created_at: string
+          details: Json
+          id: string
+          intention_type: Database["public"]["Enums"]["convinter_intention_type"]
+          is_primary: boolean
+          priority: number
+          profile_id: string
+          updated_at: string
+          urgency: Database["public"]["Enums"]["convinter_urgency_level"]
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          details?: Json
+          id?: string
+          intention_type: Database["public"]["Enums"]["convinter_intention_type"]
+          is_primary?: boolean
+          priority?: number
+          profile_id: string
+          updated_at?: string
+          urgency?: Database["public"]["Enums"]["convinter_urgency_level"]
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          details?: Json
+          id?: string
+          intention_type?: Database["public"]["Enums"]["convinter_intention_type"]
+          is_primary?: boolean
+          priority?: number
+          profile_id?: string
+          updated_at?: string
+          urgency?: Database["public"]["Enums"]["convinter_urgency_level"]
+        }
+        Relationships: []
+      }
       convinter_profiles: {
         Row: {
           bio: string | null
@@ -772,6 +811,10 @@ export type Database = {
       }
       convinter_enqueue_listing_doc_deletions: { Args: never; Returns: number }
       convinter_enqueue_selfie_deletions: { Args: never; Returns: number }
+      convinter_get_intentions: {
+        Args: { p_profile_id?: string }
+        Returns: Json
+      }
       convinter_get_listing_detail: {
         Args: { p_listing_id: string }
         Returns: Json
@@ -830,6 +873,10 @@ export type Database = {
       convinter_refresh_trust_score: {
         Args: { p_user: string }
         Returns: undefined
+      }
+      convinter_remove_intention: {
+        Args: { p_intention_type: string }
+        Returns: Json
       }
       convinter_report_listing: {
         Args: {
@@ -903,6 +950,15 @@ export type Database = {
         Args: { p_body: string; p_chat_id: string }
         Returns: Json
       }
+      convinter_set_intention: {
+        Args: {
+          p_details?: Json
+          p_intention_type: string
+          p_is_primary?: boolean
+          p_urgency?: string
+        }
+        Returns: Json
+      }
       convinter_submit_listing_verification: {
         Args: { p_doc_path: string; p_doc_type: string; p_listing_id: string }
         Returns: Json
@@ -933,9 +989,11 @@ export type Database = {
     }
     Enums: {
       convinter_consent_status: "pending" | "accepted" | "rejected"
+      convinter_intention_type: "seek_room" | "offer_room" | "seek_flatmate"
       convinter_listing_type: "room" | "flatmate"
       convinter_report_status: "pending" | "resolved" | "dismissed"
       convinter_trust_badge: "none" | "bronze" | "silver" | "gold" | "verified"
+      convinter_urgency_level: "urgent" | "soon" | "flexible" | "exploring"
       convinter_verification_status: "pending" | "approved" | "rejected"
       convinter_visibility: "public" | "registered_only" | "hidden"
       user_type: "seeking_room" | "offering_room" | "seeking_roommate"
@@ -1068,9 +1126,11 @@ export const Constants = {
   public: {
     Enums: {
       convinter_consent_status: ["pending", "accepted", "rejected"],
+      convinter_intention_type: ["seek_room", "offer_room", "seek_flatmate"],
       convinter_listing_type: ["room", "flatmate"],
       convinter_report_status: ["pending", "resolved", "dismissed"],
       convinter_trust_badge: ["none", "bronze", "silver", "gold", "verified"],
+      convinter_urgency_level: ["urgent", "soon", "flexible", "exploring"],
       convinter_verification_status: ["pending", "approved", "rejected"],
       convinter_visibility: ["public", "registered_only", "hidden"],
       user_type: ["seeking_room", "offering_room", "seeking_roommate"],
