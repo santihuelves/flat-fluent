@@ -217,6 +217,30 @@ const Onboarding = () => {
         // No lanzar error, continuar con el flujo
       }
 
+      // 3. Guardar intenciones activas en el backend de Convinter
+      for (const [index, intention] of data.intentions.entries()) {
+        const { data: intentionResult, error: intentionError } = await supabase.rpc('convinter_set_intention', {
+          p_intention_type: intention,
+          p_is_primary: data.primaryIntention === intention,
+          p_urgency: data.urgency,
+          p_details: {
+            budget_min: data.budgetMin ? parseInt(data.budgetMin) : null,
+            budget_max: data.budgetMax ? parseInt(data.budgetMax) : null,
+            move_in_date: data.moveInDate || null,
+            min_stay_months: data.minStayMonths ? parseInt(data.minStayMonths) : null,
+            city: data.city || null,
+            province: data.province || null,
+            priority: index + 1,
+          },
+        });
+
+        const parsedResult = intentionResult as unknown as { ok?: boolean; code?: string } | null;
+        if (intentionError || parsedResult?.ok === false) {
+          console.error('Error saving intention:', intentionError || parsedResult?.code);
+          toast.warning('Perfil guardado, pero no se pudieron sincronizar todas las intenciones.');
+        }
+      }
+
       console.log('Onboarding data saved successfully');
 
       toast.success(t('onboarding.success'));

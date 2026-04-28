@@ -8,7 +8,14 @@ import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { EditProfileSheet } from '@/components/profile/EditProfileSheet';
+import { IntentionBadges } from '@/components/IntentionBadge';
 import { toast } from 'sonner';
+
+type ProfileIntention = {
+  intention_type: 'seek_room' | 'offer_room' | 'seek_flatmate';
+  is_primary: boolean;
+  urgency?: string;
+};
 
 interface ProfileData {
   user_id: string;
@@ -30,6 +37,7 @@ interface ProfileData {
   full_test_completed_at?: string | null;
   full_test_requested_at?: string | null;
   full_test_requested_by?: string | null;
+  intentions?: ProfileIntention[];
 }
 
 export default function Profile() {
@@ -90,7 +98,20 @@ export default function Profile() {
         throw error;
       }
       
-      setProfile(data as ProfileData);
+      const { data: intentionsData, error: intentionsError } = await supabase.rpc('convinter_get_intentions', {
+        p_profile_id: user.id,
+      });
+
+      if (intentionsError) {
+        console.warn('Error loading profile intentions:', intentionsError);
+      }
+
+      const intentionsResult = intentionsData as unknown as { ok?: boolean; intentions?: ProfileIntention[] } | null;
+
+      setProfile({
+        ...(data as ProfileData),
+        intentions: intentionsResult?.ok ? intentionsResult.intentions ?? [] : [],
+      });
     } catch (error) {
       console.error('Unexpected error in fetchProfile:', error);
       toast.error(t('common.error'));
@@ -214,6 +235,24 @@ export default function Profile() {
                       </Badge>
                     ))}
                   </div>
+                </div>
+              )}
+
+              {/* Intentions */}
+              {profile.intentions && profile.intentions.length > 0 ? (
+                <div>
+                  <h3 className="text-sm font-semibold text-muted-foreground mb-2">Busco / ofrezco</h3>
+                  <IntentionBadges intentions={profile.intentions} variant="default" />
+                </div>
+              ) : (
+                <div className="rounded-xl border border-dashed border-border p-4">
+                  <h3 className="text-sm font-semibold mb-1">Aun no has definido que buscas</h3>
+                  <p className="text-sm text-muted-foreground mb-3">
+                    Completar tus intenciones ayuda a que Discover y los anuncios encajen mejor contigo.
+                  </p>
+                  <Button asChild variant="outline" size="sm">
+                    <Link to="/onboarding">Completar preferencias</Link>
+                  </Button>
                 </div>
               )}
 
