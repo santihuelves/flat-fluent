@@ -403,6 +403,45 @@ export type Database = {
         }
         Relationships: []
       }
+      convinter_profile_intentions: {
+        Row: {
+          active: boolean
+          created_at: string
+          details: Json
+          id: string
+          intention_type: Database["public"]["Enums"]["convinter_intention_type"]
+          is_primary: boolean
+          priority: number
+          profile_id: string
+          updated_at: string
+          urgency: Database["public"]["Enums"]["convinter_urgency_level"]
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          details?: Json
+          id?: string
+          intention_type: Database["public"]["Enums"]["convinter_intention_type"]
+          is_primary?: boolean
+          priority?: number
+          profile_id: string
+          updated_at?: string
+          urgency?: Database["public"]["Enums"]["convinter_urgency_level"]
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          details?: Json
+          id?: string
+          intention_type?: Database["public"]["Enums"]["convinter_intention_type"]
+          is_primary?: boolean
+          priority?: number
+          profile_id?: string
+          updated_at?: string
+          urgency?: Database["public"]["Enums"]["convinter_urgency_level"]
+        }
+        Relationships: []
+      }
       convinter_profiles: {
         Row: {
           bio: string | null
@@ -410,10 +449,16 @@ export type Database = {
           created_at: string | null
           dealbreakers: string[] | null
           display_name: string | null
+          full_test_completed: boolean | null
+          full_test_completed_at: string | null
+          full_test_requested_at: string | null
+          full_test_requested_by: string | null
           handle: string | null
           languages: string[] | null
           photo_url: string | null
           province_code: string | null
+          quick_test_completed: boolean | null
+          quick_test_completed_at: string | null
           selfie_verified: boolean | null
           selfie_verified_at: string | null
           test_completed: boolean | null
@@ -431,10 +476,16 @@ export type Database = {
           created_at?: string | null
           dealbreakers?: string[] | null
           display_name?: string | null
+          full_test_completed?: boolean | null
+          full_test_completed_at?: string | null
+          full_test_requested_at?: string | null
+          full_test_requested_by?: string | null
           handle?: string | null
           languages?: string[] | null
           photo_url?: string | null
           province_code?: string | null
+          quick_test_completed?: boolean | null
+          quick_test_completed_at?: string | null
           selfie_verified?: boolean | null
           selfie_verified_at?: string | null
           test_completed?: boolean | null
@@ -454,10 +505,16 @@ export type Database = {
           created_at?: string | null
           dealbreakers?: string[] | null
           display_name?: string | null
+          full_test_completed?: boolean | null
+          full_test_completed_at?: string | null
+          full_test_requested_at?: string | null
+          full_test_requested_by?: string | null
           handle?: string | null
           languages?: string[] | null
           photo_url?: string | null
           province_code?: string | null
+          quick_test_completed?: boolean | null
+          quick_test_completed_at?: string | null
           selfie_verified?: boolean | null
           selfie_verified_at?: string | null
           test_completed?: boolean | null
@@ -731,10 +788,39 @@ export type Database = {
         Returns: Json
       }
       convinter_create_chat: { Args: { p_other: string }; Returns: Json }
+      convinter_create_listing: {
+        Args: {
+          p_available_from?: string
+          p_bills_included?: boolean
+          p_city: string
+          p_description: string
+          p_listing_type: string
+          p_min_stay_months?: number
+          p_pets_allowed?: boolean
+          p_photos?: string[]
+          p_price_monthly?: number
+          p_province_code?: string
+          p_smoking_allowed?: boolean
+          p_title: string
+        }
+        Returns: Json
+      }
+      convinter_delete_listing: {
+        Args: { p_listing_id: string }
+        Returns: Json
+      }
       convinter_enqueue_listing_doc_deletions: { Args: never; Returns: number }
       convinter_enqueue_selfie_deletions: { Args: never; Returns: number }
+      convinter_get_intentions: {
+        Args: { p_profile_id?: string }
+        Returns: Json
+      }
       convinter_get_listing_detail: {
         Args: { p_listing_id: string }
+        Returns: Json
+      }
+      convinter_get_my_matches: {
+        Args: { p_limit?: number; p_offset?: number }
         Returns: Json
       }
       convinter_get_my_trust: { Args: never; Returns: Json }
@@ -742,6 +828,7 @@ export type Database = {
         Args: { p_locale?: string; p_user: string }
         Returns: Json
       }
+      convinter_get_test_status: { Args: { p_user?: string }; Returns: Json }
       convinter_guard: { Args: { p_action: string }; Returns: undefined }
       convinter_is_blocked: {
         Args: { p_user_a: string; p_user_b: string }
@@ -749,6 +836,7 @@ export type Database = {
       }
       convinter_is_moderator: { Args: { p_user: string }; Returns: boolean }
       convinter_make_fingerprint: { Args: { p_text: string }; Returns: string }
+      convinter_mark_chat_read: { Args: { p_chat_id: string }; Returns: Json }
       convinter_mark_deletion_done: {
         Args: { p_id: number }
         Returns: undefined
@@ -786,6 +874,10 @@ export type Database = {
         Args: { p_user: string }
         Returns: undefined
       }
+      convinter_remove_intention: {
+        Args: { p_intention_type: string }
+        Returns: Json
+      }
       convinter_report_listing: {
         Args: {
           p_category: string
@@ -817,6 +909,7 @@ export type Database = {
         Args: { p_requested_level?: number; p_to_user: string }
         Returns: Json
       }
+      convinter_request_full_test: { Args: { p_target: string }; Returns: Json }
       convinter_resolve_handle: { Args: { p_handle: string }; Returns: string }
       convinter_respond_consent_request: {
         Args: { p_accept: boolean; p_request_id: number }
@@ -857,6 +950,15 @@ export type Database = {
         Args: { p_body: string; p_chat_id: string }
         Returns: Json
       }
+      convinter_set_intention: {
+        Args: {
+          p_details?: Json
+          p_intention_type: string
+          p_is_primary?: boolean
+          p_urgency?: string
+        }
+        Returns: Json
+      }
       convinter_submit_listing_verification: {
         Args: { p_doc_path: string; p_doc_type: string; p_listing_id: string }
         Returns: Json
@@ -866,12 +968,32 @@ export type Database = {
         Returns: Json
       }
       convinter_unblock_user: { Args: { p_target: string }; Returns: Json }
+      convinter_update_listing: {
+        Args: {
+          p_available_from?: string
+          p_bills_included?: boolean
+          p_city?: string
+          p_description?: string
+          p_listing_id: string
+          p_min_stay_months?: number
+          p_pets_allowed?: boolean
+          p_photos?: string[]
+          p_price_monthly?: number
+          p_province_code?: string
+          p_smoking_allowed?: boolean
+          p_status?: string
+          p_title?: string
+        }
+        Returns: Json
+      }
     }
     Enums: {
       convinter_consent_status: "pending" | "accepted" | "rejected"
+      convinter_intention_type: "seek_room" | "offer_room" | "seek_flatmate"
       convinter_listing_type: "room" | "flatmate"
       convinter_report_status: "pending" | "resolved" | "dismissed"
       convinter_trust_badge: "none" | "bronze" | "silver" | "gold" | "verified"
+      convinter_urgency_level: "urgent" | "soon" | "flexible" | "exploring"
       convinter_verification_status: "pending" | "approved" | "rejected"
       convinter_visibility: "public" | "registered_only" | "hidden"
       user_type: "seeking_room" | "offering_room" | "seeking_roommate"
@@ -1004,9 +1126,11 @@ export const Constants = {
   public: {
     Enums: {
       convinter_consent_status: ["pending", "accepted", "rejected"],
+      convinter_intention_type: ["seek_room", "offer_room", "seek_flatmate"],
       convinter_listing_type: ["room", "flatmate"],
       convinter_report_status: ["pending", "resolved", "dismissed"],
       convinter_trust_badge: ["none", "bronze", "silver", "gold", "verified"],
+      convinter_urgency_level: ["urgent", "soon", "flexible", "exploring"],
       convinter_verification_status: ["pending", "approved", "rejected"],
       convinter_visibility: ["public", "registered_only", "hidden"],
       user_type: ["seeking_room", "offering_room", "seeking_roommate"],
