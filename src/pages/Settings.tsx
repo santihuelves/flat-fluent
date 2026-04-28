@@ -214,6 +214,29 @@ export default function Settings() {
             </CardContent>
           </Card>
 
+          {/* Integrations */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Github className="h-5 w-5" />
+                Integraciones
+              </CardTitle>
+              <CardDescription>
+                Conexiones con servicios externos
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button
+                variant="outline"
+                className="w-full justify-start"
+                onClick={() => navigate('/github')}
+              >
+                <Github className="mr-2 h-4 w-4" />
+                Conexión con GitHub
+              </Button>
+            </CardContent>
+          </Card>
+
           {/* Danger Zone */}
           <Card className="border-destructive/50">
             <CardHeader>
