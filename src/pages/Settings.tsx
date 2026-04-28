@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { ArrowLeft, User, Bell, Shield, Trash2, LogOut } from 'lucide-react';
+import { ArrowLeft, User, Bell, Shield, Trash2, LogOut, Github } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -210,6 +210,29 @@ export default function Settings() {
               
               <Button variant="outline" className="w-full">
                 Descargar mis datos
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Integrations */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Github className="h-5 w-5" />
+                Integraciones
+              </CardTitle>
+              <CardDescription>
+                Conexiones con servicios externos
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button
+                variant="outline"
+                className="w-full justify-start"
+                onClick={() => navigate('/github')}
+              >
+                <Github className="mr-2 h-4 w-4" />
+                Conexión con GitHub
               </Button>
             </CardContent>
           </Card>
