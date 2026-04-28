@@ -26,6 +26,7 @@ const Terms = lazy(() => import("./pages/Terms"));
 const Cookies = lazy(() => import("./pages/Cookies"));
 const Test = lazy(() => import("./pages/Test"));
 const Debug = lazy(() => import("./pages/Debug"));
+const GitHubConnection = lazy(() => import("./pages/GitHubConnection"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient();
@@ -63,6 +64,7 @@ const App = () => (
             <Route path="/cookies" element={<Cookies />} />
             <Route path="/test" element={<Test />} />
             <Route path="/debug" element={import.meta.env.DEV ? <Debug /> : <Navigate to="/" replace />} />
+            <Route path="/github" element={<GitHubConnection />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
