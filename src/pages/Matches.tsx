@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowRight, Loader2, MessageCircle, Search, Star } from 'lucide-react';
+import { ArrowRight, CheckCircle, Loader2, MessageCircle, Search, Star } from 'lucide-react';
 import { Layout } from '@/components/layout/Layout';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -103,6 +103,22 @@ export default function Matches() {
           <p className="text-muted-foreground mb-6">
             {message || 'Cuando haya consentimiento mutuo y compatibilidad, aparecerán aquí.'}
           </p>
+          {!message && (
+            <div className="text-left rounded-xl border border-border bg-card p-4 mb-6 space-y-3">
+              <div className="flex items-start gap-2 text-sm">
+                <CheckCircle className="h-4 w-4 text-primary mt-0.5" />
+                <span>Pide compatibilidad desde Discover o desde un perfil.</span>
+              </div>
+              <div className="flex items-start gap-2 text-sm">
+                <CheckCircle className="h-4 w-4 text-primary mt-0.5" />
+                <span>Cuando haya consentimiento mutuo, el match aparecera aqui.</span>
+              </div>
+              <div className="flex items-start gap-2 text-sm">
+                <CheckCircle className="h-4 w-4 text-primary mt-0.5" />
+                <span>Desde cada match podras abrir el chat directamente.</span>
+              </div>
+            </div>
+          )}
           <Button asChild variant="hero" className="gap-2">
             <Link to="/discover">
               <Search className="h-5 w-5" />

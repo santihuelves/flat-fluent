@@ -40,6 +40,8 @@ type CompatibilityData = {
   code?: string;
 };
 
+type RequestState = 'idle' | 'sending' | 'sent';
+
 const getName = (profile: PublicProfileData) => profile.display_name || profile.handle || 'Usuario';
 
 const getErrorMessage = (code?: string) => {
@@ -56,6 +58,8 @@ export default function PublicProfile() {
   const [compatibility, setCompatibility] = useState<CompatibilityData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingCompatibility, setIsLoadingCompatibility] = useState(false);
+  const [consentRequestState, setConsentRequestState] = useState<RequestState>('idle');
+  const [isOpeningChat, setIsOpeningChat] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const loadCompatibility = useCallback(async (userId: string) => {
@@ -115,41 +119,62 @@ export default function PublicProfile() {
 
   const handleMessage = async () => {
     if (!profile) return;
+    setIsOpeningChat(true);
 
-    const { data, error: rpcError } = await supabase.rpc('convinter_create_chat', {
-      p_other: profile.user_id,
-    });
+    try {
+      const { data, error: rpcError } = await supabase.rpc('convinter_create_chat', {
+        p_other: profile.user_id,
+      });
 
-    if (rpcError) {
+      if (rpcError) throw rpcError;
+
+      const result = data as unknown as { ok: boolean; code?: string };
+      if (!result.ok) {
+        toast.error(result.code === 'INVALID_TARGET' ? 'No puedes abrir chat contigo mismo' : 'No se pudo abrir el chat');
+        return;
+      }
+
+      navigate(`/chat/${profile.user_id}`);
+    } catch (error) {
+      console.error('Error opening chat:', error);
       toast.error('No se pudo abrir el chat');
-      return;
+    } finally {
+      setIsOpeningChat(false);
     }
-
-    const result = data as unknown as { ok: boolean; code?: string };
-    if (!result.ok) {
-      toast.error(result.code === 'INVALID_TARGET' ? 'No puedes abrir chat contigo mismo' : 'No se pudo abrir el chat');
-      return;
-    }
-
-    navigate(`/chat/${profile.user_id}`);
   };
 
   const handleRequestConsent = async () => {
     if (!profile) return;
+    if (consentRequestState !== 'idle') return;
 
-    const { data, error: rpcError } = await supabase.rpc('convinter_request_consent', {
-      p_to_user: profile.user_id,
-      p_requested_level: 1,
-    });
+    setConsentRequestState('sending');
 
-    if (rpcError) {
+    try {
+      const { data, error: rpcError } = await supabase.rpc('convinter_request_consent', {
+        p_to_user: profile.user_id,
+        p_requested_level: 1,
+      });
+
+      if (rpcError) throw rpcError;
+
+      const result = data as unknown as { ok: boolean; code?: string };
+      if (result.ok) {
+        setConsentRequestState('sent');
+        toast.success('Solicitud de compatibilidad enviada');
+        return;
+      }
+
+      if (result.code === 'ALREADY_REQUESTED') {
+        setConsentRequestState('sent');
+        toast.info('Ya habias enviado esta solicitud');
+        return;
+      }
+
+      throw new Error(result.code || 'REQUEST_FAILED');
+    } catch (error) {
+      console.error('Error requesting consent:', error);
       toast.error('No se pudo enviar la solicitud');
-      return;
-    }
-
-    const result = data as unknown as { ok: boolean };
-    if (result.ok) {
-      toast.success('Solicitud de compatibilidad enviada');
+      setConsentRequestState('idle');
     }
   };
 
@@ -235,12 +260,12 @@ export default function PublicProfile() {
                   </div>
 
                   <div className="flex gap-2">
-                    <Button className="flex-1" onClick={handleRequestConsent}>
-                      <Heart className="mr-2 h-4 w-4" />
-                      Pedir compatibilidad
+                    <Button className="flex-1" onClick={handleRequestConsent} disabled={compatibility?.ok || consentRequestState !== 'idle'}>
+                      {consentRequestState === 'sending' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Heart className="mr-2 h-4 w-4" />}
+                      {compatibility?.ok ? 'Compatibilidad visible' : consentRequestState === 'sent' ? 'Solicitud enviada' : consentRequestState === 'sending' ? 'Enviando...' : 'Pedir compatibilidad'}
                     </Button>
-                    <Button variant="outline" className="flex-1" onClick={handleMessage}>
-                      <MessageCircle className="mr-2 h-4 w-4" />
+                    <Button variant="outline" className="flex-1" onClick={handleMessage} disabled={isOpeningChat}>
+                      {isOpeningChat ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <MessageCircle className="mr-2 h-4 w-4" />}
                       Mensaje
                     </Button>
                   </div>

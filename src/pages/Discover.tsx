@@ -46,6 +46,7 @@ interface CompatibilityData {
 }
 
 type IntentionType = NonNullable<ProfileData['intentions']>[number]['intention_type'];
+type RequestState = 'idle' | 'sending' | 'sent';
 
 // Spanish cities for filter
 const spanishCities = [
@@ -63,7 +64,8 @@ export default function Discover() {
   // Data states
   const [profiles, setProfiles] = useState<ProfileData[]>([]);
   const [compatibilityCache, setCompatibilityCache] = useState<Record<string, CompatibilityData>>({});
-  const [requestedConsent, setRequestedConsent] = useState<Set<string>>(new Set());
+  const [requestStates, setRequestStates] = useState<Record<string, RequestState>>({});
+  const [fullTestRequests, setFullTestRequests] = useState<Record<string, RequestState>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingCompatibility, setIsLoadingCompatibility] = useState(false);
   
@@ -180,9 +182,14 @@ export default function Discover() {
 
   const currentProfile = filteredProfiles[currentIndex];
   const currentCompatibility = currentProfile ? compatibilityCache[currentProfile.user_id] : null;
+  const currentRequestState = currentProfile ? requestStates[currentProfile.user_id] ?? 'idle' : 'idle';
+  const currentFullTestRequestState = currentProfile ? fullTestRequests[currentProfile.user_id] ?? 'idle' : 'idle';
 
   const handleRequestConsent = async () => {
     if (!currentProfile) return;
+    if ((requestStates[currentProfile.user_id] ?? 'idle') !== 'idle') return;
+
+    setRequestStates(prev => ({ ...prev, [currentProfile.user_id]: 'sending' }));
     
     try {
       const { data, error } = await supabase.rpc('convinter_request_consent', {
@@ -192,37 +199,49 @@ export default function Discover() {
 
       if (error) throw error;
 
-      const result = data as unknown as { ok: boolean };
+      const result = data as unknown as { ok: boolean; code?: string };
       if (result.ok) {
-        setRequestedConsent(prev => new Set(prev).add(currentProfile.user_id));
+        setRequestStates(prev => ({ ...prev, [currentProfile.user_id]: 'sent' }));
         toast.success('Solicitud de compatibilidad enviada');
+        return;
       }
+
+      if (result.code === 'ALREADY_REQUESTED') {
+        setRequestStates(prev => ({ ...prev, [currentProfile.user_id]: 'sent' }));
+        toast.info('Ya habias enviado esta solicitud');
+        return;
+      }
+
+      throw new Error(result.code || 'REQUEST_FAILED');
     } catch (error) {
       console.error('Error requesting consent:', error);
       toast.error('Error al enviar solicitud');
+      setRequestStates(prev => ({ ...prev, [currentProfile.user_id]: 'idle' }));
     }
   };
 
   const handleRequestFullTest = async () => {
     if (!currentProfile) return;
+    if ((fullTestRequests[currentProfile.user_id] ?? 'idle') !== 'idle') return;
+
+    setFullTestRequests(prev => ({ ...prev, [currentProfile.user_id]: 'sending' }));
     
     try {
-      // Por ahora, usar el sistema de notificaciones existente
-      // TODO: Implementar convinter_request_full_test cuando se cree el RPC
-      const { error } = await supabase
-        .from('convinter_notifications')
-        .insert({
-          user_id: currentProfile.user_id,
-          notification_type: 'full_test_request',
-          payload: { from_user: (await supabase.auth.getUser()).data.user?.id }
-        });
+      const { data, error } = await supabase.rpc('convinter_request_full_test', {
+        p_target: currentProfile.user_id,
+      });
 
       if (error) throw error;
 
+      const result = data as unknown as { ok: boolean; code?: string };
+      if (!result.ok) throw new Error(result.code || 'REQUEST_FAILED');
+
+      setFullTestRequests(prev => ({ ...prev, [currentProfile.user_id]: 'sent' }));
       toast.success('Solicitud de test exhaustivo enviada');
     } catch (error) {
       console.error('Error requesting full test:', error);
       toast.error('Error al solicitar test exhaustivo');
+      setFullTestRequests(prev => ({ ...prev, [currentProfile.user_id]: 'idle' }));
     }
   };
 
@@ -630,13 +649,15 @@ export default function Discover() {
                     <p className="text-sm text-muted-foreground mb-3">
                       Solicita ver la compatibilidad detallada
                     </p>
-                    <Button 
-                      variant="outline" 
+                    <Button
+                      variant="outline"
                       size="sm"
                       onClick={handleRequestConsent}
-                      disabled={requestedConsent.has(currentProfile.user_id)}
+                      disabled={currentRequestState !== 'idle'}
+                      className="gap-2"
                     >
-                      {requestedConsent.has(currentProfile.user_id) ? 'Solicitud enviada' : 'Solicitar compatibilidad'}
+                      {currentRequestState === 'sending' && <Loader2 className="h-4 w-4 animate-spin" />}
+                      {currentRequestState === 'sent' ? 'Solicitud enviada' : currentRequestState === 'sending' ? 'Enviando...' : 'Solicitar compatibilidad'}
                     </Button>
                   </div>
                 )}
@@ -648,12 +669,15 @@ export default function Discover() {
                     <p className="text-sm text-muted-foreground mb-3">
                       Este usuario solo ha completado el test rápido. Puedes pedirle que complete el exhaustivo para mayor precisión.
                     </p>
-                    <Button 
-                      variant="outline" 
+                    <Button
+                      variant="outline"
                       size="sm"
                       onClick={handleRequestFullTest}
+                      disabled={currentFullTestRequestState !== 'idle'}
+                      className="gap-2"
                     >
-                      Solicitar test exhaustivo
+                      {currentFullTestRequestState === 'sending' && <Loader2 className="h-4 w-4 animate-spin" />}
+                      {currentFullTestRequestState === 'sent' ? 'Solicitud enviada' : currentFullTestRequestState === 'sending' ? 'Enviando...' : 'Solicitar test exhaustivo'}
                     </Button>
                   </div>
                 )}
