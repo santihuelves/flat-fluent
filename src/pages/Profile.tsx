@@ -50,11 +50,12 @@ export default function Profile() {
         return;
       }
 
-      let { data, error } = await supabase
+      const { data: profileData, error } = await supabase
         .from('convinter_profiles')
         .select('*')
         .eq('user_id', user.id)
         .maybeSingle();
+      let data = profileData;
 
       // Si no existe perfil, crearlo automáticamente
       if (!data && !error) {
