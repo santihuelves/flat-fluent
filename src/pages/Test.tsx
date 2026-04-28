@@ -531,7 +531,7 @@ export default function Test() {
       const updateProfile = async (fields: Record<string, unknown>) => {
         return supabase
           .from('convinter_profiles')
-          .update(fields)
+          .update(fields as never)
           .eq('user_id', session.user.id);
       };
 
