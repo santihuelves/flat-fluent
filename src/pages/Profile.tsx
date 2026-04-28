@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { motion } from 'framer-motion';
-import { User, Camera, MapPin, FileText, Edit2, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
+import { User, Camera, MapPin, FileText, Edit2, CheckCircle, AlertCircle, Loader2, Home } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useTranslation } from 'react-i18next';
@@ -132,10 +132,18 @@ export default function Profile() {
           {/* Header */}
           <div className="flex items-center justify-between mb-8">
             <h1 className="text-3xl font-bold">{t('profile.title')}</h1>
-            <Button variant="outline" className="gap-2" onClick={() => setEditOpen(true)}>
-              <Edit2 className="h-4 w-4" />
-              {t('profile.edit')}
-            </Button>
+            <div className="flex flex-wrap justify-end gap-2">
+              <Button asChild variant="outline" className="gap-2">
+                <Link to="/my-listings">
+                  <Home className="h-4 w-4" />
+                  Mis anuncios
+                </Link>
+              </Button>
+              <Button variant="outline" className="gap-2" onClick={() => setEditOpen(true)}>
+                <Edit2 className="h-4 w-4" />
+                {t('profile.edit')}
+              </Button>
+            </div>
           </div>
 
           {/* Profile Card */}

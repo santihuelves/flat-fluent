@@ -12,6 +12,7 @@ const Onboarding = lazy(() => import("./pages/Onboarding"));
 const Discover = lazy(() => import("./pages/Discover"));
 const Listings = lazy(() => import("./pages/Listings"));
 const ListingDetail = lazy(() => import("./pages/ListingDetail"));
+const MyListings = lazy(() => import("./pages/MyListings"));
 const Matches = lazy(() => import("./pages/Matches"));
 const Chat = lazy(() => import("./pages/Chat"));
 const Profile = lazy(() => import("./pages/Profile"));
@@ -50,6 +51,7 @@ const App = () => (
             <Route path="/discover" element={<Discover />} />
             <Route path="/listings" element={<Listings />} />
             <Route path="/listing/:id" element={<ListingDetail />} />
+            <Route path="/my-listings" element={<MyListings />} />
             <Route path="/matches" element={<Matches />} />
             <Route path="/chat/:matchId" element={<Chat />} />
             <Route path="/profile" element={<Profile />} />

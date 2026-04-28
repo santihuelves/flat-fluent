@@ -221,12 +221,20 @@ export default function Listings() {
             <h1 className="text-3xl font-bold mb-2">Anuncios</h1>
             <p className="text-muted-foreground">Habitaciones y personas buscando piso, desde Supabase.</p>
           </div>
-          <Button asChild variant="hero" className="gap-2">
-            <Link to="/create-listing">
-              <Plus className="h-4 w-4" />
-              Crear anuncio
-            </Link>
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button asChild variant="outline" className="gap-2">
+              <Link to="/my-listings">
+                <Home className="h-4 w-4" />
+                Mis anuncios
+              </Link>
+            </Button>
+            <Button asChild variant="hero" className="gap-2">
+              <Link to="/create-listing">
+                <Plus className="h-4 w-4" />
+                Crear anuncio
+              </Link>
+            </Button>
+          </div>
         </div>
 
         <div className="flex flex-col lg:flex-row gap-3 mb-6">
