@@ -1,13 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { AlertCircle, ArrowLeft, Calendar, CheckCircle, Cigarette, Clock, Euro, Home, Loader2, MapPin, MessageCircle, PawPrint, ShieldCheck, Users } from 'lucide-react';
+import { AlertCircle, ArrowLeft, Calendar, CheckCircle, Cigarette, Clock, Edit2, Euro, Home, Loader2, MapPin, MessageCircle, PawPrint, ShieldCheck, Users } from 'lucide-react';
 import { Layout } from '@/components/layout/Layout';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 import { Separator } from '@/components/ui/separator';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -95,6 +94,8 @@ export default function ListingDetail() {
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingCompatibility, setIsLoadingCompatibility] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [activePhotoIndex, setActivePhotoIndex] = useState(0);
 
   const loadCompatibility = useCallback(async (ownerId: string) => {
     setIsLoadingCompatibility(true);
@@ -122,6 +123,10 @@ export default function ListingDetail() {
 
     setIsLoading(true);
     setError(null);
+    setActivePhotoIndex(0);
+
+    const { data: userData } = await supabase.auth.getUser();
+    setCurrentUserId(userData.user?.id ?? null);
 
     const { data, error: rpcError } = await supabase.rpc('convinter_get_listing_detail', {
       p_listing_id: id,
@@ -144,7 +149,12 @@ export default function ListingDetail() {
     setListing(result.listing);
     setOwner(result.owner);
     setIsLoading(false);
-    loadCompatibility(result.owner.user_id);
+
+    if (userData.user?.id && userData.user.id !== result.owner.user_id) {
+      loadCompatibility(result.owner.user_id);
+    } else {
+      setCompatibility(null);
+    }
   }, [id, loadCompatibility]);
 
   useEffect(() => {
@@ -200,7 +210,9 @@ export default function ListingDetail() {
 
   const ownerName = getOwnerName(owner);
   const photos = getListingPhotos(listing);
+  const activePhoto = photos[Math.min(activePhotoIndex, photos.length - 1)] || '/placeholder.svg';
   const compatibilityReasons = compatibility?.breakdown?.reasons ?? [];
+  const isOwner = currentUserId === owner.user_id;
 
   return (
     <Layout>
@@ -218,27 +230,38 @@ export default function ListingDetail() {
           <div className="grid lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2 space-y-8">
               <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-                <Carousel className="w-full">
-                  <CarouselContent>
-                    {photos.map((photo, index) => (
-                      <CarouselItem key={`${photo}-${index}`}>
-                        <div className="aspect-video rounded-xl overflow-hidden bg-muted">
-                          <img
-                            src={photo}
-                            alt={`${listing.title} - ${index + 1}`}
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
-                      </CarouselItem>
-                    ))}
-                  </CarouselContent>
+                <div className="space-y-3">
+                  <div className="relative aspect-video rounded-xl overflow-hidden bg-muted">
+                    <img
+                      src={activePhoto}
+                      alt={listing.title}
+                      className="w-full h-full object-cover"
+                    />
+                    {photos.length > 1 && (
+                      <Badge className="absolute right-3 top-3 rounded-full bg-background/90 text-foreground">
+                        {activePhotoIndex + 1}/{photos.length}
+                      </Badge>
+                    )}
+                  </div>
+
                   {photos.length > 1 && (
-                    <>
-                      <CarouselPrevious className="left-4" />
-                      <CarouselNext className="right-4" />
-                    </>
+                    <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
+                      {photos.map((photo, index) => (
+                        <button
+                          key={`${photo}-${index}`}
+                          type="button"
+                          className={`aspect-video rounded-lg overflow-hidden border transition-colors ${
+                            index === activePhotoIndex ? 'border-primary ring-2 ring-primary/30' : 'border-border'
+                          }`}
+                          onClick={() => setActivePhotoIndex(index)}
+                          aria-label={`Ver foto ${index + 1}`}
+                        >
+                          <img src={photo} alt={`${listing.title} ${index + 1}`} className="w-full h-full object-cover" />
+                        </button>
+                      ))}
+                    </div>
                   )}
-                </Carousel>
+                </div>
               </motion.div>
 
               <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
@@ -260,6 +283,11 @@ export default function ListingDetail() {
                     <Badge variant="outline" className="rounded-full">
                       <ShieldCheck className="w-3 h-3 mr-1" />
                       Anuncio verificado
+                    </Badge>
+                  )}
+                  {isOwner && (
+                    <Badge variant="outline" className="rounded-full">
+                      Tu anuncio
                     </Badge>
                   )}
                 </div>
@@ -363,13 +391,21 @@ export default function ListingDetail() {
                       )}
                     </div>
 
-                    <Button onClick={handleContact} className="w-full gap-2" variant="hero">
-                      <MessageCircle className="w-4 h-4" />
-                      Contactar
-                    </Button>
+                    {isOwner ? (
+                      <Button onClick={() => navigate('/my-listings')} className="w-full gap-2" variant="hero">
+                        <Edit2 className="w-4 h-4" />
+                        Gestionar mi anuncio
+                      </Button>
+                    ) : (
+                      <Button onClick={handleContact} className="w-full gap-2" variant="hero">
+                        <MessageCircle className="w-4 h-4" />
+                        Contactar
+                      </Button>
+                    )}
                   </CardContent>
                 </Card>
 
+                {!isOwner && (
                 <Card className="border-primary/20 bg-primary/5">
                   <CardContent className="p-6">
                     <div className="text-center mb-4">
@@ -409,6 +445,7 @@ export default function ListingDetail() {
                     )}
                   </CardContent>
                 </Card>
+                )}
               </div>
             </div>
           </div>
