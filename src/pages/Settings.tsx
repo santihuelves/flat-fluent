@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { ArrowLeft, User, Bell, Shield, Trash2, LogOut, Download, Loader2 } from 'lucide-react';
+import { ArrowLeft, User, Bell, Shield, Trash2, LogOut, Download, Loader2, Ban } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
@@ -20,6 +20,15 @@ type NotificationSettings = {
   messages: boolean;
   listings: boolean;
   marketing: boolean;
+};
+
+type BlockedUser = {
+  user_id: string;
+  display_name: string | null;
+  handle: string | null;
+  photo_url: string | null;
+  city: string | null;
+  blocked_at: string | null;
 };
 
 const NOTIFICATIONS_KEY = 'convinder-notification-settings';
@@ -52,16 +61,67 @@ export default function Settings() {
   const [loading, setLoading] = useState(true);
   const [savingPassword, setSavingPassword] = useState(false);
   const [savingPrivacy, setSavingPrivacy] = useState(false);
+  const [loadingBlockedUsers, setLoadingBlockedUsers] = useState(false);
+  const [unblockingUserId, setUnblockingUserId] = useState<string | null>(null);
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [notifications, setNotifications] = useState<NotificationSettings>(() => readNotificationSettings());
   const [profileVisible, setProfileVisible] = useState(true);
   const [searchable, setSearchable] = useState(true);
+  const [blockedUsers, setBlockedUsers] = useState<BlockedUser[]>([]);
 
   const visibility = useMemo(
     () => getVisibilityFromToggles(profileVisible, searchable),
     [profileVisible, searchable],
   );
+
+  const loadBlockedUsers = useCallback(async (currentUserId: string) => {
+    setLoadingBlockedUsers(true);
+
+    const { data: blocks, error: blocksError } = await supabase
+      .from('convinter_blocks')
+      .select('blocked_id, created_at')
+      .eq('blocker_id', currentUserId)
+      .order('created_at', { ascending: false });
+
+    if (blocksError) {
+      console.warn('Error loading blocked users:', blocksError);
+      toast.warning('No se pudieron cargar los usuarios bloqueados.');
+      setBlockedUsers([]);
+      setLoadingBlockedUsers(false);
+      return;
+    }
+
+    const blockedIds = (blocks ?? []).map((block) => block.blocked_id);
+    if (blockedIds.length === 0) {
+      setBlockedUsers([]);
+      setLoadingBlockedUsers(false);
+      return;
+    }
+
+    const { data: profiles, error: profilesError } = await supabase
+      .from('convinter_profiles')
+      .select('user_id, display_name, handle, photo_url, city')
+      .in('user_id', blockedIds);
+
+    if (profilesError) {
+      console.warn('Error loading blocked profiles:', profilesError);
+    }
+
+    const profileById = new Map((profiles ?? []).map((profile) => [profile.user_id, profile]));
+    setBlockedUsers((blocks ?? []).map((block) => {
+      const profile = profileById.get(block.blocked_id);
+      return {
+        user_id: block.blocked_id,
+        display_name: profile?.display_name ?? null,
+        handle: profile?.handle ?? null,
+        photo_url: profile?.photo_url ?? null,
+        city: profile?.city ?? null,
+        blocked_at: block.created_at,
+      };
+    }));
+    setLoadingBlockedUsers(false);
+  }, []);
 
   const loadSettings = useCallback(async () => {
     setLoading(true);
@@ -72,6 +132,7 @@ export default function Settings() {
 
     if (!currentUser) {
       setLoading(false);
+      setBlockedUsers([]);
       return;
     }
 
@@ -89,8 +150,9 @@ export default function Settings() {
     const currentVisibility = profile?.visibility ?? 'public';
     setProfileVisible(currentVisibility !== 'hidden');
     setSearchable(currentVisibility === 'public');
+    await loadBlockedUsers(currentUser.id);
     setLoading(false);
-  }, []);
+  }, [loadBlockedUsers]);
 
   useEffect(() => {
     void loadSettings();
@@ -184,6 +246,7 @@ export default function Settings() {
       profile,
       intentions: intentions ?? [],
       listings: listings ?? [],
+      blocked_users: blockedUsers,
       notifications,
       privacy: { visibility },
     };
@@ -207,6 +270,29 @@ export default function Settings() {
     toast.error('Esta acción requiere confirmación adicional', {
       description: 'Por seguridad, contacta con soporte para eliminar tu cuenta de forma definitiva.',
     });
+  };
+
+  const handleUnblockUser = async (targetUserId: string) => {
+    setUnblockingUserId(targetUserId);
+    const { data, error } = await supabase.rpc('convinter_unblock_user', {
+      p_target: targetUserId,
+    });
+    setUnblockingUserId(null);
+
+    if (error) {
+      console.error('Error unblocking user:', error);
+      toast.error('No se pudo desbloquear al usuario.');
+      return;
+    }
+
+    const result = data as unknown as { ok?: boolean; code?: string } | null;
+    if (result?.ok === false) {
+      toast.error(result.code === 'NOT_AUTHENTICATED' ? 'Inicia sesión para desbloquear.' : 'No se pudo desbloquear al usuario.');
+      return;
+    }
+
+    setBlockedUsers((current) => current.filter((blockedUser) => blockedUser.user_id !== targetUserId));
+    toast.success('Usuario desbloqueado.');
   };
 
   return (
@@ -369,6 +455,56 @@ export default function Settings() {
                 <Download className="mr-2 h-4 w-4" />
                 Descargar mis datos
               </Button>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Ban className="h-5 w-5" />
+                Usuarios bloqueados
+              </CardTitle>
+              <CardDescription>
+                Gestiona las personas con las que no quieres interactuar.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {loadingBlockedUsers ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Cargando bloqueos...
+                </div>
+              ) : blockedUsers.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  No tienes usuarios bloqueados.
+                </p>
+              ) : (
+                blockedUsers.map((blockedUser, index) => {
+                  const displayName = blockedUser.display_name || blockedUser.handle || 'Usuario bloqueado';
+                  return (
+                    <div key={blockedUser.user_id}>
+                      {index > 0 && <Separator className="mb-4" />}
+                      <div className="flex items-center justify-between gap-4">
+                        <div className="min-w-0">
+                          <p className="font-medium truncate">{displayName}</p>
+                          <p className="text-sm text-muted-foreground truncate">
+                            {blockedUser.city || 'Sin ciudad indicada'}
+                          </p>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleUnblockUser(blockedUser.user_id)}
+                          disabled={unblockingUserId === blockedUser.user_id}
+                        >
+                          {unblockingUserId === blockedUser.user_id && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                          Desbloquear
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
             </CardContent>
           </Card>
 

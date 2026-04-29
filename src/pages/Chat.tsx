@@ -130,6 +130,19 @@ export default function Chat() {
       }
       setUserId(sessionUser.id);
 
+      const { data: blockedData, error: blockError } = await supabase.rpc('convinter_is_blocked', {
+        p_user_a: sessionUser.id,
+        p_user_b: matchId,
+      });
+
+      if (blockError) {
+        console.warn('No se pudo comprobar el bloqueo del chat', blockError);
+      }
+
+      if (blockedData) {
+        setIsBlocked(true);
+      }
+
       const { data, error: createError } = await supabase.rpc('convinter_create_chat', {
         p_other: matchId,
       });
@@ -138,7 +151,12 @@ export default function Chat() {
 
       const result = data as unknown as CreateChatResponse;
       if (!result?.ok || !result.chat_id) {
-        setError(`No se pudo crear/abrir el chat: ${result?.code ?? 'unknown'}`);
+        if (result?.code === 'BLOCKED') {
+          setIsBlocked(true);
+          setError('Has bloqueado a este usuario. No puedes enviarle mensajes.');
+        } else {
+          setError(`No se pudo crear/abrir el chat: ${result?.code ?? 'unknown'}`);
+        }
         setIsLoading(false);
         return;
       }

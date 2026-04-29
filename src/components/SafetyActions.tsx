@@ -252,7 +252,7 @@ export function SafetyActions({
             <DialogTitle>Bloquear usuario</DialogTitle>
             <DialogDescription>
               {targetName ? `Dejarás de interactuar con ${targetName}.` : 'Dejarás de interactuar con este usuario.'}
-              {' '}Podrás revisar esta decisión más adelante cuando añadamos gestión de bloqueos.
+              {' '}Podrás desbloquearlo más adelante desde Configuración.
             </DialogDescription>
           </DialogHeader>
 

@@ -99,6 +99,24 @@ export default function ListingDetail() {
   const [activePhotoIndex, setActivePhotoIndex] = useState(0);
   const [isBlocked, setIsBlocked] = useState(false);
 
+  const loadBlockState = useCallback(async (viewerId: string, ownerId: string) => {
+    if (viewerId === ownerId) return false;
+
+    const { data, error: blockError } = await supabase.rpc('convinter_is_blocked', {
+      p_user_a: viewerId,
+      p_user_b: ownerId,
+    });
+
+    if (blockError) {
+      console.warn('Error loading listing block state:', blockError);
+      return false;
+    }
+
+    const blocked = Boolean(data);
+    setIsBlocked(blocked);
+    return blocked;
+  }, []);
+
   const loadCompatibility = useCallback(async (ownerId: string) => {
     setIsLoadingCompatibility(true);
     const { data, error: rpcError } = await supabase.rpc('convinter_compute_and_cache_guarded', {
@@ -153,11 +171,17 @@ export default function ListingDetail() {
     setIsLoading(false);
 
     if (userData.user?.id && userData.user.id !== result.owner.user_id) {
+      const blocked = await loadBlockState(userData.user.id, result.owner.user_id);
+      if (blocked) {
+        setCompatibility({ ok: false, code: 'BLOCKED' });
+        return;
+      }
+
       loadCompatibility(result.owner.user_id);
     } else {
       setCompatibility(null);
     }
-  }, [id, loadCompatibility]);
+  }, [id, loadBlockState, loadCompatibility]);
 
   useEffect(() => {
     loadListing();
@@ -435,7 +459,9 @@ export default function ListingDetail() {
                       ) : (
                         <>
                           <AlertCircle className="h-6 w-6 text-muted-foreground mx-auto mb-2" />
-                          <p className="text-sm text-muted-foreground">Compatibilidad pendiente de consentimiento</p>
+                          <p className="text-sm text-muted-foreground">
+                            {isBlocked ? 'Usuario bloqueado' : 'Compatibilidad pendiente de consentimiento'}
+                          </p>
                         </>
                       )}
                     </div>

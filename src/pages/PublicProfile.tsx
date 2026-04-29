@@ -64,6 +64,26 @@ export default function PublicProfile() {
   const [error, setError] = useState<string | null>(null);
   const [isBlocked, setIsBlocked] = useState(false);
 
+  const loadBlockState = useCallback(async (targetUserId: string) => {
+    const { data: userData } = await supabase.auth.getUser();
+    const currentUserId = userData.user?.id;
+    if (!currentUserId || currentUserId === targetUserId) return false;
+
+    const { data, error: blockError } = await supabase.rpc('convinter_is_blocked', {
+      p_user_a: currentUserId,
+      p_user_b: targetUserId,
+    });
+
+    if (blockError) {
+      console.warn('Error loading block state:', blockError);
+      return false;
+    }
+
+    const blocked = Boolean(data);
+    setIsBlocked(blocked);
+    return blocked;
+  }, []);
+
   const loadCompatibility = useCallback(async (userId: string) => {
     setIsLoadingCompatibility(true);
     const { data, error: rpcError } = await supabase.rpc('convinter_compute_and_cache_guarded', {
@@ -112,8 +132,14 @@ export default function PublicProfile() {
 
     setProfile(result.user);
     setIsLoading(false);
+    const blocked = await loadBlockState(result.user.user_id);
+    if (blocked) {
+      setCompatibility({ ok: false, code: 'BLOCKED' });
+      return;
+    }
+
     loadCompatibility(result.user.user_id);
-  }, [id, loadCompatibility]);
+  }, [id, loadBlockState, loadCompatibility]);
 
   useEffect(() => {
     loadProfile();
@@ -274,7 +300,7 @@ export default function PublicProfile() {
                     ) : (
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         <AlertCircle className="h-4 w-4" />
-                        Compatibilidad pendiente de consentimiento
+                        {isBlocked ? 'Usuario bloqueado' : 'Compatibilidad pendiente de consentimiento'}
                       </div>
                     )}
                   </div>
