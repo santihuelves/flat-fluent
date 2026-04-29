@@ -224,7 +224,27 @@ SELECT
   CASE WHEN selfie_verified THEN 'document'::public.verification_level ELSE 'email'::public.verification_level END,
   now(),
   now()
-FROM covinter_demo_seed_users;
+FROM covinter_demo_seed_users
+ON CONFLICT (id) DO UPDATE SET
+  name = excluded.name,
+  bio = excluded.bio,
+  user_type = excluded.user_type,
+  autonomous_community = excluded.autonomous_community,
+  province = excluded.province,
+  city = excluded.city,
+  neighborhoods = excluded.neighborhoods,
+  budget_min = excluded.budget_min,
+  budget_max = excluded.budget_max,
+  move_in_date = excluded.move_in_date,
+  min_stay_months = excluded.min_stay_months,
+  occupation = excluded.occupation,
+  lifestyle_tags = excluded.lifestyle_tags,
+  languages = excluded.languages,
+  photos = excluded.photos,
+  onboarding_completed = excluded.onboarding_completed,
+  test_completed = excluded.test_completed,
+  verification_level = excluded.verification_level,
+  updated_at = now();
 
 INSERT INTO public.convinter_profiles (
   user_id, handle, display_name, bio, photo_url, languages,
