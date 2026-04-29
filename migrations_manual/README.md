@@ -10,6 +10,24 @@ Pega los 5 bloques **en orden** en el SQL Editor del dashboard de Supabase del p
 | 4 | `04_listing_helpers.sql` | RPCs `convinter_create_listing`, `convinter_update_listing`, `convinter_delete_listing` |
 | 5 | `05_intentions.sql` | Enums + tabla `convinter_profile_intentions` + RPCs `convinter_set_intention`, `convinter_remove_intention`, `convinter_get_intentions` |
 
+## Datos demo para pruebas manuales
+
+Estos bloques no son migraciones de producto. Son un paquete reversible para poblar el preview con usuarios, perfiles, anuncios, matches, compatibilidad, chats, mensajes y notificaciones ficticias.
+
+| Archivo | Que hace |
+|---|---|
+| `06_demo_full_seed.sql` | Crea 32 usuarios demo, 32 perfiles, 32 anuncios, intenciones, respuestas, matches, compatibilidad, chats, mensajes y notificaciones |
+| `07_demo_cleanup.sql` | Borra por completo el paquete demo antes de produccion |
+
+Credenciales demo principales:
+
+```text
+demo.busca@covinter.test / Test1234!
+demo.ofrece@covinter.test / Test1234!
+```
+
+Todos los usuarios demo usan la misma contrasena `Test1234!`.
+
 ## Notas
 
 - Todos los SQL son lo más idempotentes posible (`IF NOT EXISTS`, `CREATE OR REPLACE`, `ON CONFLICT DO NOTHING`), pero `CREATE POLICY` no lo es: si re-ejecutas el bloque 2, fallará en las políticas ya creadas. Es esperable.
