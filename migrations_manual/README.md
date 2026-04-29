@@ -18,6 +18,7 @@ Estos bloques no son migraciones de producto. Son un paquete reversible para pob
 |---|---|
 | `06_demo_full_seed.sql` | Crea 32 usuarios demo, 32 perfiles, 32 anuncios, intenciones, respuestas, matches, compatibilidad, chats, mensajes y notificaciones |
 | `07_demo_cleanup.sql` | Borra por completo el paquete demo antes de produccion |
+| `08_fix_get_my_matches.sql` | Reinstala la RPC correcta para que la pantalla Matches cargue los consentimientos demo |
 
 Credenciales demo principales:
 
