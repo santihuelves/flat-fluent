@@ -66,7 +66,7 @@ const App = () => (
             <Route path="/cookies" element={<Cookies />} />
             <Route path="/test" element={<Test />} />
             <Route path="/debug" element={import.meta.env.DEV ? <Debug /> : <Navigate to="/" replace />} />
-            <Route path="/github" element={<GitHubConnection />} />
+            <Route path="/github" element={import.meta.env.DEV ? <GitHubConnection /> : <Navigate to="/" replace />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
