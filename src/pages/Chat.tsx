@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { ArrowLeft, Send, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { SafetyActions } from '@/components/SafetyActions';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -64,6 +65,7 @@ export default function Chat() {
   const [otherProfile, setOtherProfile] = useState<ProfileLite | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
+  const [isBlocked, setIsBlocked] = useState(false);
 
   const loadOtherProfile = useCallback(async (user: string) => {
     const { data, error: profileError } = await supabase
@@ -200,6 +202,10 @@ export default function Chat() {
 
   const handleSend = async () => {
     if (!newMessage.trim() || !chatId) return;
+    if (isBlocked) {
+      toast.info('Has bloqueado a este usuario.');
+      return;
+    }
     if (!userId) {
       toast.error('Necesitas iniciar sesión para enviar mensajes');
       return;
@@ -293,9 +299,21 @@ export default function Chat() {
             </p>
           </div>
 
-          <Button asChild variant="outline" size="sm">
-            <Link to={`/u/${matchId}`}>Ver perfil</Link>
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button asChild variant="outline" size="sm">
+              <Link to={`/u/${matchId}`}>Ver perfil</Link>
+            </Button>
+            {matchId && (
+              <SafetyActions
+                targetType="user"
+                targetId={matchId}
+                targetUserId={matchId}
+                targetName={headingName}
+                compact
+                onBlocked={() => setIsBlocked(true)}
+              />
+            )}
+          </div>
         </div>
 
         {/* Messages */}
@@ -334,11 +352,7 @@ export default function Chat() {
                 }`}
               >
                 <p className="text-sm break-words">{message.body}</p>
-                <div
-                  className={`flex items-center gap-2 mt-1 ${
-                    message.sender_id === userId ? 'justify-end' : 'justify-start'
-                  }`}
-                >
+                <div className={`flex items-center gap-2 mt-1 ${message.sender_id === userId ? 'justify-end' : 'justify-start'}`}>
                   <span
                     className={`text-xs ${
                       message.sender_id === userId
@@ -350,6 +364,13 @@ export default function Chat() {
                   </span>
                   {message.optimistic && (
                     <Loader2 className="h-3 w-3 animate-spin text-primary-foreground/70" />
+                  )}
+                  {message.sender_id !== userId && typeof message.id === 'number' && (
+                    <SafetyActions
+                      targetType="message"
+                      targetId={message.id}
+                      compact
+                    />
                   )}
                 </div>
               </div>
@@ -366,10 +387,10 @@ export default function Chat() {
               value={newMessage}
               onChange={(e) => setNewMessage(e.target.value)}
               onKeyDown={handleKeyPress}
-              disabled={!!error || isLoading}
+              disabled={isBlocked || !!error || isLoading}
               className="flex-1"
             />
-            <Button onClick={handleSend} disabled={!newMessage.trim() || isSending || !!error || isLoading}>
+            <Button onClick={handleSend} disabled={isBlocked || !newMessage.trim() || isSending || !!error || isLoading}>
               {isSending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
             </Button>
           </div>

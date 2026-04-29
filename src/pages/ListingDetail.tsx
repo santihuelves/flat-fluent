@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
+import { SafetyActions } from '@/components/SafetyActions';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -96,6 +97,7 @@ export default function ListingDetail() {
   const [error, setError] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [activePhotoIndex, setActivePhotoIndex] = useState(0);
+  const [isBlocked, setIsBlocked] = useState(false);
 
   const loadCompatibility = useCallback(async (ownerId: string) => {
     setIsLoadingCompatibility(true);
@@ -163,6 +165,10 @@ export default function ListingDetail() {
 
   const handleContact = async () => {
     if (!owner) return;
+    if (isBlocked) {
+      toast.info('Has bloqueado a este usuario.');
+      return;
+    }
 
     const { data, error: rpcError } = await supabase.rpc('convinter_create_chat', {
       p_other: owner.user_id,
@@ -397,10 +403,20 @@ export default function ListingDetail() {
                         Gestionar mi anuncio
                       </Button>
                     ) : (
-                      <Button onClick={handleContact} className="w-full gap-2" variant="hero">
-                        <MessageCircle className="w-4 h-4" />
-                        Contactar
-                      </Button>
+                      <div className="space-y-2">
+                        <Button onClick={handleContact} className="w-full gap-2" variant="hero" disabled={isBlocked}>
+                          <MessageCircle className="w-4 h-4" />
+                          {isBlocked ? 'Usuario bloqueado' : 'Contactar'}
+                        </Button>
+                        <SafetyActions
+                          targetType="listing"
+                          targetId={listing.id}
+                          targetUserId={owner.user_id}
+                          targetName={ownerName}
+                          buttonLabel="Reportar o bloquear"
+                          onBlocked={() => setIsBlocked(true)}
+                        />
+                      </div>
                     )}
                   </CardContent>
                 </Card>

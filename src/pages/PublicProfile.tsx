@@ -7,6 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { SafetyActions } from '@/components/SafetyActions';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -61,6 +62,7 @@ export default function PublicProfile() {
   const [consentRequestState, setConsentRequestState] = useState<RequestState>('idle');
   const [isOpeningChat, setIsOpeningChat] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isBlocked, setIsBlocked] = useState(false);
 
   const loadCompatibility = useCallback(async (userId: string) => {
     setIsLoadingCompatibility(true);
@@ -119,6 +121,10 @@ export default function PublicProfile() {
 
   const handleMessage = async () => {
     if (!profile) return;
+    if (isBlocked) {
+      toast.info('Has bloqueado a este usuario.');
+      return;
+    }
     setIsOpeningChat(true);
 
     try {
@@ -146,6 +152,10 @@ export default function PublicProfile() {
   const handleRequestConsent = async () => {
     if (!profile) return;
     if (consentRequestState !== 'idle') return;
+    if (isBlocked) {
+      toast.info('Has bloqueado a este usuario.');
+      return;
+    }
 
     setConsentRequestState('sending');
 
@@ -228,9 +238,19 @@ export default function PublicProfile() {
 
                 <div className="flex-1 space-y-4">
                   <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <h1 className="text-2xl font-bold">{name}</h1>
-                      {profile.selfie_verified && <Shield className="h-5 w-5 text-primary" />}
+                    <div className="flex items-start justify-between gap-3 mb-1">
+                      <div className="flex items-center gap-2">
+                        <h1 className="text-2xl font-bold">{name}</h1>
+                        {profile.selfie_verified && <Shield className="h-5 w-5 text-primary" />}
+                      </div>
+                      <SafetyActions
+                        targetType="user"
+                        targetId={profile.user_id}
+                        targetUserId={profile.user_id}
+                        targetName={name}
+                        compact
+                        onBlocked={() => setIsBlocked(true)}
+                      />
                     </div>
                     <div className="flex flex-wrap items-center gap-4 text-muted-foreground">
                       {profile.city && (
@@ -260,11 +280,11 @@ export default function PublicProfile() {
                   </div>
 
                   <div className="flex gap-2">
-                    <Button className="flex-1" onClick={handleRequestConsent} disabled={compatibility?.ok || consentRequestState !== 'idle'}>
+                    <Button className="flex-1" onClick={handleRequestConsent} disabled={isBlocked || compatibility?.ok || consentRequestState !== 'idle'}>
                       {consentRequestState === 'sending' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Heart className="mr-2 h-4 w-4" />}
-                      {compatibility?.ok ? 'Compatibilidad visible' : consentRequestState === 'sent' ? 'Solicitud enviada' : consentRequestState === 'sending' ? 'Enviando...' : 'Pedir compatibilidad'}
+                      {isBlocked ? 'Usuario bloqueado' : compatibility?.ok ? 'Compatibilidad visible' : consentRequestState === 'sent' ? 'Solicitud enviada' : consentRequestState === 'sending' ? 'Enviando...' : 'Pedir compatibilidad'}
                     </Button>
-                    <Button variant="outline" className="flex-1" onClick={handleMessage} disabled={isOpeningChat}>
+                    <Button variant="outline" className="flex-1" onClick={handleMessage} disabled={isBlocked || isOpeningChat}>
                       {isOpeningChat ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <MessageCircle className="mr-2 h-4 w-4" />}
                       Mensaje
                     </Button>
