@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowRight, CheckCircle, Inbox, Loader2, MessageCircle, Search, Star } from 'lucide-react';
+import { ArrowRight, CheckCircle, Inbox, Loader2, MessageCircle, Search, Star, Users } from 'lucide-react';
 import { Layout } from '@/components/layout/Layout';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -166,9 +166,17 @@ export default function Matches() {
               Tus matches y chats activos en un solo lugar.
             </p>
           </div>
-          <Badge variant={unreadTotal > 0 ? 'default' : 'secondary'} className="w-fit rounded-full px-3 py-1">
-            {unreadTotal} sin leer
-          </Badge>
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant={unreadTotal > 0 ? 'default' : 'secondary'} className="w-fit rounded-full px-3 py-1">
+              {unreadTotal} sin leer
+            </Badge>
+            <Button asChild variant="outline" className="w-fit gap-2">
+              <Link to="/connections">
+                <Users className="h-4 w-4" />
+                Conexiones
+              </Link>
+            </Button>
+          </div>
         </div>
 
         <div className="space-y-4 max-w-2xl">

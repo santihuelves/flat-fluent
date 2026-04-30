@@ -14,6 +14,7 @@ const Listings = lazy(() => import("./pages/Listings"));
 const ListingDetail = lazy(() => import("./pages/ListingDetail"));
 const MyListings = lazy(() => import("./pages/MyListings"));
 const Matches = lazy(() => import("./pages/Matches"));
+const Connections = lazy(() => import("./pages/Connections"));
 const Chat = lazy(() => import("./pages/Chat"));
 const Profile = lazy(() => import("./pages/Profile"));
 const PublicProfile = lazy(() => import("./pages/PublicProfile"));
@@ -53,6 +54,7 @@ const App = () => (
             <Route path="/listing/:id" element={<ListingDetail />} />
             <Route path="/my-listings" element={<MyListings />} />
             <Route path="/matches" element={<Matches />} />
+            <Route path="/connections" element={<Connections />} />
             <Route path="/chat/:matchId" element={<Chat />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/u/:id" element={<PublicProfile />} />

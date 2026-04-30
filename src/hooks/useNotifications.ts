@@ -111,10 +111,10 @@ export const getNotificationPath = (notification: AppNotification) => {
     case 'NEW_MESSAGE':
       return from ? `/chat/${from}` : '/matches';
     case 'CONSENT_REQUEST_RECEIVED':
-      return fromUser ? `/u/${fromUser}` : '/matches';
+      return '/connections';
     case 'CONSENT_REQUEST_ACCEPTED':
     case 'CONSENT_REQUEST_REJECTED':
-      return byUser ? `/u/${byUser}` : '/matches';
+      return '/connections';
     case 'REQUEST_FULL_TEST':
       return from ? `/u/${from}` : '/test';
     case 'LISTING_VERIFIED':
