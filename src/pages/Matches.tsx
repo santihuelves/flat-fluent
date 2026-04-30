@@ -194,10 +194,12 @@ export default function Matches() {
                       alt={name}
                       className="w-16 h-16 rounded-xl object-cover bg-muted"
                     />
-                    <div className="absolute -bottom-1 -right-1 flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-success text-success-foreground text-xs font-semibold">
-                      <Star className="h-3 w-3" />
-                      {score}
-                    </div>
+                    {score > 0 && (
+                      <div className="absolute -bottom-1 -right-1 flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-success text-success-foreground text-xs font-semibold">
+                        <Star className="h-3 w-3" />
+                        {score}
+                      </div>
+                    )}
                   </div>
 
                   <div className="flex-1 min-w-0">
