@@ -10,6 +10,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { SafetyActions } from '@/components/SafetyActions';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useSEO } from '@/hooks/useSEO';
 
 type PublicProfileData = {
   user_id: string;
@@ -53,6 +54,8 @@ const getErrorMessage = (code?: string) => {
 };
 
 export default function PublicProfile() {
+  useSEO({ page: 'profile' });
+
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [profile, setProfile] = useState<PublicProfileData | null>(null);

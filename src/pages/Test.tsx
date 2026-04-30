@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useSEO } from '@/hooks/useSEO';
 
 type QuestionOption = { value: string; labelKey: string };
 type Question = {
@@ -462,6 +463,8 @@ const allQuestions: Question[] = [
 ];
 
 export default function Test() {
+  useSEO({ page: 'test' });
+
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [mode, setMode] = useState<'quick' | 'full'>('quick');

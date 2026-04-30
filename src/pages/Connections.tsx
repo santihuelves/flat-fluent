@@ -20,6 +20,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useSEO } from '@/hooks/useSEO';
 
 type RpcInvoker = (
   fn: string,
@@ -168,6 +169,8 @@ const EmptyPanel = ({ icon: Icon, title, body }: { icon: typeof Inbox; title: st
 );
 
 export default function Connections() {
+  useSEO({ page: 'connections' });
+
   const navigate = useNavigate();
   const [incoming, setIncoming] = useState<ConsentRequestItem[]>([]);
   const [outgoing, setOutgoing] = useState<ConsentRequestItem[]>([]);

@@ -10,6 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { EditProfileSheet } from '@/components/profile/EditProfileSheet';
 import { IntentionBadges } from '@/components/IntentionBadge';
 import { toast } from 'sonner';
+import { useSEO } from '@/hooks/useSEO';
 
 type ProfileIntention = {
   intention_type: 'seek_room' | 'offer_room' | 'seek_flatmate';
@@ -41,6 +42,8 @@ interface ProfileData {
 }
 
 export default function Profile() {
+  useSEO({ page: 'profile' });
+
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [profile, setProfile] = useState<ProfileData | null>(null);

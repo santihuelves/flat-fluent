@@ -10,6 +10,7 @@ import {
   getNotificationPath,
   useNotifications,
 } from '@/hooks/useNotifications';
+import { useSEO } from '@/hooks/useSEO';
 
 const formatNotificationTime = (date: string | null) => {
   if (!date) return 'Fecha no disponible';
@@ -68,6 +69,8 @@ const getNotificationAction = (notification: AppNotification) => {
 };
 
 export default function Notifications() {
+  useSEO({ page: 'notifications' });
+
   const navigate = useNavigate();
   const {
     notifications,

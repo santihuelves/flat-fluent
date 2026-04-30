@@ -14,6 +14,7 @@ import { IntentionBadges } from '@/components/IntentionBadge';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
+import { useSEO } from '@/hooks/useSEO';
 
 interface ProfileData {
   user_id: string;
@@ -79,6 +80,8 @@ const spanishCities = [
 ];
 
 export default function Discover() {
+  useSEO({ page: 'discover' });
+
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [currentIndex, setCurrentIndex] = useState(0);

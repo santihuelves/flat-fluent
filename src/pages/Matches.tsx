@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useSEO } from '@/hooks/useSEO';
 
 type MatchItem = {
   user_id: string;
@@ -52,6 +53,8 @@ const formatRelativeTime = (date: string | null) => {
 };
 
 export default function Matches() {
+  useSEO({ page: 'matches' });
+
   const [matches, setMatches] = useState<MatchItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

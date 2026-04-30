@@ -31,6 +31,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/integrations/supabase/client';
 import type { Tables } from '@/integrations/supabase/types';
 import { toast } from 'sonner';
+import { useSEO } from '@/hooks/useSEO';
 
 type Listing = Tables<'convinter_listings'>;
 
@@ -124,6 +125,8 @@ const toEditForm = (listing: Listing): EditForm => ({
 const sanitizeFileName = (name: string) => name.toLowerCase().replace(/[^a-z0-9.]+/g, '-');
 
 export default function MyListings() {
+  useSEO({ page: 'myListings' });
+
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [listings, setListings] = useState<Listing[]>([]);

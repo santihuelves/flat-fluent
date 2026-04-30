@@ -1,6 +1,7 @@
 import { Layout } from '@/components/layout/Layout';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { HelpCircle } from 'lucide-react';
+import { useSEO } from '@/hooks/useSEO';
 
 const faqs = [
   {
@@ -38,6 +39,8 @@ const faqs = [
 ];
 
 export default function FAQ() {
+  useSEO({ page: 'faq' });
+
   return (
     <Layout>
       <div className="container py-12 max-w-3xl">

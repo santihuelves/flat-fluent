@@ -613,5 +613,83 @@
       "occupation": "Occupation (optional)",
       "occupationPlaceholder": "E.g.: Student, Designer..."
     }
+  },
+  "seo": {
+    "landing": {
+      "title": "Convinter — Find your ideal roommate",
+      "description": "Convinter connects compatible people to share a flat through a real compatibility test and a tiered privacy model."
+    },
+    "login": {
+      "title": "Log in",
+      "description": "Sign in to your Convinter account and keep finding your ideal roommate."
+    },
+    "signup": {
+      "title": "Sign up",
+      "description": "Create a free Convinter account and start finding compatible roommates."
+    },
+    "discover": {
+      "title": "Discover people",
+      "description": "Explore compatible profiles and find out who fits you to share a flat."
+    },
+    "listings": {
+      "title": "Rooms and flats",
+      "description": "Find rooms, flats and verified roommates in your area."
+    },
+    "matches": {
+      "title": "Your matches",
+      "description": "Your connections and conversations with compatible people on Convinter."
+    },
+    "connections": {
+      "title": "Connections",
+      "description": "Manage your connection requests and privacy permissions."
+    },
+    "profile": {
+      "title": "My profile",
+      "description": "Edit your profile, photos and living preferences on Convinter."
+    },
+    "settings": {
+      "title": "Settings",
+      "description": "Configure notifications, privacy and language for your Convinter account."
+    },
+    "notifications": {
+      "title": "Notifications",
+      "description": "Stay up to date with the latest activity on your account."
+    },
+    "test": {
+      "title": "Compatibility test",
+      "description": "Complete the cohabitation test to find truly compatible roommates."
+    },
+    "createListing": {
+      "title": "Publish listing",
+      "description": "List your room or flat on Convinter and find compatible roommates."
+    },
+    "myListings": {
+      "title": "My listings",
+      "description": "Manage the listings you have published on Convinter."
+    },
+    "faq": {
+      "title": "Frequently asked questions",
+      "description": "Find answers about how Convinter and the compatibility test work."
+    },
+    "contact": {
+      "title": "Contact",
+      "description": "Get in touch with the Convinter team."
+    },
+    "privacy": {
+      "title": "Privacy Policy",
+      "description": "How we collect, use and protect your personal data on Convinter."
+    },
+    "terms": {
+      "title": "Terms and Conditions",
+      "description": "Terms of use of the Convinter platform."
+    },
+    "cookies": {
+      "title": "Cookie Policy",
+      "description": "Information about the cookies used by Convinter."
+    },
+    "notFound": {
+      "title": "Page not found",
+      "description": "The page you are looking for does not exist or has been moved."
+    }
   }
 }

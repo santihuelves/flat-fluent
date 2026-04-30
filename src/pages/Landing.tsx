@@ -14,6 +14,7 @@ import {
   FileText,
   Search
 } from 'lucide-react';
+import { useSEO } from '@/hooks/useSEO';
 
 const fadeInUp = {
   initial: { opacity: 0, y: 20 },
@@ -30,6 +31,8 @@ const staggerContainer = {
 };
 
 export default function Landing() {
+  useSEO({ page: 'landing' });
+
   const { t } = useTranslation();
 
   return (

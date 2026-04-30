@@ -12,6 +12,7 @@ import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useSEO } from '@/hooks/useSEO';
 
 const cities = [
   'Madrid', 'Barcelona', 'Valencia', 'Sevilla', 'Bilbao',
@@ -59,6 +60,8 @@ const getCreateErrorMessage = (code?: string) => {
 const sanitizeFileName = (name: string) => name.toLowerCase().replace(/[^a-z0-9.]+/g, '-');
 
 export default function CreateListing() {
+  useSEO({ page: 'createListing' });
+
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [step, setStep] = useState(1);

@@ -15,6 +15,7 @@ import { Slider } from '@/components/ui/slider';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useSEO } from '@/hooks/useSEO';
 
 type ListingType = 'room' | 'flatmate';
 
@@ -67,6 +68,8 @@ const formatDate = (date: string | null) => {
 const getOwnerName = (owner: ListingOwner) => owner.display_name || owner.handle || 'Usuario';
 
 export default function Listings() {
+  useSEO({ page: 'listings' });
+
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCity, setSelectedCity] = useState<string | null>(null);
   const [priceRange, setPriceRange] = useState<[number, number]>([MIN_PRICE, MAX_PRICE]);

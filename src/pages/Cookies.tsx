@@ -1,6 +1,9 @@
 import { Layout } from '@/components/layout/Layout';
+import { useSEO } from '@/hooks/useSEO';
 
 export default function Cookies() {
+  useSEO({ page: 'cookies' });
+
   return (
     <Layout>
       <div className="container py-12 max-w-3xl">

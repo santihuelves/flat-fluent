@@ -7,8 +7,11 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { Mail, MapPin, Clock, Send } from 'lucide-react';
 import { toast } from 'sonner';
+import { useSEO } from '@/hooks/useSEO';
 
 export default function Contact() {
+  useSEO({ page: 'contact' });
+
   const [formData, setFormData] = useState({
     name: '',
     email: '',
