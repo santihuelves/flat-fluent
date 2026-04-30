@@ -101,12 +101,18 @@ export default function Chat() {
   }, []);
 
   const markChatRead = useCallback(async (chat: string) => {
-    const { error: readError } = await supabase.rpc('convinter_mark_chat_read', {
+    const { data, error: readError } = await supabase.rpc('convinter_mark_chat_read', {
       p_chat_id: chat,
     });
 
     if (readError) {
       console.warn('No se pudo marcar el chat como leido', readError);
+      return;
+    }
+
+    const result = data as unknown as { ok?: boolean };
+    if (result?.ok !== false) {
+      window.dispatchEvent(new CustomEvent('convinter:messages-read'));
     }
   }, []);
 

@@ -86,5 +86,19 @@ export function useUnreadMessages() {
     void loadUnreadCount();
   }, [loadUnreadCount, location.pathname]);
 
+  useEffect(() => {
+    const refresh = () => {
+      void loadUnreadCount();
+    };
+
+    window.addEventListener('focus', refresh);
+    window.addEventListener('convinter:messages-read', refresh);
+
+    return () => {
+      window.removeEventListener('focus', refresh);
+      window.removeEventListener('convinter:messages-read', refresh);
+    };
+  }, [loadUnreadCount]);
+
   return unreadCount;
 }
