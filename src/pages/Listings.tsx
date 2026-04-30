@@ -1,13 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Calendar, Check, Euro, Home, Loader2, MapPin, Plus, Search as SearchIcon, ShieldCheck, Users, X } from 'lucide-react';
+import { Calendar, Check, Euro, Home, Loader2, MapPin, Plus, Search as SearchIcon, ShieldCheck, SlidersHorizontal, Users, X } from 'lucide-react';
 import { Layout } from '@/components/layout/Layout';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
@@ -48,6 +51,8 @@ type SearchListingsResponse = {
   items?: ListingSummary[];
 };
 
+type SortMode = 'recommended' | 'price_asc' | 'price_desc' | 'available_asc' | 'trust_desc';
+
 const MIN_PRICE = 200;
 const MAX_PRICE = 1200;
 const PAGE_SIZE = 50;
@@ -68,6 +73,12 @@ export default function Listings() {
   const [activeTab, setActiveTab] = useState<'all' | 'offer' | 'seek'>('all');
   const [cityOpen, setCityOpen] = useState(false);
   const [priceOpen, setPriceOpen] = useState(false);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [billsIncludedOnly, setBillsIncludedOnly] = useState(false);
+  const [listingVerifiedOnly, setListingVerifiedOnly] = useState(false);
+  const [ownerVerifiedOnly, setOwnerVerifiedOnly] = useState(false);
+  const [minTrustScore, setMinTrustScore] = useState(0);
+  const [sortMode, setSortMode] = useState<SortMode>('recommended');
   const [listings, setListings] = useState<ListingSummary[]>([]);
   const [total, setTotal] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
@@ -84,6 +95,10 @@ export default function Listings() {
       p_listing_type: listingType,
       p_price_min: priceRange[0],
       p_price_max: priceRange[1],
+      p_bills_included: billsIncludedOnly ? true : null,
+      p_listing_verified_only: listingVerifiedOnly,
+      p_verified_only: ownerVerifiedOnly,
+      p_trust_min: minTrustScore > 0 ? minTrustScore : null,
       p_limit: PAGE_SIZE,
       p_offset: 0,
     });
@@ -113,7 +128,7 @@ export default function Listings() {
     setListings(result.items ?? []);
     setTotal(result.total ?? result.items?.length ?? 0);
     setIsLoading(false);
-  }, [listingType, priceRange, selectedCity]);
+  }, [billsIncludedOnly, listingType, listingVerifiedOnly, minTrustScore, ownerVerifiedOnly, priceRange, selectedCity]);
 
   useEffect(() => {
     loadListings();
@@ -121,25 +136,51 @@ export default function Listings() {
 
   const visibleListings = useMemo(() => {
     const search = searchTerm.trim().toLowerCase();
-    if (!search) return listings;
+    const searchedListings = search
+      ? listings.filter((listing) => {
+        return [
+          listing.title,
+          listing.description,
+          listing.city,
+          getOwnerName(listing.owner),
+        ].some((value) => value?.toLowerCase().includes(search));
+      })
+      : listings;
 
-    return listings.filter((listing) => {
-      return [
-        listing.title,
-        listing.description,
-        listing.city,
-        getOwnerName(listing.owner),
-      ].some((value) => value?.toLowerCase().includes(search));
+    return [...searchedListings].sort((a, b) => {
+      if (sortMode === 'price_asc') {
+        return (a.price_monthly ?? Number.MAX_SAFE_INTEGER) - (b.price_monthly ?? Number.MAX_SAFE_INTEGER);
+      }
+
+      if (sortMode === 'price_desc') {
+        return (b.price_monthly ?? 0) - (a.price_monthly ?? 0);
+      }
+
+      if (sortMode === 'available_asc') {
+        return new Date(a.available_from ?? '9999-12-31').getTime() - new Date(b.available_from ?? '9999-12-31').getTime();
+      }
+
+      if (sortMode === 'trust_desc') {
+        return (b.owner.trust_score ?? 0) - (a.owner.trust_score ?? 0);
+      }
+
+      return 0;
     });
-  }, [listings, searchTerm]);
+  }, [listings, searchTerm, sortMode]);
 
-  const hasActiveFilters = searchTerm || selectedCity || priceRange[0] !== MIN_PRICE || priceRange[1] !== MAX_PRICE || activeTab !== 'all';
+  const hasAdvancedFilters = billsIncludedOnly || listingVerifiedOnly || ownerVerifiedOnly || minTrustScore > 0;
+  const hasActiveFilters = searchTerm || selectedCity || priceRange[0] !== MIN_PRICE || priceRange[1] !== MAX_PRICE || activeTab !== 'all' || hasAdvancedFilters || sortMode !== 'recommended';
 
   const clearFilters = () => {
     setSearchTerm('');
     setSelectedCity(null);
     setPriceRange([MIN_PRICE, MAX_PRICE]);
     setActiveTab('all');
+    setBillsIncludedOnly(false);
+    setListingVerifiedOnly(false);
+    setOwnerVerifiedOnly(false);
+    setMinTrustScore(0);
+    setSortMode('recommended');
   };
 
   const ListingCard = ({ listing }: { listing: ListingSummary }) => {
@@ -295,6 +336,79 @@ export default function Listings() {
             </PopoverContent>
           </Popover>
 
+          <Popover open={advancedOpen} onOpenChange={setAdvancedOpen}>
+            <PopoverTrigger asChild>
+              <Button variant={hasAdvancedFilters ? 'default' : 'outline'} className="gap-2">
+                <SlidersHorizontal className="h-4 w-4" />
+                Filtros
+                {hasAdvancedFilters && (
+                  <Badge variant="secondary" className="ml-1 rounded-full px-1.5">
+                    {[billsIncludedOnly, listingVerifiedOnly, ownerVerifiedOnly, minTrustScore > 0].filter(Boolean).length}
+                  </Badge>
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[300px] bg-popover" align="start">
+              <div className="space-y-5">
+                <div>
+                  <h3 className="text-sm font-semibold">Filtros avanzados</h3>
+                  <p className="text-xs text-muted-foreground">Refina resultados sin salir de anuncios.</p>
+                </div>
+
+                <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-border p-3">
+                  <Checkbox
+                    checked={listingVerifiedOnly}
+                    onCheckedChange={(checked) => setListingVerifiedOnly(Boolean(checked))}
+                  />
+                  <span className="text-sm">Solo anuncios verificados</span>
+                </label>
+
+                <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-border p-3">
+                  <Checkbox
+                    checked={ownerVerifiedOnly}
+                    onCheckedChange={(checked) => setOwnerVerifiedOnly(Boolean(checked))}
+                  />
+                  <span className="text-sm">Solo propietarios verificados</span>
+                </label>
+
+                <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-border p-3">
+                  <Checkbox
+                    checked={billsIncludedOnly}
+                    onCheckedChange={(checked) => setBillsIncludedOnly(Boolean(checked))}
+                  />
+                  <span className="text-sm">Gastos incluidos</span>
+                </label>
+
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm">Confianza minima</Label>
+                    <span className="text-sm text-muted-foreground">{minTrustScore || 'Todos'}</span>
+                  </div>
+                  <Slider
+                    min={0}
+                    max={100}
+                    step={10}
+                    value={[minTrustScore]}
+                    onValueChange={(value) => setMinTrustScore(value[0])}
+                  />
+                </div>
+              </div>
+            </PopoverContent>
+          </Popover>
+
+          <Select value={sortMode} onValueChange={(value) => setSortMode(value as SortMode)}>
+            <SelectTrigger className="w-full lg:w-[190px]">
+              <SelectValue placeholder="Ordenar" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="recommended">Recomendados</SelectItem>
+              <SelectItem value="available_asc">Disponibles antes</SelectItem>
+              <SelectItem value="price_asc">Precio bajo</SelectItem>
+              <SelectItem value="price_desc">Precio alto</SelectItem>
+              <SelectItem value="trust_desc">Mas confianza</SelectItem>
+            </SelectContent>
+          </Select>
+
           {hasActiveFilters && (
             <Button variant="ghost" size="icon" onClick={clearFilters} title="Limpiar filtros">
               <X className="h-4 w-4" />
@@ -320,7 +434,9 @@ export default function Listings() {
         </Tabs>
 
         <div className="mb-4 text-sm text-muted-foreground">
-          {isLoading ? 'Cargando anuncios...' : `Mostrando ${visibleListings.length} de ${total || visibleListings.length} anuncios`}
+          {isLoading
+            ? 'Cargando anuncios...'
+            : `Mostrando ${visibleListings.length} de ${total || visibleListings.length} anuncios${hasActiveFilters ? ' con filtros aplicados' : ''}`}
         </div>
 
         {isLoading ? (
