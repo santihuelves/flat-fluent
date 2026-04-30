@@ -613,5 +613,83 @@
       "occupation": "Ocupación (opcional)",
       "occupationPlaceholder": "Ej: Estudiante, Diseñador..."
     }
+  },
+  "seo": {
+    "landing": {
+      "title": "Convinter — Encuentra tu compañero de piso ideal",
+      "description": "Convinter conecta personas compatibles para compartir piso mediante un test de compatibilidad real y un modelo de privacidad por niveles."
+    },
+    "login": {
+      "title": "Iniciar sesión",
+      "description": "Accede a tu cuenta de Convinter y continúa encontrando tu compañero de piso ideal."
+    },
+    "signup": {
+      "title": "Crear cuenta",
+      "description": "Regístrate gratis en Convinter y empieza a encontrar compañeros de piso compatibles contigo."
+    },
+    "discover": {
+      "title": "Descubrir personas",
+      "description": "Explora perfiles compatibles contigo y descubre con quién encajas para compartir piso."
+    },
+    "listings": {
+      "title": "Anuncios de pisos y habitaciones",
+      "description": "Encuentra habitaciones, pisos y compañeros de piso verificados en tu zona."
+    },
+    "matches": {
+      "title": "Tus matches",
+      "description": "Tus conexiones y conversaciones con personas compatibles en Convinter."
+    },
+    "connections": {
+      "title": "Conexiones",
+      "description": "Gestiona tus solicitudes de conexión y permisos de privacidad."
+    },
+    "profile": {
+      "title": "Mi perfil",
+      "description": "Edita tu perfil, fotos y preferencias de convivencia en Convinter."
+    },
+    "settings": {
+      "title": "Ajustes",
+      "description": "Configura notificaciones, privacidad e idioma de tu cuenta de Convinter."
+    },
+    "notifications": {
+      "title": "Notificaciones",
+      "description": "Mantente al día con las últimas actividades de tu cuenta."
+    },
+    "test": {
+      "title": "Test de compatibilidad",
+      "description": "Completa el test de convivencia para encontrar compañeros de piso realmente compatibles."
+    },
+    "createListing": {
+      "title": "Publicar anuncio",
+      "description": "Publica tu habitación o piso en Convinter y encuentra compañeros compatibles."
+    },
+    "myListings": {
+      "title": "Mis anuncios",
+      "description": "Gestiona los anuncios que has publicado en Convinter."
+    },
+    "faq": {
+      "title": "Preguntas frecuentes",
+      "description": "Resuelve tus dudas sobre cómo funciona Convinter y el test de compatibilidad."
+    },
+    "contact": {
+      "title": "Contacto",
+      "description": "Ponte en contacto con el equipo de Convinter."
+    },
+    "privacy": {
+      "title": "Política de Privacidad",
+      "description": "Cómo recopilamos, usamos y protegemos tus datos personales en Convinter."
+    },
+    "terms": {
+      "title": "Términos y Condiciones",
+      "description": "Términos de uso de la plataforma Convinter."
+    },
+    "cookies": {
+      "title": "Política de Cookies",
+      "description": "Información sobre las cookies que utiliza Convinter."
+    },
+    "notFound": {
+      "title": "Página no encontrada",
+      "description": "La página que buscas no existe o ha sido movida."
+    }
   }
 }
