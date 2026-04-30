@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { AlertCircle, ArrowLeft, Calendar, CheckCircle, Cigarette, Clock, Edit2, Euro, Home, Loader2, MapPin, MessageCircle, PawPrint, ShieldCheck, Users } from 'lucide-react';
+import { AlertCircle, ArrowLeft, Calendar, CheckCircle, Cigarette, Clock, Edit2, Euro, Home, Loader2, MapPin, MessageCircle, PawPrint, Send, ShieldCheck, UserCheck, Users } from 'lucide-react';
 import { Layout } from '@/components/layout/Layout';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -65,6 +65,31 @@ type CompatibilityData = {
   code?: string;
 };
 
+type OwnerConnectionState = 'unknown' | 'none' | 'incoming' | 'outgoing' | 'connected';
+
+type ConsentOverviewProfile = {
+  user_id?: string;
+};
+
+type ConsentRequestItem = {
+  from_user?: string;
+  to_user?: string;
+  profile?: ConsentOverviewProfile;
+};
+
+type ActiveConnectionItem = {
+  user_id?: string;
+  profile?: ConsentOverviewProfile;
+};
+
+type ConsentOverviewResponse = {
+  ok: boolean;
+  incoming?: ConsentRequestItem[];
+  outgoing?: ConsentRequestItem[];
+  connections?: ActiveConnectionItem[];
+  code?: string;
+};
+
 const formatDate = (date: string | null) => {
   if (!date) return 'Disponibilidad flexible';
   return new Intl.DateTimeFormat('es-ES', { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(date));
@@ -98,6 +123,48 @@ export default function ListingDetail() {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [activePhotoIndex, setActivePhotoIndex] = useState(0);
   const [isBlocked, setIsBlocked] = useState(false);
+  const [ownerConnectionState, setOwnerConnectionState] = useState<OwnerConnectionState>('unknown');
+  const [isRequestingConsent, setIsRequestingConsent] = useState(false);
+
+  const loadOwnerConnectionState = useCallback(async (ownerId: string) => {
+    const { data, error: overviewError } = await supabase.rpc('convinter_get_my_consent_overview');
+
+    if (overviewError) {
+      console.warn('Error loading owner connection state:', overviewError);
+      setOwnerConnectionState('none');
+      return;
+    }
+
+    const result = data as unknown as ConsentOverviewResponse;
+    if (!result.ok) {
+      setOwnerConnectionState('none');
+      return;
+    }
+
+    const isConnected = result.connections?.some((connection) => {
+      return (connection.user_id ?? connection.profile?.user_id) === ownerId;
+    });
+
+    if (isConnected) {
+      setOwnerConnectionState('connected');
+      return;
+    }
+
+    const hasIncoming = result.incoming?.some((request) => {
+      return (request.from_user ?? request.profile?.user_id) === ownerId;
+    });
+
+    if (hasIncoming) {
+      setOwnerConnectionState('incoming');
+      return;
+    }
+
+    const hasOutgoing = result.outgoing?.some((request) => {
+      return (request.to_user ?? request.profile?.user_id) === ownerId;
+    });
+
+    setOwnerConnectionState(hasOutgoing ? 'outgoing' : 'none');
+  }, []);
 
   const loadBlockState = useCallback(async (viewerId: string, ownerId: string) => {
     if (viewerId === ownerId) return false;
@@ -177,17 +244,21 @@ export default function ListingDetail() {
         return;
       }
 
-      loadCompatibility(result.owner.user_id);
+      await Promise.all([
+        loadCompatibility(result.owner.user_id),
+        loadOwnerConnectionState(result.owner.user_id),
+      ]);
     } else {
       setCompatibility(null);
+      setOwnerConnectionState('none');
     }
-  }, [id, loadBlockState, loadCompatibility]);
+  }, [id, loadBlockState, loadCompatibility, loadOwnerConnectionState]);
 
   useEffect(() => {
     loadListing();
   }, [loadListing]);
 
-  const handleContact = async () => {
+  const handleOpenChat = async () => {
     if (!owner) return;
     if (isBlocked) {
       toast.info('Has bloqueado a este usuario.');
@@ -210,6 +281,92 @@ export default function ListingDetail() {
     }
 
     navigate(`/chat/${owner.user_id}`);
+  };
+
+  const handleRequestConsent = async () => {
+    if (!owner) return;
+    if (isBlocked) {
+      toast.info('Has bloqueado a este usuario.');
+      return;
+    }
+
+    setIsRequestingConsent(true);
+
+    try {
+      const { data, error: rpcError } = await supabase.rpc('convinter_request_consent', {
+        p_to_user: owner.user_id,
+        p_requested_level: 1,
+      });
+
+      if (rpcError) throw rpcError;
+
+      const result = data as unknown as { ok: boolean; code?: string };
+      if (result.ok || result.code === 'ALREADY_REQUESTED') {
+        setOwnerConnectionState('outgoing');
+        toast.success(result.code === 'ALREADY_REQUESTED' ? 'Ya habias enviado esta solicitud' : 'Solicitud enviada al propietario');
+        return;
+      }
+
+      toast.error(result.code === 'ALREADY_CONNECTED' ? 'Ya estais conectados' : 'No se pudo enviar la solicitud');
+      if (result.code === 'ALREADY_CONNECTED') {
+        setOwnerConnectionState('connected');
+      }
+    } catch (requestError) {
+      console.error('Error requesting listing owner consent:', requestError);
+      toast.error('No se pudo enviar la solicitud');
+    } finally {
+      setIsRequestingConsent(false);
+    }
+  };
+
+  const getOwnerAction = () => {
+    if (isBlocked) {
+      return {
+        label: 'Usuario bloqueado',
+        description: 'Has bloqueado a este usuario. Puedes gestionarlo desde ajustes.',
+        icon: AlertCircle,
+        disabled: true,
+        onClick: undefined,
+      };
+    }
+
+    if (ownerConnectionState === 'connected') {
+      return {
+        label: 'Mensaje',
+        description: 'Ya teneis conexion activa. Puedes escribirle directamente.',
+        icon: MessageCircle,
+        disabled: false,
+        onClick: handleOpenChat,
+      };
+    }
+
+    if (ownerConnectionState === 'incoming') {
+      return {
+        label: 'Responder solicitud',
+        description: 'Este usuario ya te ha pedido compartir compatibilidad.',
+        icon: UserCheck,
+        disabled: false,
+        onClick: () => navigate('/connections'),
+      };
+    }
+
+    if (ownerConnectionState === 'outgoing') {
+      return {
+        label: 'Solicitud enviada',
+        description: 'Te avisaremos cuando el propietario responda.',
+        icon: CheckCircle,
+        disabled: true,
+        onClick: undefined,
+      };
+    }
+
+    return {
+      label: isRequestingConsent ? 'Enviando...' : 'Me interesa',
+      description: 'Solicita compartir compatibilidad para poder iniciar conversacion.',
+      icon: isRequestingConsent ? Loader2 : Send,
+      disabled: isRequestingConsent || ownerConnectionState === 'unknown',
+      onClick: handleRequestConsent,
+    };
   };
 
   if (isLoading) {
@@ -243,6 +400,8 @@ export default function ListingDetail() {
   const activePhoto = photos[Math.min(activePhotoIndex, photos.length - 1)] || '/placeholder.svg';
   const compatibilityReasons = compatibility?.breakdown?.reasons ?? [];
   const isOwner = currentUserId === owner.user_id;
+  const ownerAction = getOwnerAction();
+  const OwnerActionIcon = ownerAction.icon;
 
   return (
     <Layout>
@@ -428,10 +587,18 @@ export default function ListingDetail() {
                       </Button>
                     ) : (
                       <div className="space-y-2">
-                        <Button onClick={handleContact} className="w-full gap-2" variant="hero" disabled={isBlocked}>
-                          <MessageCircle className="w-4 h-4" />
-                          {isBlocked ? 'Usuario bloqueado' : 'Contactar'}
+                        <Button
+                          onClick={ownerAction.onClick}
+                          className="w-full gap-2"
+                          variant="hero"
+                          disabled={ownerAction.disabled}
+                        >
+                          <OwnerActionIcon className={`w-4 h-4 ${isRequestingConsent ? 'animate-spin' : ''}`} />
+                          {ownerAction.label}
                         </Button>
+                        <p className="text-xs text-muted-foreground text-center">
+                          {ownerAction.description}
+                        </p>
                         <SafetyActions
                           targetType="listing"
                           targetId={listing.id}
