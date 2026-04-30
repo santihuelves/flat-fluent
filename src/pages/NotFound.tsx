@@ -1,4 +1,7 @@
+import { useSEO } from '@/hooks/useSEO';
+
 const NotFound = () => {
+  useSEO({ page: 'notFound' });
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted">
       <div className="text-center">
