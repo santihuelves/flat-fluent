@@ -851,6 +851,7 @@ export type Database = {
         Args: { p_listing_id: string }
         Returns: Json
       }
+      convinter_get_my_consent_overview: { Args: never; Returns: Json }
       convinter_get_my_matches: {
         Args: { p_limit?: number; p_offset?: number }
         Returns: Json
