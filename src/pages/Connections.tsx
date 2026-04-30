@@ -69,6 +69,12 @@ type ConnectionsResponse = {
   connections?: ActiveConnectionItem[];
 };
 
+const CONNECTION_NOTIFICATION_TYPES = [
+  'CONSENT_REQUEST_RECEIVED',
+  'CONSENT_REQUEST_ACCEPTED',
+  'CONSENT_REQUEST_REJECTED',
+];
+
 const rpc = supabase.rpc.bind(supabase) as unknown as RpcInvoker;
 
 const getName = (profile: ConnectionProfile) => profile.display_name || profile.handle || 'Usuario';
@@ -172,6 +178,23 @@ export default function Connections() {
 
   const totalPending = useMemo(() => incoming.length + outgoing.length, [incoming.length, outgoing.length]);
 
+  const markConnectionNotificationsRead = useCallback(async () => {
+    const { data: userData } = await supabase.auth.getUser();
+    const user = userData.user;
+    if (!user) return;
+
+    const { error: notificationError } = await supabase
+      .from('convinter_notifications')
+      .update({ read_at: new Date().toISOString() })
+      .eq('user_id', user.id)
+      .is('read_at', null)
+      .in('notification_type', CONNECTION_NOTIFICATION_TYPES);
+
+    if (notificationError) {
+      console.warn('No se pudieron marcar las notificaciones de conexiones como leidas', notificationError);
+    }
+  }, []);
+
   const loadConnections = useCallback(async () => {
     setIsLoading(true);
     setError(null);
@@ -207,6 +230,10 @@ export default function Connections() {
   useEffect(() => {
     void loadConnections();
   }, [loadConnections]);
+
+  useEffect(() => {
+    void markConnectionNotificationsRead();
+  }, [markConnectionNotificationsRead]);
 
   const respondToRequest = async (requestId: number, accept: boolean) => {
     setRespondingId(requestId);
