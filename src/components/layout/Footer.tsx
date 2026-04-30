@@ -12,7 +12,7 @@ export function Footer() {
               <div className="gradient-bg rounded-xl p-2">
                 <Home className="h-5 w-5 text-primary-foreground" />
               </div>
-              <span className="text-xl font-bold">Convinder</span>
+              <span className="text-xl font-bold">Convinter</span>
             </Link>
             <p className="text-sm text-muted-foreground">
               Encuentra tu compañero de piso ideal con compatibilidad real.
@@ -50,7 +50,7 @@ export function Footer() {
 
         <div className="flex flex-col md:flex-row items-center justify-between gap-4 pt-8 mt-8 border-t border-border/40">
           <p className="text-sm text-muted-foreground">
-            © 2025 Convinder. Todos los derechos reservados.
+            © 2025 Convinter. Todos los derechos reservados.
           </p>
           <div className="flex items-center gap-4">
             <a href="#" className="text-muted-foreground hover:text-foreground transition-colors">

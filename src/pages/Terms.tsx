@@ -14,7 +14,7 @@ export default function Terms() {
           <section className="space-y-4">
             <h2 className="text-xl font-semibold">1. Aceptación de los términos</h2>
             <p className="text-muted-foreground">
-              Al acceder y utilizar Convinder, aceptas estos términos y condiciones en su totalidad. 
+              Al acceder y utilizar Convinter, aceptas estos términos y condiciones en su totalidad. 
               Si no estás de acuerdo con alguna parte, no debes utilizar nuestros servicios.
             </p>
           </section>
@@ -22,7 +22,7 @@ export default function Terms() {
           <section className="space-y-4">
             <h2 className="text-xl font-semibold">2. Uso del servicio</h2>
             <p className="text-muted-foreground">
-              Debes ser mayor de 18 años para usar Convinder. Te comprometes a proporcionar 
+              Debes ser mayor de 18 años para usar Convinter. Te comprometes a proporcionar 
               información veraz y a utilizar el servicio de manera responsable. Está prohibido 
               el uso fraudulento, el acoso y cualquier actividad ilegal.
             </p>
@@ -40,15 +40,15 @@ export default function Terms() {
           <section className="space-y-4">
             <h2 className="text-xl font-semibold">4. Propiedad intelectual</h2>
             <p className="text-muted-foreground">
-              Convinder y todo su contenido, características y funcionalidad son propiedad de 
-              Convinder S.L. y están protegidos por leyes de propiedad intelectual.
+              Convinter y todo su contenido, características y funcionalidad son propiedad de 
+              Convinter S.L. y están protegidos por leyes de propiedad intelectual.
             </p>
           </section>
 
           <section className="space-y-4">
             <h2 className="text-xl font-semibold">5. Limitación de responsabilidad</h2>
             <p className="text-muted-foreground">
-              Convinder actúa como intermediario y no se responsabiliza de las interacciones 
+              Convinter actúa como intermediario y no se responsabiliza de las interacciones 
               entre usuarios ni de los acuerdos de alquiler que puedan derivarse. Recomendamos 
               verificar la identidad y tomar precauciones en los encuentros.
             </p>
@@ -65,7 +65,7 @@ export default function Terms() {
           <section className="space-y-4">
             <h2 className="text-xl font-semibold">7. Contacto</h2>
             <p className="text-muted-foreground">
-              Para consultas sobre estos términos: legal@convinder.com
+              Para consultas sobre estos términos: legal@convinter.com
             </p>
           </section>
         </div>

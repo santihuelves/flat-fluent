@@ -31,7 +31,7 @@ type BlockedUser = {
   blocked_at: string | null;
 };
 
-const NOTIFICATIONS_KEY = 'convinder-notification-settings';
+const NOTIFICATIONS_KEY = 'convinter-notification-settings';
 
 const defaultNotifications: NotificationSettings = {
   matches: true,
@@ -255,7 +255,7 @@ export default function Settings() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `convinder-datos-${new Date().toISOString().slice(0, 10)}.json`;
+    link.download = `convinter-datos-${new Date().toISOString().slice(0, 10)}.json`;
     link.click();
     URL.revokeObjectURL(url);
   };
@@ -387,7 +387,7 @@ export default function Settings() {
                 ['matches', 'Nuevos matches', 'Cuando alguien coincida contigo.'],
                 ['messages', 'Mensajes', 'Cuando recibas un nuevo mensaje.'],
                 ['listings', 'Nuevos anuncios', 'Anuncios que coincidan con tu búsqueda.'],
-                ['marketing', 'Novedades y ofertas', 'Noticias sobre Convinder.'],
+                ['marketing', 'Novedades y ofertas', 'Noticias sobre Convinter.'],
               ].map(([key, title, description], index) => (
                 <div key={key}>
                   {index > 0 && <Separator className="mb-4" />}
@@ -415,7 +415,7 @@ export default function Settings() {
                 Privacidad
               </CardTitle>
               <CardDescription>
-                Controla cómo aparece tu perfil en Convinder.
+                Controla cómo aparece tu perfil en Convinter.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">

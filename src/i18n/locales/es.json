@@ -25,7 +25,7 @@
       "cities": "Ciudades"
     },
     "features": {
-      "title": "¿Por qué Convinder?",
+      "title": "¿Por qué Convinter?",
       "subtitle": "Más que un portal de pisos. Un sistema inteligente de compatibilidad.",
       "compatibility": {
         "title": "Test de compatibilidad real",
@@ -80,7 +80,7 @@
       "signupLink": "Regístrate"
     },
     "signup": {
-      "title": "Únete a Convinder",
+      "title": "Únete a Convinter",
       "subtitle": "Crea tu cuenta y encuentra tu compañero ideal",
       "name": "Nombre",
       "email": "Email",

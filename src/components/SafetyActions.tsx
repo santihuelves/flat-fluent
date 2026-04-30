@@ -201,7 +201,7 @@ export function SafetyActions({
           <DialogHeader>
             <DialogTitle>Reportar {targetLabels[targetType]}</DialogTitle>
             <DialogDescription>
-              Revisaremos el caso y tomaremos medidas si incumple las normas de Convinder.
+              Revisaremos el caso y tomaremos medidas si incumple las normas de Convinter.
             </DialogDescription>
           </DialogHeader>
 

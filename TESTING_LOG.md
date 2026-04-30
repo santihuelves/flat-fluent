@@ -1,4 +1,4 @@
-# Testing Log - Convinder
+# Testing Log - Convinter
 
 ## Fecha: 10 Enero 2025
 
@@ -12,7 +12,7 @@
 #### Paso 2: Usuario de Prueba Creado
 
 **Usuario 1:**
-- Email: `test@convinder.com`
+- Email: `test@convinter.com`
 - Password: `Test1234!`
 - User ID: `8a670b2a-e664-498b-be63-4b75a2d18593`
 - Display Name: `Usuario Test`
@@ -64,7 +64,7 @@
 ### 🎯 Próximos Pasos (Pendientes)
 
 1. **Crear segundo usuario de prueba**
-   - Email sugerido: `maria@convinder.com`
+   - Email sugerido: `maria@convinter.com`
    - Completar test para probar compatibilidad
 
 2. **Probar Sistema de Compatibilidad**
