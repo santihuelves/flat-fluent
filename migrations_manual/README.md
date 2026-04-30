@@ -21,6 +21,7 @@ Estos bloques no son migraciones de producto. Son un paquete reversible para pob
 | `08_fix_get_my_matches.sql` | Reinstala la RPC correcta para que la pantalla Matches cargue los consentimientos demo |
 | `09_chat_read_receipts.sql` | Anade recibos de lectura reales para que los mensajes sin leer se limpien al abrir un chat |
 | `10_consent_connections_overview.sql` | Anade la RPC de resumen para solicitudes recibidas, solicitudes enviadas y conexiones activas |
+| `11_filter_resolved_consent_requests.sql` | Oculta solicitudes pendientes que ya tienen una conexion activa suficiente |
 
 Credenciales demo principales:
 
