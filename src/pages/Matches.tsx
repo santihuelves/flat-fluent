@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowRight, CheckCircle, Loader2, MessageCircle, Search, Star } from 'lucide-react';
+import { ArrowRight, CheckCircle, Inbox, Loader2, MessageCircle, Search, Star } from 'lucide-react';
 import { Layout } from '@/components/layout/Layout';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -46,7 +46,7 @@ const formatRelativeTime = (date: string | null) => {
 
   const diffDays = Math.floor(diffHours / 24);
   if (diffDays === 1) return 'Ayer';
-  if (diffDays < 7) return `Hace ${diffDays} días`;
+  if (diffDays < 7) return `Hace ${diffDays} dias`;
 
   return new Intl.DateTimeFormat('es-ES', { day: 'numeric', month: 'short' }).format(new Date(date));
 };
@@ -55,6 +55,10 @@ export default function Matches() {
   const [matches, setMatches] = useState<MatchItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const unreadTotal = useMemo(() => {
+    return matches.reduce((sum, match) => sum + Math.max(0, Number(match.unread_count ?? 0)), 0);
+  }, [matches]);
 
   const loadMatches = useCallback(async () => {
     setIsLoading(true);
@@ -67,15 +71,15 @@ export default function Matches() {
 
     if (rpcError) {
       console.error('Error loading matches:', rpcError);
-      setError('No se pudieron cargar tus matches.');
-      toast.error('No se pudieron cargar tus matches');
+      setError('No se pudieron cargar tus mensajes.');
+      toast.error('No se pudieron cargar tus mensajes');
       setIsLoading(false);
       return;
     }
 
     const result = data as unknown as MatchesResponse;
     if (!result.ok) {
-      setError(result.code === 'NOT_AUTHENTICATED' ? 'Inicia sesión para ver tus matches.' : 'No se pudieron cargar tus matches.');
+      setError(result.code === 'NOT_AUTHENTICATED' ? 'Inicia sesion para ver tus mensajes.' : 'No se pudieron cargar tus mensajes.');
       setIsLoading(false);
       return;
     }
@@ -99,9 +103,9 @@ export default function Matches() {
           <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-muted mb-6">
             <MessageCircle className="h-10 w-10 text-muted-foreground" />
           </div>
-          <h2 className="text-2xl font-bold mb-2">Sin matches todavía</h2>
+          <h2 className="text-2xl font-bold mb-2">Sin mensajes todavia</h2>
           <p className="text-muted-foreground mb-6">
-            {message || 'Cuando haya consentimiento mutuo y compatibilidad, aparecerán aquí.'}
+            {message || 'Cuando haya consentimiento mutuo, tus conversaciones apareceran aqui.'}
           </p>
           {!message && (
             <div className="text-left rounded-xl border border-border bg-card p-4 mb-6 space-y-3">
@@ -111,11 +115,11 @@ export default function Matches() {
               </div>
               <div className="flex items-start gap-2 text-sm">
                 <CheckCircle className="h-4 w-4 text-primary mt-0.5" />
-                <span>Cuando haya consentimiento mutuo, el match aparecera aqui.</span>
+                <span>Cuando haya consentimiento mutuo, la conversacion aparecera aqui.</span>
               </div>
               <div className="flex items-start gap-2 text-sm">
                 <CheckCircle className="h-4 w-4 text-primary mt-0.5" />
-                <span>Desde cada match podras abrir el chat directamente.</span>
+                <span>Desde cada tarjeta podras abrir el chat directamente.</span>
               </div>
             </div>
           )}
@@ -151,7 +155,21 @@ export default function Matches() {
   return (
     <Layout>
       <div className="container py-6">
-        <h1 className="text-3xl font-bold mb-8">Matches</h1>
+        <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-muted px-3 py-1 text-sm text-muted-foreground">
+              <Inbox className="h-4 w-4" />
+              Bandeja de conversaciones
+            </div>
+            <h1 className="text-3xl font-bold">Mensajes</h1>
+            <p className="mt-2 text-muted-foreground">
+              Tus matches y chats activos en un solo lugar.
+            </p>
+          </div>
+          <Badge variant={unreadTotal > 0 ? 'default' : 'secondary'} className="w-fit rounded-full px-3 py-1">
+            {unreadTotal} sin leer
+          </Badge>
+        </div>
 
         <div className="space-y-4 max-w-2xl">
           {matches.map((match, index) => {
@@ -183,14 +201,14 @@ export default function Matches() {
                   </div>
 
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center justify-between gap-2 mb-1">
                       <h3 className="font-semibold truncate">{name}</h3>
-                      <span className="text-xs text-muted-foreground">
+                      <span className="shrink-0 text-xs text-muted-foreground">
                         {formatRelativeTime(lastMessage?.created_at || match.matched_at)}
                       </span>
                     </div>
-                    <p className="text-sm text-muted-foreground line-clamp-1 mb-2">
-                      {lastMessage ? `${lastMessage.is_mine ? 'Tú: ' : ''}${lastMessage.body}` : match.city || 'Match reciente'}
+                    <p className={unread > 0 ? 'text-sm font-semibold text-foreground line-clamp-1 mb-2' : 'text-sm text-muted-foreground line-clamp-1 mb-2'}>
+                      {lastMessage ? `${lastMessage.is_mine ? 'Tu: ' : ''}${lastMessage.body}` : match.city || 'Conversacion reciente'}
                     </p>
                     <div className="flex flex-wrap gap-1">
                       {reasons.slice(0, 2).map((reason, reasonIndex) => (
@@ -208,8 +226,8 @@ export default function Matches() {
 
                   <div className="flex items-center gap-2">
                     {unread > 0 && (
-                      <span className="flex items-center justify-center w-6 h-6 rounded-full gradient-bg text-primary-foreground text-xs font-semibold">
-                        {unread}
+                      <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-destructive px-1.5 text-xs font-semibold text-destructive-foreground">
+                        {unread > 9 ? '9+' : unread}
                       </span>
                     )}
                     <ArrowRight className="h-5 w-5 text-muted-foreground" />

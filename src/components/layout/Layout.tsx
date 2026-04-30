@@ -3,6 +3,7 @@ import { Header } from './Header';
 import { Footer } from './Footer';
 import { MobileNav } from './MobileNav';
 import { useLocation } from 'react-router-dom';
+import { useUnreadMessages } from '@/hooks/useUnreadMessages';
 
 interface LayoutProps {
   children: ReactNode;
@@ -13,15 +14,16 @@ interface LayoutProps {
 export function Layout({ children, showFooter = true, showMobileNav = true }: LayoutProps) {
   const location = useLocation();
   const isLanding = location.pathname === '/';
+  const unreadMessages = useUnreadMessages();
 
   return (
     <div className="min-h-screen flex flex-col">
-      <Header />
+      <Header unreadMessages={unreadMessages} />
       <main className={`flex-1 ${showMobileNav ? 'pb-20 md:pb-0' : ''}`}>
         {children}
       </main>
       {showFooter && <Footer />}
-      {showMobileNav && !isLanding && <MobileNav />}
+      {showMobileNav && !isLanding && <MobileNav unreadMessages={unreadMessages} />}
     </div>
   );
 }

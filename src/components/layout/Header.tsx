@@ -16,7 +16,11 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
-export function Header() {
+interface HeaderProps {
+  unreadMessages?: number;
+}
+
+export function Header({ unreadMessages = 0 }: HeaderProps) {
   const { t } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
@@ -55,7 +59,7 @@ export function Header() {
   const navItems = [
     { href: '/discover', label: t('nav.discover'), icon: Search },
     { href: '/listings', label: t('nav.listings'), icon: Home },
-    { href: '/matches', label: t('nav.matches'), icon: MessageCircle },
+    { href: '/matches', label: t('nav.messages'), icon: MessageCircle, badge: unreadMessages },
     { href: '/profile', label: t('nav.profile'), icon: User },
   ];
 
@@ -83,6 +87,11 @@ export function Header() {
               >
                 <item.icon className="h-4 w-4" />
                 {item.label}
+                {'badge' in item && item.badge > 0 && (
+                  <span className="ml-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[11px] font-bold text-destructive-foreground">
+                    {item.badge > 9 ? '9+' : item.badge}
+                  </span>
+                )}
               </Button>
             </Link>
           ))}
@@ -166,6 +175,11 @@ export function Header() {
                   >
                     <item.icon className="h-4 w-4" />
                     {item.label}
+                    {'badge' in item && item.badge > 0 && (
+                      <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[11px] font-bold text-destructive-foreground">
+                        {item.badge > 9 ? '9+' : item.badge}
+                      </span>
+                    )}
                   </Button>
                 </Link>
               ))}

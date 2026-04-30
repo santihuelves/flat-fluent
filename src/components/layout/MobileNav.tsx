@@ -3,14 +3,18 @@ import { useTranslation } from 'react-i18next';
 import { Search, Home, Heart, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-export function MobileNav() {
+interface MobileNavProps {
+  unreadMessages?: number;
+}
+
+export function MobileNav({ unreadMessages = 0 }: MobileNavProps) {
   const { t } = useTranslation();
   const location = useLocation();
 
   const navItems = [
     { href: '/discover', label: t('nav.discover'), icon: Search },
     { href: '/listings', label: t('nav.listings'), icon: Home },
-    { href: '/matches', label: t('nav.matches'), icon: Heart },
+    { href: '/matches', label: t('nav.messages'), icon: Heart, badge: unreadMessages },
     { href: '/profile', label: t('nav.profile'), icon: User },
   ];
 
@@ -34,6 +38,11 @@ export function MobileNav() {
               "h-5 w-5 transition-transform",
               isActive(item.href) && "scale-110"
             )} />
+            {'badge' in item && item.badge > 0 && (
+              <span className="absolute -top-0.5 right-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-bold text-destructive-foreground shadow-sm">
+                {item.badge > 9 ? '9+' : item.badge}
+              </span>
+            )}
             <span className="text-xs font-medium">{item.label}</span>
             {isActive(item.href) && (
               <div className="absolute bottom-1 h-1 w-6 rounded-full gradient-bg" />
