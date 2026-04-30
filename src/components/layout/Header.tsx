@@ -8,6 +8,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
 import { User as SupabaseUser, Session } from '@supabase/supabase-js';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { NotificationsMenu } from './NotificationsMenu';
+import type { useNotifications } from '@/hooks/useNotifications';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,9 +20,10 @@ import {
 
 interface HeaderProps {
   unreadMessages?: number;
+  notifications?: ReturnType<typeof useNotifications>;
 }
 
-export function Header({ unreadMessages = 0 }: HeaderProps) {
+export function Header({ unreadMessages = 0, notifications }: HeaderProps) {
   const { t } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
@@ -100,9 +103,30 @@ export function Header({ unreadMessages = 0 }: HeaderProps) {
         {/* Right side: Language + Auth */}
         <div className="flex items-center gap-2">
           <LanguageSwitcher />
+
+          {user && notifications && (
+            <div className="md:hidden">
+              <NotificationsMenu
+                notifications={notifications.notifications}
+                unreadCount={notifications.unreadCount}
+                isLoading={notifications.isLoading}
+                onMarkAsRead={notifications.markAsRead}
+                onMarkAllAsRead={notifications.markAllAsRead}
+              />
+            </div>
+          )}
           
           {user ? (
-            <div className="hidden md:flex items-center">
+            <div className="hidden md:flex items-center gap-1">
+              {notifications && (
+                <NotificationsMenu
+                  notifications={notifications.notifications}
+                  unreadCount={notifications.unreadCount}
+                  isLoading={notifications.isLoading}
+                  onMarkAsRead={notifications.markAsRead}
+                  onMarkAllAsRead={notifications.markAllAsRead}
+                />
+              )}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon" className="rounded-full">
