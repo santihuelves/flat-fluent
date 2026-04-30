@@ -48,6 +48,29 @@ interface CompatibilityData {
 type IntentionType = NonNullable<ProfileData['intentions']>[number]['intention_type'];
 type RequestState = 'idle' | 'sending' | 'sent';
 
+interface ConsentOverviewProfile {
+  user_id?: string;
+}
+
+interface ConsentRequestItem {
+  from_user?: string;
+  to_user?: string;
+  profile?: ConsentOverviewProfile;
+}
+
+interface ActiveConnectionItem {
+  user_id?: string;
+  profile?: ConsentOverviewProfile;
+}
+
+interface ConsentOverviewResponse {
+  ok: boolean;
+  incoming?: ConsentRequestItem[];
+  outgoing?: ConsentRequestItem[];
+  connections?: ActiveConnectionItem[];
+  code?: string;
+}
+
 // Spanish cities for filter
 const spanishCities = [
   'Madrid', 'Barcelona', 'Valencia', 'Sevilla', 'Zaragoza',
@@ -66,6 +89,7 @@ export default function Discover() {
   const [compatibilityCache, setCompatibilityCache] = useState<Record<string, CompatibilityData>>({});
   const [requestStates, setRequestStates] = useState<Record<string, RequestState>>({});
   const [fullTestRequests, setFullTestRequests] = useState<Record<string, RequestState>>({});
+  const [excludedProfileIds, setExcludedProfileIds] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingCompatibility, setIsLoadingCompatibility] = useState(false);
   
@@ -107,6 +131,55 @@ export default function Discover() {
   useEffect(() => {
     loadProfiles();
   }, [loadProfiles]);
+
+  const loadConnectionOverview = useCallback(async () => {
+    try {
+      const { data, error } = await supabase.rpc('convinter_get_my_consent_overview');
+
+      if (error) throw error;
+
+      const result = data as unknown as ConsentOverviewResponse;
+      if (!result.ok) {
+        if (result.code === 'NOT_AUTHENTICATED') {
+          setExcludedProfileIds([]);
+          return;
+        }
+        throw new Error(result.code || 'OVERVIEW_FAILED');
+      }
+
+      const excluded = new Set<string>();
+      const outgoingRequestStates: Record<string, RequestState> = {};
+
+      result.connections?.forEach((connection) => {
+        const userId = connection.user_id ?? connection.profile?.user_id;
+        if (userId) excluded.add(userId);
+      });
+
+      result.incoming?.forEach((request) => {
+        const userId = request.from_user ?? request.profile?.user_id;
+        if (userId) excluded.add(userId);
+      });
+
+      result.outgoing?.forEach((request) => {
+        const userId = request.to_user ?? request.profile?.user_id;
+        if (userId) {
+          excluded.add(userId);
+          outgoingRequestStates[userId] = 'sent';
+        }
+      });
+
+      setExcludedProfileIds(Array.from(excluded));
+      setRequestStates(prev => ({ ...prev, ...outgoingRequestStates }));
+    } catch (error) {
+      console.error('Error loading connection overview:', error);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadConnectionOverview();
+  }, [loadConnectionOverview]);
+
+  const excludedProfileIdSet = useMemo(() => new Set(excludedProfileIds), [excludedProfileIds]);
 
   // Load compatibility for current profile
   const loadCompatibility = useCallback(async (userId: string) => {
@@ -151,6 +224,8 @@ export default function Discover() {
 
   // Filter profiles by search term and intentions
   const filteredProfiles = useMemo(() => profiles.filter(profile => {
+    if (excludedProfileIdSet.has(profile.user_id)) return false;
+
     // Search term filter
     if (searchTerm) {
       const search = searchTerm.toLowerCase();
@@ -170,7 +245,13 @@ export default function Discover() {
     }
     
     return true;
-  }), [profiles, searchTerm, selectedIntentions]);
+  }), [excludedProfileIdSet, profiles, searchTerm, selectedIntentions]);
+
+  useEffect(() => {
+    if (currentIndex >= filteredProfiles.length) {
+      setCurrentIndex(Math.max(0, filteredProfiles.length - 1));
+    }
+  }, [currentIndex, filteredProfiles.length]);
 
   // Load compatibility when current profile changes
   useEffect(() => {
@@ -202,12 +283,18 @@ export default function Discover() {
       const result = data as unknown as { ok: boolean; code?: string };
       if (result.ok) {
         setRequestStates(prev => ({ ...prev, [currentProfile.user_id]: 'sent' }));
+        setExcludedProfileIds(prev => (
+          prev.includes(currentProfile.user_id) ? prev : [...prev, currentProfile.user_id]
+        ));
         toast.success('Solicitud de compatibilidad enviada');
         return;
       }
 
       if (result.code === 'ALREADY_REQUESTED') {
         setRequestStates(prev => ({ ...prev, [currentProfile.user_id]: 'sent' }));
+        setExcludedProfileIds(prev => (
+          prev.includes(currentProfile.user_id) ? prev : [...prev, currentProfile.user_id]
+        ));
         toast.info('Ya habias enviado esta solicitud');
         return;
       }
@@ -280,6 +367,11 @@ export default function Discover() {
   };
 
   const hasActiveFilters = searchTerm || selectedCity || priceRange[0] !== 200 || priceRange[1] !== 800 || minTrustScore > 0 || selectedIntentions.length > 0;
+  const resultCounterText = hasActiveFilters
+    ? filteredProfiles.length > 0
+      ? `Mostrando ${currentIndex + 1} de ${filteredProfiles.length} perfiles nuevos`
+      : 'No hay perfiles nuevos con estos filtros'
+    : `${filteredProfiles.length} perfiles nuevos disponibles`;
 
   const getTrustBadgeColor = (badge: string) => {
     switch (badge) {
@@ -471,9 +563,7 @@ export default function Discover() {
               <Loader2 className="h-4 w-4 animate-spin" />
               Cargando perfiles...
             </span>
-          ) : hasActiveFilters 
-            ? `Mostrando ${currentIndex + 1} de ${filteredProfiles.length} perfiles`
-            : `${profiles.length} perfiles disponibles`
+          ) : resultCounterText
           }
         </div>
 
@@ -489,7 +579,7 @@ export default function Discover() {
               <div className="text-6xl mb-4">🔍</div>
               <h3 className="text-xl font-semibold mb-2">No hay perfiles</h3>
               <p className="text-muted-foreground mb-4">
-                No se encontraron perfiles con estos filtros. Prueba a ajustar los criterios de búsqueda.
+                No se encontraron perfiles nuevos con estos filtros. Revisa tus conexiones o prueba a ajustar los criterios de búsqueda.
               </p>
               <Button variant="outline" onClick={clearFilters}>
                 <RotateCcw className="h-4 w-4 mr-2" />
