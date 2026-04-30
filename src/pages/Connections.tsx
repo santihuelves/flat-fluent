@@ -69,7 +69,7 @@ type ConnectionsResponse = {
   connections?: ActiveConnectionItem[];
 };
 
-const rpc = supabase.rpc as unknown as RpcInvoker;
+const rpc = supabase.rpc.bind(supabase) as unknown as RpcInvoker;
 
 const getName = (profile: ConnectionProfile) => profile.display_name || profile.handle || 'Usuario';
 
@@ -176,26 +176,32 @@ export default function Connections() {
     setIsLoading(true);
     setError(null);
 
-    const { data, error: rpcError } = await rpc('convinter_get_my_consent_overview');
+    try {
+      const { data, error: rpcError } = await rpc('convinter_get_my_consent_overview');
 
-    if (rpcError) {
-      console.error('Error loading connections:', rpcError);
+      if (rpcError) {
+        console.error('Error loading connections:', rpcError);
+        setError('No se pudieron cargar tus conexiones.');
+        setIsLoading(false);
+        return;
+      }
+
+      const result = data as ConnectionsResponse;
+      if (!result.ok) {
+        setError(result.code === 'NOT_AUTHENTICATED' ? 'Inicia sesion para ver tus conexiones.' : 'No se pudieron cargar tus conexiones.');
+        setIsLoading(false);
+        return;
+      }
+
+      setIncoming(result.incoming ?? []);
+      setOutgoing(result.outgoing ?? []);
+      setConnections(result.connections ?? []);
+    } catch (error) {
+      console.error('Unexpected error loading connections:', error);
       setError('No se pudieron cargar tus conexiones.');
+    } finally {
       setIsLoading(false);
-      return;
     }
-
-    const result = data as ConnectionsResponse;
-    if (!result.ok) {
-      setError(result.code === 'NOT_AUTHENTICATED' ? 'Inicia sesion para ver tus conexiones.' : 'No se pudieron cargar tus conexiones.');
-      setIsLoading(false);
-      return;
-    }
-
-    setIncoming(result.incoming ?? []);
-    setOutgoing(result.outgoing ?? []);
-    setConnections(result.connections ?? []);
-    setIsLoading(false);
   }, []);
 
   useEffect(() => {
