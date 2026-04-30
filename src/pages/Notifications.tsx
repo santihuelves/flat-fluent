@@ -5,12 +5,12 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import {
-import { useSEO } from '@/hooks/useSEO';
   type AppNotification,
   getNotificationCopy,
   getNotificationPath,
   useNotifications,
 } from '@/hooks/useNotifications';
+import { useSEO } from '@/hooks/useSEO';
 
 const formatNotificationTime = (date: string | null) => {
   if (!date) return 'Fecha no disponible';
