@@ -68,6 +68,38 @@ export type Database = {
         }
         Relationships: []
       }
+      convinter_chat_reads: {
+        Row: {
+          chat_id: string
+          created_at: string
+          last_read_at: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          chat_id: string
+          created_at?: string
+          last_read_at?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          chat_id?: string
+          created_at?: string
+          last_read_at?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "convinter_chat_reads_chat_id_fkey"
+            columns: ["chat_id"]
+            isOneToOne: false
+            referencedRelation: "convinter_chats"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       convinter_chats: {
         Row: {
           created_at: string | null
