@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 import type { Database } from '@/integrations/supabase/types';
+import { useSEO } from '@/hooks/useSEO';
 
 type Visibility = Database['public']['Enums']['convinter_visibility'];
 
@@ -56,6 +57,8 @@ const getVisibilityFromToggles = (profileVisible: boolean, searchable: boolean):
 };
 
 export default function Settings() {
+  useSEO({ page: 'settings' });
+
   const navigate = useNavigate();
   const [user, setUser] = useState<SupabaseUser | null>(null);
   const [loading, setLoading] = useState(true);

@@ -9,6 +9,7 @@ import { motion } from 'framer-motion';
 import { SafetyActions } from '@/components/SafetyActions';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useSEO } from '@/hooks/useSEO';
 
 type Message = {
   id: number | string;
@@ -55,6 +56,8 @@ const toMessage = (message: MessageRow): Message => ({
 });
 
 export default function Chat() {
+  useSEO({ page: 'matches' });
+
   const { matchId } = useParams<{ matchId: string }>();
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const [chatId, setChatId] = useState<string | null>(null);

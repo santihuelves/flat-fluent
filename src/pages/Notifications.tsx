@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import {
+import { useSEO } from '@/hooks/useSEO';
   type AppNotification,
   getNotificationCopy,
   getNotificationPath,
@@ -68,6 +69,8 @@ const getNotificationAction = (notification: AppNotification) => {
 };
 
 export default function Notifications() {
+  useSEO({ page: 'notifications' });
+
   const navigate = useNavigate();
   const {
     notifications,

@@ -1,6 +1,9 @@
 import { Layout } from '@/components/layout/Layout';
+import { useSEO } from '@/hooks/useSEO';
 
 export default function Privacy() {
+  useSEO({ page: 'privacy' });
+
   return (
     <Layout>
       <div className="container py-12 max-w-3xl">

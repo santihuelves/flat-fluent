@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Layout } from '@/components/layout/Layout';
 import { motion } from 'framer-motion';
 import { 
+import { useSEO } from '@/hooks/useSEO';
   Users, 
   Heart, 
   MapPin, 
@@ -30,6 +31,8 @@ const staggerContainer = {
 };
 
 export default function Landing() {
+  useSEO({ page: 'landing' });
+
   const { t } = useTranslation();
 
   return (

@@ -11,6 +11,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useSEO } from '@/hooks/useSEO';
 
 type IntentionType = 'seek_room' | 'offer_room' | 'seek_flatmate';
 
@@ -69,6 +70,8 @@ const LANGUAGES = [
 ];
 
 const Onboarding = () => {
+  useSEO({ page: 'signup' });
+
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(1);

@@ -1,6 +1,9 @@
 import { Layout } from '@/components/layout/Layout';
+import { useSEO } from '@/hooks/useSEO';
 
 export default function Terms() {
+  useSEO({ page: 'terms' });
+
   return (
     <Layout>
       <div className="container py-12 max-w-3xl">
