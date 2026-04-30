@@ -4,12 +4,12 @@ import { HelpCircle } from 'lucide-react';
 
 const faqs = [
   {
-    question: '¿Cómo funciona Convinder?',
-    answer: 'Convinder utiliza un test de compatibilidad avanzado para encontrar compañeros de piso que realmente encajen contigo. Completa tu perfil, realiza el test, y empieza a descubrir personas compatibles. Cuando dos personas se gustan mutuamente, ¡es un match!'
+    question: '¿Cómo funciona Convinter?',
+    answer: 'Convinter utiliza un test de compatibilidad avanzado para encontrar compañeros de piso que realmente encajen contigo. Completa tu perfil, realiza el test, y empieza a descubrir personas compatibles. Cuando dos personas se gustan mutuamente, ¡es un match!'
   },
   {
-    question: '¿Es gratis usar Convinder?',
-    answer: 'Sí, Convinder es completamente gratis para uso básico. Puedes crear tu perfil, realizar el test de compatibilidad, ver perfiles y hacer matches sin coste. Próximamente lanzaremos funciones premium opcionales.'
+    question: '¿Es gratis usar Convinter?',
+    answer: 'Sí, Convinter es completamente gratis para uso básico. Puedes crear tu perfil, realizar el test de compatibilidad, ver perfiles y hacer matches sin coste. Próximamente lanzaremos funciones premium opcionales.'
   },
   {
     question: '¿Cómo se calcula la compatibilidad?',
@@ -32,7 +32,7 @@ const faqs = [
     answer: 'Ve a Configuración > Zona de peligro > Eliminar cuenta. Ten en cuenta que esta acción es irreversible y perderás todos tus datos, matches y conversaciones.'
   },
   {
-    question: '¿En qué ciudades está disponible Convinder?',
+    question: '¿En qué ciudades está disponible Convinter?',
     answer: 'Actualmente estamos disponibles en las principales ciudades de España: Madrid, Barcelona, Valencia, Sevilla, Bilbao, Zaragoza, Málaga, Granada, San Sebastián, Alicante, A Coruña y Palma. Próximamente ampliaremos a más ciudades.'
   },
 ];
@@ -47,7 +47,7 @@ export default function FAQ() {
           </div>
           <h1 className="text-3xl font-bold mb-4">Preguntas Frecuentes</h1>
           <p className="text-muted-foreground">
-            Encuentra respuestas a las preguntas más comunes sobre Convinder
+            Encuentra respuestas a las preguntas más comunes sobre Convinter
           </p>
         </div>
 

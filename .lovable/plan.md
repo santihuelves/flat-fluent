@@ -1,57 +1,61 @@
-## Objetivo
+# Renombrar "Convinder" → "Convinter"
 
-Aplicar `migrations_manual/06_demo_full_seed.sql` (seed demo reversible, 434 líneas) contra el backend de Lovable Cloud usando la tool oficial de migraciones, y reportar el resultado.
+La memoria del proyecto ya indica que el nombre interno es **CONVINTER**, así que esto alinea la UI con la marca real. He localizado **37 ocurrencias en 16 archivos** y las clasifico por tipo para aplicar el reemplazo correcto en cada caso.
 
-## Qué hace el seed (resumen)
+## Alcance del cambio
 
-Es un paquete demo idempotente y reversible que crea:
+### 1. Marca visible en UI (reemplazo directo `Convinder` → `Convinter`)
+- `src/components/layout/Header.tsx` — logo del header
+- `src/components/layout/Footer.tsx` — logo y copyright
+- `src/components/SafetyActions.tsx` — texto de moderación
+- `src/pages/FAQ.tsx` — 4 menciones en preguntas y subtítulo
+- `src/pages/Privacy.tsx` — texto legal
+- `src/pages/Terms.tsx` — 4 menciones en texto legal
+- `src/pages/Settings.tsx` — 2 menciones en textos de UI
+- `src/components/ui/button.tsx` — comentario de código
+- `src/index.css` — comentario de tokens de marca
 
-- 32 usuarios en `auth.users` + `auth.identities` (password `Test1234!` para todos)
-  - Principales: `demo.busca@covinter.test` y `demo.ofrece@covinter.test`
-- 32 filas en `public.profiles` y `public.convinter_profiles`
-- 32 intenciones en `convinter_profile_intentions`
-- 32 anuncios en `convinter_listings` (prefijo `[DEMO]` en el título)
-- Respuestas del test rápido (`convinter_answers`, test_id `quick`)
-- Consents y compatibilidad cacheada para el usuario 1 y 2
-- 3 chats demo + mensajes con prefijo `[DEMO]`
-- 2 notificaciones `DEMO_MATCH_READY`
+### 2. Traducciones i18n
+- `src/i18n/locales/es.json` — "¿Por qué Convinder?", "Únete a Convinder"
+- `src/i18n/locales/en.json` — "Why Convinder?", "Join Convinder"
 
-Antes de insertar hace `DELETE` de cualquier rastro previo del propio paquete (matching por UUIDs `00000000-0000-4000-...`, emails `demo.*@covinter.test`, handles `demo_%`, títulos `[DEMO]%`), por lo que es seguro re-ejecutar.
+### 3. Emails de contacto (dominio)
+Cambiar el dominio en los mailtos/textos:
+- `src/pages/Contact.tsx` → `hola@convinter.com`
+- `src/pages/Privacy.tsx` → `privacidad@convinter.com`
+- `src/pages/Terms.tsx` → `legal@convinter.com`
 
-Todo va dentro de `BEGIN; ... COMMIT;`.
+### 4. Claves de almacenamiento (localStorage / sessionStorage)
+Estas son claves técnicas; las renombro también para coherencia. Implica que usuarios actuales perderán el valor guardado (idioma preferido, ajustes de notificaciones, flag de reload). Es aceptable porque:
+- El idioma vuelve al default `es` con fallback automático
+- Los ajustes de notificaciones se regeneran con valores por defecto
+- El flag de reload es transitorio
 
-## Plan de ejecución
+Archivos:
+- `src/App.tsx` — `convinder-stale-chunk-reload` → `convinter-stale-chunk-reload` (3 ocurrencias)
+- `src/components/LanguageSwitcher.tsx` — `convinder-lang` → `convinter-lang`
+- `src/i18n/index.ts` — `convinder-lang` → `convinter-lang`
+- `src/pages/Settings.tsx`:
+  - `NOTIFICATIONS_KEY = 'convinder-notification-settings'` → `'convinter-notification-settings'`
+  - Nombre de archivo de descarga: `convinder-datos-...json` → `convinter-datos-...json`
 
-1. Llamar a la tool de migraciones con el contenido íntegro de `migrations_manual/06_demo_full_seed.sql`.
-2. Esperar la confirmación del usuario en el panel de migraciones (paso obligatorio del flujo).
-3. Una vez aplicada, ejecutar las verificaciones rápidas que vienen al final del propio archivo:
-   ```sql
-   SELECT count(*) FROM auth.users
-    WHERE email LIKE 'demo.%@covinter.test'
-       OR email LIKE 'demo.user%@covinter.test';   -- esperado: 32
-   SELECT count(*) FROM public.convinter_listings
-    WHERE title LIKE '[DEMO]%';                    -- esperado: 32
-   SELECT count(*) FROM public.convinter_messages
-    WHERE body LIKE '[DEMO]%';                     -- esperado: 7
-   ```
-4. Reportar los conteos al usuario.
+### 5. Documentación de desarrollo
+- `TESTING_LOG.md` — título y emails de ejemplo (`test@convinter.com`, `maria@convinter.com`)
 
-## Manejo de errores
+### 6. Metadatos del sitio
+- `index.html` — actualizar `<title>` y `og:title` de "Lovable App" a **"Convinter"** y la descripción a algo coherente con la marca (mejora SEO/OG y aprovecha el cambio).
 
-Si la migración falla (por ejemplo por una columna o enum que no exista en el esquema actual, o por una FK), **no se intentará arreglar nada automáticamente**. Mostraré:
+## Fuera de alcance (no se tocan)
+- Migraciones SQL en `migrations_manual/` — los identificadores de BBDD ya usan el prefijo `convinter_*`, no hay nada que cambiar.
+- Referencias a "Convinter" ya existentes (memoria, RPCs, tablas).
+- Logos/iconos: se mantiene el icono actual de `Home` en Header/Footer; sólo cambia el texto.
 
-- El mensaje de error exacto devuelto por Postgres.
-- El bloque `INSERT`/`DELETE` concreto que ha fallado.
-- Una sugerencia mínima del posible motivo (sin tocar nada todavía).
+## Detalles técnicos
+- Reemplazo respetando capitalización: `Convinder` → `Convinter`, `convinder` → `convinter`.
+- No hay `CONVINDER` en mayúsculas en el código.
+- Total de archivos modificados: **17** (16 con la marca + `index.html`).
+- No requiere migración de BBDD.
+- No afecta a tipos generados de Supabase.
 
-Esperaré nuevas instrucciones tuyas antes de seguir.
-
-## Riesgos conocidos
-
-- El seed escribe en `auth.users` y `auth.identities` directamente. Es intencional (las FKs del esquema apuntan ahí) y reversible vía `07_demo_cleanup.sql`. **No usar nunca en producción.**
-- Si alguna columna del seed (`quick_test_completed`, intenciones, listing verification) no existe, significaría que faltan migraciones previas (01–05). En ese caso pararé y avisaré.
-- El `ON CONFLICT (profile_id, intention_type, active)` requiere que exista esa restricción única en `convinter_profile_intentions` (creada en `05_intentions.sql`). Si no existe, fallará y lo reportaré literal.
-
-## Reversión
-
-`migrations_manual/07_demo_cleanup.sql` ya existe en el repo y revierte todo el paquete. No se ejecuta en este plan.
+## Verificación posterior
+Tras aplicar los cambios, ejecutar `grep -rin "convinder" src/ index.html` y confirmar que devuelve 0 resultados.

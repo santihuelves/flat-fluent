@@ -3,7 +3,7 @@ import { initReactI18next } from 'react-i18next';
 import es from './locales/es.json';
 import en from './locales/en.json';
 
-const savedLanguage = localStorage.getItem('convinder-lang') || 'es';
+const savedLanguage = localStorage.getItem('convinter-lang') || 'es';
 
 i18n
   .use(initReactI18next)

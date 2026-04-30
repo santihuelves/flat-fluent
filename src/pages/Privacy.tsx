@@ -32,7 +32,7 @@ export default function Privacy() {
           <section className="space-y-4">
             <h2 className="text-xl font-semibold">3. Compartición de información</h2>
             <p className="text-muted-foreground">
-              Tu perfil público es visible para otros usuarios de Convinder. No vendemos 
+              Tu perfil público es visible para otros usuarios de Convinter. No vendemos 
               tu información personal a terceros. Podemos compartir datos agregados y 
               anonimizados con fines analíticos.
             </p>
@@ -59,7 +59,7 @@ export default function Privacy() {
             <h2 className="text-xl font-semibold">6. Contacto</h2>
             <p className="text-muted-foreground">
               Para cualquier pregunta sobre esta política, contacta con nosotros en: 
-              privacidad@convinder.com
+              privacidad@convinter.com
             </p>
           </section>
         </div>

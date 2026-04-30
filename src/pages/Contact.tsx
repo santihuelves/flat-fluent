@@ -45,7 +45,7 @@ export default function Contact() {
                 <div>
                   <h3 className="font-semibold">Email</h3>
                   <p className="text-sm text-muted-foreground">
-                    hola@convinder.com
+                    hola@convinter.com
                   </p>
                 </div>
               </CardContent>

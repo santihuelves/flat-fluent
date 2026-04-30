@@ -15,7 +15,7 @@ const buttonVariants = cva(
         secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80 shadow-sm",
         ghost: "hover:bg-muted hover:text-foreground",
         link: "text-primary underline-offset-4 hover:underline",
-        // Custom Convinder variants
+        // Custom Convinter variants
         hero: "gradient-bg text-primary-foreground shadow-glow hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]",
         "hero-outline": "border-2 border-primary/20 bg-card/50 backdrop-blur-sm text-foreground hover:border-primary/40 hover:bg-card",
         accent: "bg-accent text-accent-foreground hover:bg-accent/90 shadow-sm",

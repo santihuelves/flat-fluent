@@ -25,7 +25,7 @@
       "cities": "Cities"
     },
     "features": {
-      "title": "Why Convinder?",
+      "title": "Why Convinter?",
       "subtitle": "More than a flat portal. An intelligent compatibility system.",
       "compatibility": {
         "title": "Real compatibility test",
@@ -80,7 +80,7 @@
       "signupLink": "Sign up"
     },
     "signup": {
-      "title": "Join Convinder",
+      "title": "Join Convinter",
       "subtitle": "Create your account and find your ideal roommate",
       "name": "Name",
       "email": "Email",

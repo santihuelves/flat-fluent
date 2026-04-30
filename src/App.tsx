@@ -73,7 +73,7 @@ class AppErrorBoundary extends Component<AppErrorBoundaryProps, AppErrorBoundary
   };
 
   componentDidMount() {
-    sessionStorage.removeItem('convinder-stale-chunk-reload');
+    sessionStorage.removeItem('convinter-stale-chunk-reload');
   }
 
   static getDerivedStateFromError(error: unknown): AppErrorBoundaryState {
@@ -88,7 +88,7 @@ class AppErrorBoundary extends Component<AppErrorBoundaryProps, AppErrorBoundary
 
     if (!isStaleChunkError(error)) return;
 
-    const reloadKey = 'convinder-stale-chunk-reload';
+    const reloadKey = 'convinter-stale-chunk-reload';
     if (sessionStorage.getItem(reloadKey) === 'done') return;
 
     sessionStorage.setItem(reloadKey, 'done');
@@ -96,7 +96,7 @@ class AppErrorBoundary extends Component<AppErrorBoundaryProps, AppErrorBoundary
   }
 
   handleReload = () => {
-    sessionStorage.removeItem('convinder-stale-chunk-reload');
+    sessionStorage.removeItem('convinter-stale-chunk-reload');
     window.location.reload();
   };
 
