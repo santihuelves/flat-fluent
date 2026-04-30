@@ -1,6 +1,7 @@
-import { Bell, CheckCheck } from 'lucide-react';
+import { Bell, CheckCheck, Inbox, MessageCircle, ShieldCheck, UserCheck, Home, AlertTriangle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -40,6 +41,28 @@ const formatTime = (date: string | null) => {
   return new Intl.DateTimeFormat('es-ES', { day: 'numeric', month: 'short' }).format(new Date(date));
 };
 
+const getNotificationIcon = (type: string) => {
+  switch (type) {
+    case 'NEW_MESSAGE':
+      return MessageCircle;
+    case 'CONSENT_REQUEST_RECEIVED':
+    case 'CONSENT_REQUEST_ACCEPTED':
+    case 'CONSENT_REQUEST_REJECTED':
+      return UserCheck;
+    case 'LISTING_VERIFIED':
+    case 'LISTING_VERIFICATION_REJECTED':
+      return Home;
+    case 'SELFIE_APPROVED':
+    case 'SELFIE_REJECTED':
+      return ShieldCheck;
+    case 'MOD_WARNING':
+    case 'MOD_RESTRICTION':
+      return AlertTriangle;
+    default:
+      return Inbox;
+  }
+};
+
 export function NotificationsMenu({
   notifications,
   unreadCount,
@@ -51,6 +74,7 @@ export function NotificationsMenu({
 
   const handleOpenNotification = async (notification: AppNotification) => {
     await onMarkAsRead(notification.id);
+    window.dispatchEvent(new CustomEvent('convinter:notifications-read'));
     navigate(getNotificationPath(notification));
   };
 
@@ -67,22 +91,42 @@ export function NotificationsMenu({
           )}
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-80 bg-background p-0">
+      <DropdownMenuContent align="end" className="w-96 max-w-[calc(100vw-1rem)] bg-background p-0">
         <div className="flex items-center justify-between px-3 py-3">
-          <DropdownMenuLabel className="p-0">Notificaciones</DropdownMenuLabel>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-8 gap-1 px-2 text-xs"
-            disabled={unreadCount === 0}
-            onClick={(event) => {
-              event.preventDefault();
-              void onMarkAllAsRead();
-            }}
-          >
-            <CheckCheck className="h-4 w-4" />
-            Leer todo
-          </Button>
+          <div>
+            <DropdownMenuLabel className="p-0">Notificaciones</DropdownMenuLabel>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              {unreadCount > 0 ? `${unreadCount} sin leer` : 'Todo al dia'}
+            </p>
+          </div>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 px-2 text-xs"
+              onClick={(event) => {
+                event.preventDefault();
+                navigate('/notifications');
+              }}
+            >
+              Ver todo
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 gap-1 px-2 text-xs"
+              disabled={unreadCount === 0}
+              onClick={(event) => {
+                event.preventDefault();
+                void Promise.resolve(onMarkAllAsRead()).then(() => {
+                  window.dispatchEvent(new CustomEvent('convinter:notifications-read'));
+                });
+              }}
+            >
+              <CheckCheck className="h-4 w-4" />
+              Leer
+            </Button>
+          </div>
         </div>
         <DropdownMenuSeparator />
         <div className="max-h-96 overflow-y-auto py-1">
@@ -101,6 +145,7 @@ export function NotificationsMenu({
           {notifications.map((notification) => {
             const copy = getNotificationCopy(notification);
             const unread = !notification.read_at;
+            const Icon = getNotificationIcon(notification.notification_type);
 
             return (
               <DropdownMenuItem
@@ -110,13 +155,20 @@ export function NotificationsMenu({
                   void handleOpenNotification(notification);
                 }}
               >
-                <span
-                  className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full ${
-                    unread ? 'bg-destructive' : 'bg-muted'
-                  }`}
-                />
+                <span className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${
+                  unread ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'
+                }`}>
+                  <Icon className="h-4 w-4" />
+                </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block text-sm font-medium leading-tight">{copy.title}</span>
+                  <span className="flex items-start justify-between gap-2">
+                    <span className="block text-sm font-medium leading-tight">{copy.title}</span>
+                    {unread && (
+                      <Badge variant="destructive" className="h-5 rounded-full px-2 text-[10px]">
+                        Nueva
+                      </Badge>
+                    )}
+                  </span>
                   <span className="mt-1 line-clamp-2 block text-xs leading-snug text-muted-foreground">
                     {copy.body}
                   </span>

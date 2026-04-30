@@ -12,7 +12,7 @@ export type AppNotification = {
 
 type NotificationPayload = Record<string, unknown>;
 
-const asPayload = (payload: Json | null): NotificationPayload => {
+export const asNotificationPayload = (payload: Json | null): NotificationPayload => {
   if (payload && typeof payload === 'object' && !Array.isArray(payload)) {
     return payload as NotificationPayload;
   }
@@ -21,7 +21,7 @@ const asPayload = (payload: Json | null): NotificationPayload => {
 };
 
 export const getNotificationCopy = (notification: AppNotification) => {
-  const payload = asPayload(notification.payload);
+  const payload = asNotificationPayload(notification.payload);
   const message = typeof payload.message === 'string' ? payload.message : null;
 
   if (message) {
@@ -101,10 +101,8 @@ export const getNotificationCopy = (notification: AppNotification) => {
 };
 
 export const getNotificationPath = (notification: AppNotification) => {
-  const payload = asPayload(notification.payload);
+  const payload = asNotificationPayload(notification.payload);
   const from = typeof payload.from === 'string' ? payload.from : null;
-  const fromUser = typeof payload.from_user === 'string' ? payload.from_user : null;
-  const byUser = typeof payload.by_user === 'string' ? payload.by_user : null;
   const listingId = typeof payload.listing_id === 'string' ? payload.listing_id : null;
 
   switch (notification.notification_type) {
@@ -241,6 +239,20 @@ export function useNotifications() {
       void supabase.removeChannel(channel);
     };
   }, [loadNotifications, userId]);
+
+  useEffect(() => {
+    const refresh = () => {
+      void loadNotifications();
+    };
+
+    window.addEventListener('focus', refresh);
+    window.addEventListener('convinter:notifications-read', refresh);
+
+    return () => {
+      window.removeEventListener('focus', refresh);
+      window.removeEventListener('convinter:notifications-read', refresh);
+    };
+  }, [loadNotifications]);
 
   return {
     notifications,
