@@ -314,12 +314,11 @@ export default function MyListings() {
     setSaving(true);
 
     try {
-      const { data, error } = pendingAction.status === 'inactive'
-        ? await supabase.rpc('convinter_delete_listing', { p_listing_id: pendingAction.listing.id })
-        : await supabase.rpc('convinter_update_listing', {
-            p_listing_id: pendingAction.listing.id,
-            p_status: 'active',
-          });
+      const nextStatus = pendingAction.status;
+      const { data, error } = await supabase.rpc('convinter_update_listing', {
+        p_listing_id: pendingAction.listing.id,
+        p_status: nextStatus,
+      });
 
       if (error) throw error;
 
@@ -330,6 +329,11 @@ export default function MyListings() {
       }
 
       toast.success(pendingAction.status === 'active' ? 'Anuncio reactivado' : 'Anuncio pausado');
+      setListings((current) => current.map((listing) => (
+        listing.id === pendingAction.listing.id
+          ? { ...listing, status: nextStatus, updated_at: new Date().toISOString() }
+          : listing
+      )));
       setPendingAction(null);
       await loadListings();
     } catch (error) {
