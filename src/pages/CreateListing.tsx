@@ -60,7 +60,7 @@ const getCreateErrorMessage = (code?: string) => {
 const sanitizeFileName = (name: string) => name.toLowerCase().replace(/[^a-z0-9.]+/g, '-');
 
 export default function CreateListing() {
-  useSEO({ page: 'createListing' });
+  useSEO({ page: 'createListing', noIndex: true });
 
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement | null>(null);

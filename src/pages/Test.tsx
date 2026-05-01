@@ -463,7 +463,7 @@ const allQuestions: Question[] = [
 ];
 
 export default function Test() {
-  useSEO({ page: 'test' });
+  useSEO({ page: 'test', noIndex: true });
 
   const { t } = useTranslation();
   const navigate = useNavigate();

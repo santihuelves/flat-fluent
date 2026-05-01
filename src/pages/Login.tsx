@@ -12,7 +12,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useSEO } from '@/hooks/useSEO';
 
 export default function Login() {
-  useSEO({ page: 'login' });
+  useSEO({ page: 'login', noIndex: true });
 
   const { t } = useTranslation();
   const navigate = useNavigate();

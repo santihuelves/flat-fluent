@@ -70,7 +70,7 @@ const LANGUAGES = [
 ];
 
 const Onboarding = () => {
-  useSEO({ page: 'signup' });
+  useSEO({ page: 'signup', noIndex: true });
 
   const { t } = useTranslation();
   const navigate = useNavigate();

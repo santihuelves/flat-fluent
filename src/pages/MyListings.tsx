@@ -125,7 +125,7 @@ const toEditForm = (listing: Listing): EditForm => ({
 const sanitizeFileName = (name: string) => name.toLowerCase().replace(/[^a-z0-9.]+/g, '-');
 
 export default function MyListings() {
-  useSEO({ page: 'myListings' });
+  useSEO({ page: 'myListings', noIndex: true });
 
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement | null>(null);

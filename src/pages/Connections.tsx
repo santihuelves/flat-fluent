@@ -169,7 +169,7 @@ const EmptyPanel = ({ icon: Icon, title, body }: { icon: typeof Inbox; title: st
 );
 
 export default function Connections() {
-  useSEO({ page: 'connections' });
+  useSEO({ page: 'connections', noIndex: true });
 
   const navigate = useNavigate();
   const [incoming, setIncoming] = useState<ConsentRequestItem[]>([]);

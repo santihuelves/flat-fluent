@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { AlertCircle, ArrowLeft, Calendar, CheckCircle, Cigarette, Clock, Edit2, Euro, Home, Loader2, MapPin, MessageCircle, PawPrint, Send, ShieldCheck, UserCheck, Users } from 'lucide-react';
@@ -113,8 +113,6 @@ const getErrorMessage = (code?: string) => {
 };
 
 export default function ListingDetail() {
-  useSEO({ page: 'listings' });
-
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [listing, setListing] = useState<ListingDetailData | null>(null);
@@ -128,6 +126,38 @@ export default function ListingDetail() {
   const [isBlocked, setIsBlocked] = useState(false);
   const [ownerConnectionState, setOwnerConnectionState] = useState<OwnerConnectionState>('unknown');
   const [isRequestingConsent, setIsRequestingConsent] = useState(false);
+
+  const listingStructuredData = useMemo(() => {
+    if (!listing) return null;
+
+    return {
+      '@context': 'https://schema.org',
+      '@type': 'Offer',
+      name: listing.title,
+      description: listing.description || listing.title,
+      availability: listing.status === 'active' ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
+      price: listing.price_monthly ?? undefined,
+      priceCurrency: 'EUR',
+      image: getListingPhotos(listing),
+      areaServed: listing.city ? {
+        '@type': 'City',
+        name: listing.city,
+      } : undefined,
+      seller: owner ? {
+        '@type': 'Person',
+        name: owner.display_name || owner.handle || 'Usuario Convinter',
+      } : undefined,
+    };
+  }, [listing, owner]);
+
+  useSEO({
+    page: 'listings',
+    fallbackTitle: listing?.title,
+    fallbackDescription: listing?.description || (listing?.city ? `Anuncio de convivencia en ${listing.city}.` : undefined),
+    image: listing?.thumbnail_url,
+    type: 'article',
+    structuredData: listingStructuredData,
+  });
 
   const loadOwnerConnectionState = useCallback(async (ownerId: string) => {
     const { data, error: overviewError } = await supabase.rpc('convinter_get_my_consent_overview');

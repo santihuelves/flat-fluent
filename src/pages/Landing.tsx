@@ -30,8 +30,32 @@ const staggerContainer = {
   }
 };
 
+const landingStructuredData = [
+  {
+    '@context': 'https://schema.org',
+    '@type': 'Organization',
+    name: 'Convinter',
+    url: typeof window !== 'undefined' ? window.location.origin : undefined,
+    logo: typeof window !== 'undefined' ? `${window.location.origin}/favicon.ico` : undefined,
+  },
+  {
+    '@context': 'https://schema.org',
+    '@type': 'WebSite',
+    name: 'Convinter',
+    url: typeof window !== 'undefined' ? window.location.origin : undefined,
+  },
+  {
+    '@context': 'https://schema.org',
+    '@type': 'WebApplication',
+    name: 'Convinter',
+    applicationCategory: 'LifestyleApplication',
+    operatingSystem: 'Web',
+    description: 'Convinter conecta personas compatibles para compartir piso mediante un test de convivencia.',
+  },
+];
+
 export default function Landing() {
-  useSEO({ page: 'landing' });
+  useSEO({ page: 'landing', structuredData: landingStructuredData });
 
   const { t } = useTranslation();
 

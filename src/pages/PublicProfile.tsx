@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { AlertCircle, ArrowLeft, CheckCircle, Heart, Loader2, MapPin, MessageCircle, Shield } from 'lucide-react';
@@ -54,8 +54,6 @@ const getErrorMessage = (code?: string) => {
 };
 
 export default function PublicProfile() {
-  useSEO({ page: 'profile' });
-
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [profile, setProfile] = useState<PublicProfileData | null>(null);
@@ -66,6 +64,33 @@ export default function PublicProfile() {
   const [isOpeningChat, setIsOpeningChat] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isBlocked, setIsBlocked] = useState(false);
+
+  const profileStructuredData = useMemo(() => {
+    if (!profile) return null;
+
+    return {
+      '@context': 'https://schema.org',
+      '@type': 'Person',
+      name: getName(profile),
+      description: profile.bio || 'Perfil publico en Convinter',
+      image: profile.photo_url || undefined,
+      address: profile.city ? {
+        '@type': 'PostalAddress',
+        addressLocality: profile.city,
+        addressRegion: profile.province_code || undefined,
+        addressCountry: 'ES',
+      } : undefined,
+    };
+  }, [profile]);
+
+  useSEO({
+    page: 'profile',
+    fallbackTitle: profile ? `${getName(profile)} en Convinter` : undefined,
+    fallbackDescription: profile?.bio || (profile?.city ? `Perfil publico de Convinter en ${profile.city}.` : undefined),
+    image: profile?.photo_url,
+    type: 'profile',
+    structuredData: profileStructuredData,
+  });
 
   const loadBlockState = useCallback(async (targetUserId: string) => {
     const { data: userData } = await supabase.auth.getUser();

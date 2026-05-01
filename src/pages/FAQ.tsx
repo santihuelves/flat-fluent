@@ -38,8 +38,21 @@ const faqs = [
   },
 ];
 
+const faqStructuredData = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: faqs.map((faq) => ({
+    '@type': 'Question',
+    name: faq.question,
+    acceptedAnswer: {
+      '@type': 'Answer',
+      text: faq.answer,
+    },
+  })),
+};
+
 export default function FAQ() {
-  useSEO({ page: 'faq' });
+  useSEO({ page: 'faq', structuredData: faqStructuredData });
 
   return (
     <Layout>

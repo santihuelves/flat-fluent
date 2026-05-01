@@ -42,7 +42,7 @@ interface ProfileData {
 }
 
 export default function Profile() {
-  useSEO({ page: 'profile' });
+  useSEO({ page: 'profile', noIndex: true });
 
   const { t } = useTranslation();
   const navigate = useNavigate();

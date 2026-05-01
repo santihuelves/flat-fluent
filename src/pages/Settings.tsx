@@ -57,7 +57,7 @@ const getVisibilityFromToggles = (profileVisible: boolean, searchable: boolean):
 };
 
 export default function Settings() {
-  useSEO({ page: 'settings' });
+  useSEO({ page: 'settings', noIndex: true });
 
   const navigate = useNavigate();
   const [user, setUser] = useState<SupabaseUser | null>(null);

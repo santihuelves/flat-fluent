@@ -56,7 +56,7 @@ const toMessage = (message: MessageRow): Message => ({
 });
 
 export default function Chat() {
-  useSEO({ page: 'matches' });
+  useSEO({ page: 'matches', noIndex: true });
 
   const { matchId } = useParams<{ matchId: string }>();
   const messagesEndRef = useRef<HTMLDivElement | null>(null);

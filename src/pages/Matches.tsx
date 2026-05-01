@@ -53,7 +53,7 @@ const formatRelativeTime = (date: string | null) => {
 };
 
 export default function Matches() {
-  useSEO({ page: 'matches' });
+  useSEO({ page: 'matches', noIndex: true });
 
   const [matches, setMatches] = useState<MatchItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);

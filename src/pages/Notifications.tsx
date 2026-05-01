@@ -69,7 +69,7 @@ const getNotificationAction = (notification: AppNotification) => {
 };
 
 export default function Notifications() {
-  useSEO({ page: 'notifications' });
+  useSEO({ page: 'notifications', noIndex: true });
 
   const navigate = useNavigate();
   const {
