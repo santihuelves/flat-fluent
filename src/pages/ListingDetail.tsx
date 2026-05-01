@@ -154,6 +154,7 @@ export default function ListingDetail() {
     page: 'listings',
     fallbackTitle: listing?.title,
     fallbackDescription: listing?.description || (listing?.city ? `Anuncio de convivencia en ${listing.city}.` : undefined),
+    noIndex: listing?.status !== 'active',
     image: listing?.thumbnail_url,
     type: 'article',
     structuredData: listingStructuredData,
@@ -433,6 +434,7 @@ export default function ListingDetail() {
   const activePhoto = photos[Math.min(activePhotoIndex, photos.length - 1)] || '/placeholder.svg';
   const compatibilityReasons = compatibility?.breakdown?.reasons ?? [];
   const isOwner = currentUserId === owner.user_id;
+  const isListingPaused = listing.status !== 'active';
   const ownerAction = getOwnerAction();
   const OwnerActionIcon = ownerAction.icon;
 
@@ -507,6 +509,11 @@ export default function ListingDetail() {
                       Anuncio verificado
                     </Badge>
                   )}
+                  {isListingPaused && (
+                    <Badge variant="secondary" className="rounded-full">
+                      Pausado
+                    </Badge>
+                  )}
                   {isOwner && (
                     <Badge variant="outline" className="rounded-full">
                       Tu anuncio
@@ -520,6 +527,25 @@ export default function ListingDetail() {
                   <span>{listing.city || 'Ciudad no indicada'}{listing.province_code ? `, ${listing.province_code}` : ''}</span>
                 </div>
               </motion.div>
+
+              {isOwner && isListingPaused && (
+                <Card className="border-amber-200 bg-amber-50 text-amber-950">
+                  <CardContent className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex gap-3">
+                      <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0" />
+                      <div>
+                        <h2 className="font-semibold">Este anuncio esta pausado</h2>
+                        <p className="text-sm text-amber-900">
+                          Solo tu puedes verlo. No aparece en busquedas publicas ni en listados de otros usuarios.
+                        </p>
+                      </div>
+                    </div>
+                    <Button variant="outline" onClick={() => navigate('/my-listings')}>
+                      Gestionar
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
 
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <Card>
