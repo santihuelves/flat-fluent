@@ -37,7 +37,7 @@ type Listing = Tables<'convinter_listings'>;
 
 type ListingAction = {
   listing: Listing;
-  status: 'active' | 'inactive';
+  status: 'active' | 'paused';
 } | null;
 
 type UpdateListingResponse = {
@@ -75,6 +75,7 @@ const cities = [
 
 const statusLabels: Record<string, string> = {
   active: 'Activo',
+  paused: 'Pausado',
   inactive: 'Pausado',
   draft: 'Borrador',
   pending: 'Pendiente',
@@ -335,7 +336,9 @@ export default function MyListings() {
           : listing
       )));
       setPendingAction(null);
-      await loadListings();
+      loadListings().catch((refreshError) => {
+        console.warn('Listing status changed, but refreshing listings failed:', refreshError);
+      });
     } catch (error) {
       console.error('Error changing listing status:', error);
       toast.error('No se pudo cambiar el estado del anuncio');
@@ -476,7 +479,7 @@ export default function MyListings() {
                           Editar
                         </Button>
                         {isActive ? (
-                          <Button variant="outline" size="sm" className="gap-2" onClick={() => setPendingAction({ listing, status: 'inactive' })}>
+                          <Button variant="outline" size="sm" className="gap-2" onClick={() => setPendingAction({ listing, status: 'paused' })}>
                             <PauseCircle className="h-4 w-4" />
                             Pausar
                           </Button>
