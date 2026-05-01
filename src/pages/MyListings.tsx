@@ -58,6 +58,9 @@ type EditForm = {
   photos: string[];
 };
 
+type ListingStatusFilter = 'all' | 'active' | 'paused';
+type ListingSort = 'updated_desc' | 'price_asc' | 'available_asc';
+
 const cities = [
   'Madrid',
   'Barcelona',
@@ -137,9 +140,45 @@ export default function MyListings() {
   const [editForm, setEditForm] = useState<EditForm | null>(null);
   const [newPhotoFiles, setNewPhotoFiles] = useState<File[]>([]);
   const [pendingAction, setPendingAction] = useState<ListingAction>(null);
+  const [statusFilter, setStatusFilter] = useState<ListingStatusFilter>('all');
+  const [sortBy, setSortBy] = useState<ListingSort>('updated_desc');
+  const [searchQuery, setSearchQuery] = useState('');
 
   const activeCount = useMemo(() => listings.filter((listing) => listing.status === 'active').length, [listings]);
-  const inactiveCount = listings.length - activeCount;
+  const pausedCount = useMemo(() => listings.filter((listing) => listing.status === 'paused' || listing.status === 'inactive').length, [listings]);
+  const normalizedSearch = searchQuery.trim().toLowerCase();
+  const visibleListings = useMemo(() => {
+    const filtered = listings.filter((listing) => {
+      const status = listing.status ?? '';
+      const matchesStatus = statusFilter === 'all'
+        || status === statusFilter
+        || (statusFilter === 'paused' && status === 'inactive');
+
+      if (!matchesStatus) return false;
+      if (!normalizedSearch) return true;
+
+      return [
+        listing.title,
+        listing.description,
+        listing.city,
+        listing.province_code,
+      ].some((value) => value?.toLowerCase().includes(normalizedSearch));
+    });
+
+    return [...filtered].sort((first, second) => {
+      if (sortBy === 'price_asc') {
+        return (first.price_monthly ?? Number.MAX_SAFE_INTEGER) - (second.price_monthly ?? Number.MAX_SAFE_INTEGER);
+      }
+
+      if (sortBy === 'available_asc') {
+        const firstDate = first.available_from ? new Date(first.available_from).getTime() : Number.MAX_SAFE_INTEGER;
+        const secondDate = second.available_from ? new Date(second.available_from).getTime() : Number.MAX_SAFE_INTEGER;
+        return firstDate - secondDate;
+      }
+
+      return new Date(second.updated_at ?? 0).getTime() - new Date(first.updated_at ?? 0).getTime();
+    });
+  }, [listings, normalizedSearch, sortBy, statusFilter]);
   const photoPreviews = useMemo(() => newPhotoFiles.map((file) => ({
     file,
     url: URL.createObjectURL(file),
@@ -390,10 +429,53 @@ export default function MyListings() {
               <CardTitle className="text-sm text-muted-foreground">Pausados</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-3xl font-bold">{inactiveCount}</p>
+              <p className="text-3xl font-bold">{pausedCount}</p>
             </CardContent>
           </Card>
         </div>
+
+        {listings.length > 0 && (
+          <div className="mb-6 flex flex-col gap-3 rounded-xl border border-border bg-card p-4 md:flex-row md:items-center md:justify-between">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+              <div className="flex rounded-lg border border-border bg-background p-1">
+                {[
+                  { value: 'all', label: 'Todos' },
+                  { value: 'active', label: 'Activos' },
+                  { value: 'paused', label: 'Pausados' },
+                ].map((option) => (
+                  <Button
+                    key={option.value}
+                    type="button"
+                    variant={statusFilter === option.value ? 'secondary' : 'ghost'}
+                    size="sm"
+                    className="h-8"
+                    onClick={() => setStatusFilter(option.value as ListingStatusFilter)}
+                  >
+                    {option.label}
+                  </Button>
+                ))}
+              </div>
+
+              <Input
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                placeholder="Buscar por titulo, ciudad o descripcion"
+                className="w-full sm:w-80"
+              />
+            </div>
+
+            <Select value={sortBy} onValueChange={(value) => setSortBy(value as ListingSort)}>
+              <SelectTrigger className="w-full md:w-56">
+                <SelectValue placeholder="Ordenar por" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="updated_desc">Mas recientes</SelectItem>
+                <SelectItem value="price_asc">Precio menor</SelectItem>
+                <SelectItem value="available_asc">Disponible antes</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        )}
 
         {loading ? (
           <div className="py-20 flex justify-center">
@@ -408,9 +490,25 @@ export default function MyListings() {
               <Link to="/create-listing">Crear anuncio</Link>
             </Button>
           </div>
+        ) : visibleListings.length === 0 ? (
+          <div className="text-center py-16">
+            <Home className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+            <h2 className="text-xl font-semibold mb-2">No hay anuncios con estos filtros</h2>
+            <p className="text-muted-foreground mb-5">Prueba con otro estado, cambia el orden o limpia la busqueda.</p>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setStatusFilter('all');
+                setSearchQuery('');
+                setSortBy('updated_desc');
+              }}
+            >
+              Limpiar filtros
+            </Button>
+          </div>
         ) : (
           <div className="grid gap-5 lg:grid-cols-2">
-            {listings.map((listing) => {
+            {visibleListings.map((listing) => {
               const image = getListingImage(listing);
               const isActive = listing.status === 'active';
 
