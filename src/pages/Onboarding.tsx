@@ -69,6 +69,12 @@ const LANGUAGES = [
   { id: 'ar', label: 'العربية' },
 ];
 
+const MAX_CITY_LENGTH = 80;
+const MAX_OCCUPATION_LENGTH = 100;
+const MAX_BUDGET = 10000;
+const todayIso = () => new Date().toISOString().split('T')[0];
+const toPositiveNumber = (value: string) => Number(value);
+
 const Onboarding = () => {
   useSEO({ page: 'signup', noIndex: true });
 
@@ -142,22 +148,61 @@ const Onboarding = () => {
     }));
   };
 
-  const canProceed = () => {
-    switch (currentStep) {
+  const canProceed = (step = currentStep) => {
+    switch (step) {
       case 1:
-        return data.intentions.length > 0;
+        return data.intentions.length > 0 && data.primaryIntention !== null;
       case 2:
-        return data.autonomousCommunity !== '';
+        return (
+          data.autonomousCommunity !== '' &&
+          data.province !== '' &&
+          data.city.trim().length >= 2 &&
+          data.city.trim().length <= MAX_CITY_LENGTH
+        );
       case 3:
-        return data.budgetMin !== '' && data.budgetMax !== '';
+        {
+          const budgetMin = toPositiveNumber(data.budgetMin);
+          const budgetMax = toPositiveNumber(data.budgetMax);
+          const dateIsValid = !data.moveInDate || data.moveInDate >= todayIso();
+
+          return (
+            Number.isFinite(budgetMin) &&
+            Number.isFinite(budgetMax) &&
+            budgetMin > 0 &&
+            budgetMax > 0 &&
+            budgetMin <= budgetMax &&
+            budgetMax <= MAX_BUDGET &&
+            dateIsValid
+          );
+        }
       case 4:
-        return data.languages.length > 0;
+        return data.languages.length > 0 && data.occupation.trim().length <= MAX_OCCUPATION_LENGTH;
       default:
         return true;
     }
   };
 
+  const getStepValidationMessage = (step = currentStep) => {
+    switch (step) {
+      case 1:
+        return 'Selecciona al menos una intencion principal.';
+      case 2:
+        return 'Completa comunidad, provincia y ciudad.';
+      case 3:
+        return 'Revisa el presupuesto: el minimo no puede superar al maximo y la fecha no puede estar en el pasado.';
+      case 4:
+        return 'Selecciona al menos un idioma y revisa la longitud de la ocupacion.';
+      default:
+        return 'Revisa los datos antes de continuar.';
+    }
+  };
+
   const handleNext = () => {
+    if (!canProceed()) {
+      toast.error(getStepValidationMessage());
+      return;
+    }
+
     if (currentStep < totalSteps) {
       setCurrentStep(prev => prev + 1);
     }
@@ -170,6 +215,15 @@ const Onboarding = () => {
   };
 
   const handleComplete = async (goToTest: boolean) => {
+    const invalidStep = Array.from({ length: totalSteps }, (_, index) => index + 1)
+      .find(step => !canProceed(step));
+
+    if (invalidStep) {
+      setCurrentStep(invalidStep);
+      toast.error(getStepValidationMessage(invalidStep));
+      return;
+    }
+
     setIsLoading(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -377,6 +431,7 @@ const Onboarding = () => {
                 <Input
                   placeholder={t('onboarding.step2.cityPlaceholder')}
                   value={data.city}
+                  maxLength={MAX_CITY_LENGTH}
                   onChange={(e) => setData(prev => ({ ...prev, city: e.target.value }))}
                 />
               </div>
@@ -400,6 +455,8 @@ const Onboarding = () => {
                   </Label>
                   <Input
                     type="number"
+                    min={1}
+                    max={MAX_BUDGET}
                     placeholder="300"
                     value={data.budgetMin}
                     onChange={(e) => setData(prev => ({ ...prev, budgetMin: e.target.value }))}
@@ -409,6 +466,8 @@ const Onboarding = () => {
                   <Label className="mb-2 block">{t('onboarding.step3.budgetMax')}</Label>
                   <Input
                     type="number"
+                    min={1}
+                    max={MAX_BUDGET}
                     placeholder="600"
                     value={data.budgetMax}
                     onChange={(e) => setData(prev => ({ ...prev, budgetMax: e.target.value }))}
@@ -423,6 +482,7 @@ const Onboarding = () => {
                 </Label>
                 <Input
                   type="date"
+                  min={todayIso()}
                   value={data.moveInDate}
                   onChange={(e) => setData(prev => ({ ...prev, moveInDate: e.target.value }))}
                 />
@@ -491,6 +551,7 @@ const Onboarding = () => {
                 <Input
                   placeholder={t('onboarding.step4.occupationPlaceholder')}
                   value={data.occupation}
+                  maxLength={MAX_OCCUPATION_LENGTH}
                   onChange={(e) => setData(prev => ({ ...prev, occupation: e.target.value }))}
                 />
               </div>

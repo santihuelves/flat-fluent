@@ -40,6 +40,10 @@ interface EditProfileSheetProps {
 }
 
 const AVAILABLE_LANGUAGES = ['Español', 'English', 'Français', 'Deutsch', 'Italiano', 'Português', '中文', 'العربية'];
+const MAX_DISPLAY_NAME_LENGTH = 80;
+const MAX_BIO_LENGTH = 500;
+const MAX_CITY_LENGTH = 80;
+const MAX_PROVINCE_LENGTH = 80;
 
 export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated }: EditProfileSheetProps) {
   const { t } = useTranslation();
@@ -125,16 +129,64 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
     }));
   };
 
+  const getValidationError = () => {
+    const displayName = formData.display_name.trim();
+    const bio = formData.bio.trim();
+    const city = formData.city.trim();
+    const province = formData.province_code.trim();
+
+    if (displayName.length < 2) {
+      return 'El nombre debe tener al menos 2 caracteres.';
+    }
+
+    if (displayName.length > MAX_DISPLAY_NAME_LENGTH) {
+      return `El nombre no puede superar ${MAX_DISPLAY_NAME_LENGTH} caracteres.`;
+    }
+
+    if (bio.length > MAX_BIO_LENGTH) {
+      return `La bio no puede superar ${MAX_BIO_LENGTH} caracteres.`;
+    }
+
+    if ((city && !province) || (!city && province)) {
+      return 'Completa ciudad y provincia, o deja ambas vacias.';
+    }
+
+    if (city.length > MAX_CITY_LENGTH || province.length > MAX_PROVINCE_LENGTH) {
+      return 'Ciudad y provincia no pueden superar 80 caracteres.';
+    }
+
+    if (formData.languages.length === 0) {
+      return 'Selecciona al menos un idioma.';
+    }
+
+    return null;
+  };
+
   const handleSave = async () => {
+    const validationError = getValidationError();
+    if (validationError) {
+      toast({
+        title: 'Revisa tu perfil',
+        description: validationError,
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const cleanDisplayName = formData.display_name.trim();
+    const cleanBio = formData.bio.trim();
+    const cleanCity = formData.city.trim();
+    const cleanProvince = formData.province_code.trim();
+
     setSaving(true);
     try {
       const { error } = await supabase
         .from('convinter_profiles')
         .update({
-          display_name: formData.display_name || null,
-          bio: formData.bio || null,
-          city: formData.city || null,
-          province_code: formData.province_code || null,
+          display_name: cleanDisplayName,
+          bio: cleanBio || null,
+          city: cleanCity || null,
+          province_code: cleanProvince || null,
           languages: formData.languages.length > 0 ? formData.languages : null,
           photo_url: formData.photo_url || null,
         })
@@ -210,6 +262,7 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
             <Input
               id="display_name"
               value={formData.display_name}
+              maxLength={MAX_DISPLAY_NAME_LENGTH}
               onChange={(e) => setFormData(prev => ({ ...prev, display_name: e.target.value }))}
               placeholder={t('profile.namePlaceholder')}
             />
@@ -221,6 +274,7 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
             <Textarea
               id="bio"
               value={formData.bio}
+              maxLength={MAX_BIO_LENGTH}
               onChange={(e) => setFormData(prev => ({ ...prev, bio: e.target.value }))}
               placeholder={t('profile.bioPlaceholder')}
               rows={4}
@@ -233,11 +287,13 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
             <div className="grid grid-cols-2 gap-2">
               <Input
                 value={formData.city}
+                maxLength={MAX_CITY_LENGTH}
                 onChange={(e) => setFormData(prev => ({ ...prev, city: e.target.value }))}
                 placeholder={t('profile.city')}
               />
               <Input
                 value={formData.province_code}
+                maxLength={MAX_PROVINCE_LENGTH}
                 onChange={(e) => setFormData(prev => ({ ...prev, province_code: e.target.value }))}
                 placeholder={t('profile.province')}
               />
