@@ -268,6 +268,45 @@ export default function MyListings() {
     setNewPhotoFiles((current) => current.filter((_, currentIndex) => currentIndex !== index));
   };
 
+  const validateEditForm = () => {
+    if (!editForm) return false;
+
+    if (editForm.title.trim().length < 10) {
+      toast.error('El titulo debe tener al menos 10 caracteres');
+      return false;
+    }
+
+    if (editForm.description.trim().length < 20) {
+      toast.error('La descripcion debe tener al menos 20 caracteres');
+      return false;
+    }
+
+    if (editForm.price) {
+      const price = Number(editForm.price);
+      if (!Number.isFinite(price) || price < 0) {
+        toast.error('Introduce un precio valido');
+        return false;
+      }
+      if (price > 10000) {
+        toast.error('El precio mensual parece demasiado alto');
+        return false;
+      }
+    }
+
+    if (editForm.availableFrom) {
+      const selectedDate = new Date(`${editForm.availableFrom}T00:00:00`);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      if (selectedDate < today) {
+        toast.error('La fecha disponible no puede estar en el pasado');
+        return false;
+      }
+    }
+
+    return true;
+  };
+
   const uploadPhotos = async (userId: string) => {
     const uploadedUrls: string[] = [];
 
@@ -290,15 +329,7 @@ export default function MyListings() {
   const saveListing = async () => {
     if (!editingListing || !editForm) return;
 
-    if (editForm.title.trim().length < 10) {
-      toast.error('El titulo debe tener al menos 10 caracteres');
-      return;
-    }
-
-    if (editForm.description.trim().length < 20) {
-      toast.error('La descripcion debe tener al menos 20 caracteres');
-      return;
-    }
+    if (!validateEditForm()) return;
 
     setSaving(true);
 
@@ -612,6 +643,7 @@ export default function MyListings() {
                   id="listing-title"
                   value={editForm.title}
                   onChange={(event) => setEditForm({ ...editForm, title: event.target.value })}
+                  disabled={saving}
                 />
               </div>
 
@@ -622,13 +654,14 @@ export default function MyListings() {
                   rows={5}
                   value={editForm.description}
                   onChange={(event) => setEditForm({ ...editForm, description: event.target.value })}
+                  disabled={saving}
                 />
               </div>
 
               <div className="grid sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Ciudad</Label>
-                  <Select value={editForm.city} onValueChange={(value) => setEditForm({ ...editForm, city: value })}>
+                  <Select value={editForm.city} onValueChange={(value) => setEditForm({ ...editForm, city: value })} disabled={saving}>
                     <SelectTrigger>
                       <SelectValue placeholder="Selecciona ciudad" />
                     </SelectTrigger>
@@ -648,6 +681,7 @@ export default function MyListings() {
                     min="0"
                     value={editForm.price}
                     onChange={(event) => setEditForm({ ...editForm, price: event.target.value })}
+                    disabled={saving}
                   />
                 </div>
               </div>
@@ -660,12 +694,13 @@ export default function MyListings() {
                     type="date"
                     value={editForm.availableFrom}
                     onChange={(event) => setEditForm({ ...editForm, availableFrom: event.target.value })}
+                    disabled={saving}
                   />
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="listing-min-stay">Estancia minima</Label>
-                  <Select value={editForm.minStay} onValueChange={(value) => setEditForm({ ...editForm, minStay: value })}>
+                  <Select value={editForm.minStay} onValueChange={(value) => setEditForm({ ...editForm, minStay: value })} disabled={saving}>
                     <SelectTrigger id="listing-min-stay">
                       <SelectValue placeholder="Sin minimo" />
                     </SelectTrigger>
@@ -682,15 +717,15 @@ export default function MyListings() {
               <div className="grid sm:grid-cols-3 gap-3">
                 <div className="flex items-center justify-between rounded-lg border border-border p-3">
                   <Label>Gastos incluidos</Label>
-                  <Switch checked={editForm.billsIncluded} onCheckedChange={(checked) => setEditForm({ ...editForm, billsIncluded: checked })} />
+                  <Switch checked={editForm.billsIncluded} onCheckedChange={(checked) => setEditForm({ ...editForm, billsIncluded: checked })} disabled={saving} />
                 </div>
                 <div className="flex items-center justify-between rounded-lg border border-border p-3">
                   <Label>Fumar</Label>
-                  <Switch checked={editForm.smokingAllowed} onCheckedChange={(checked) => setEditForm({ ...editForm, smokingAllowed: checked })} />
+                  <Switch checked={editForm.smokingAllowed} onCheckedChange={(checked) => setEditForm({ ...editForm, smokingAllowed: checked })} disabled={saving} />
                 </div>
                 <div className="flex items-center justify-between rounded-lg border border-border p-3">
                   <Label>Mascotas</Label>
-                  <Switch checked={editForm.petsAllowed} onCheckedChange={(checked) => setEditForm({ ...editForm, petsAllowed: checked })} />
+                  <Switch checked={editForm.petsAllowed} onCheckedChange={(checked) => setEditForm({ ...editForm, petsAllowed: checked })} disabled={saving} />
                 </div>
               </div>
 
