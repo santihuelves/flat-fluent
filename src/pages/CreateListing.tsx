@@ -28,6 +28,12 @@ const listingTypes = [
 
 type ListingKind = typeof listingTypes[number]['value'];
 
+const TITLE_MIN_LENGTH = 10;
+const TITLE_MAX_LENGTH = 80;
+const DESCRIPTION_MIN_LENGTH = 20;
+const DESCRIPTION_MAX_LENGTH = 1200;
+const NEIGHBORHOOD_MAX_LENGTH = 80;
+
 type FormData = {
   type: ListingKind | '';
   title: string;
@@ -120,12 +126,28 @@ export default function CreateListing() {
   };
 
   const validateStepTwo = () => {
-    if (formData.title.trim().length < 10) {
-      toast.error('El título debe tener al menos 10 caracteres');
+    const title = formData.title.trim();
+    const description = formData.description.trim();
+    const neighborhood = formData.neighborhood.trim();
+
+    if (title.length < TITLE_MIN_LENGTH) {
+      toast.error(`El título debe tener al menos ${TITLE_MIN_LENGTH} caracteres`);
       return false;
     }
-    if (formData.description.trim().length < 20) {
-      toast.error('La descripción debe tener al menos 20 caracteres');
+    if (title.length > TITLE_MAX_LENGTH) {
+      toast.error(`El título no puede superar ${TITLE_MAX_LENGTH} caracteres`);
+      return false;
+    }
+    if (description.length < DESCRIPTION_MIN_LENGTH) {
+      toast.error(`La descripción debe tener al menos ${DESCRIPTION_MIN_LENGTH} caracteres`);
+      return false;
+    }
+    if (description.length > DESCRIPTION_MAX_LENGTH) {
+      toast.error(`La descripción no puede superar ${DESCRIPTION_MAX_LENGTH} caracteres`);
+      return false;
+    }
+    if (neighborhood.length > NEIGHBORHOOD_MAX_LENGTH) {
+      toast.error(`El barrio o zona no puede superar ${NEIGHBORHOOD_MAX_LENGTH} caracteres`);
       return false;
     }
     if (!formData.city) {
@@ -299,8 +321,12 @@ export default function CreateListing() {
                   id="title"
                   placeholder="Ej: Habitación luminosa en el centro"
                   value={formData.title}
+                  maxLength={TITLE_MAX_LENGTH}
                   onChange={(event) => setFormData({ ...formData, title: event.target.value })}
                 />
+                <p className="text-xs text-muted-foreground text-right">
+                  {formData.title.length}/{TITLE_MAX_LENGTH}
+                </p>
               </div>
 
               <div className="space-y-2">
@@ -310,8 +336,12 @@ export default function CreateListing() {
                   placeholder="Describe el espacio, el ambiente del piso, qué buscas en un compañero/a..."
                   rows={5}
                   value={formData.description}
+                  maxLength={DESCRIPTION_MAX_LENGTH}
                   onChange={(event) => setFormData({ ...formData, description: event.target.value })}
                 />
+                <p className="text-xs text-muted-foreground text-right">
+                  {formData.description.length}/{DESCRIPTION_MAX_LENGTH}
+                </p>
               </div>
 
               <div className="grid sm:grid-cols-2 gap-4">
@@ -335,8 +365,12 @@ export default function CreateListing() {
                     id="neighborhood"
                     placeholder="Ej: Malasaña"
                     value={formData.neighborhood}
+                    maxLength={NEIGHBORHOOD_MAX_LENGTH}
                     onChange={(event) => setFormData({ ...formData, neighborhood: event.target.value })}
                   />
+                  <p className="text-xs text-muted-foreground text-right">
+                    {formData.neighborhood.length}/{NEIGHBORHOOD_MAX_LENGTH}
+                  </p>
                 </div>
               </div>
 

@@ -61,6 +61,11 @@ type EditForm = {
 type ListingStatusFilter = 'all' | 'active' | 'paused';
 type ListingSort = 'updated_desc' | 'price_asc' | 'available_asc';
 
+const TITLE_MIN_LENGTH = 10;
+const TITLE_MAX_LENGTH = 80;
+const DESCRIPTION_MIN_LENGTH = 20;
+const DESCRIPTION_MAX_LENGTH = 1200;
+
 const cities = [
   'Madrid',
   'Barcelona',
@@ -271,13 +276,26 @@ export default function MyListings() {
   const validateEditForm = () => {
     if (!editForm) return false;
 
-    if (editForm.title.trim().length < 10) {
-      toast.error('El titulo debe tener al menos 10 caracteres');
+    const title = editForm.title.trim();
+    const description = editForm.description.trim();
+
+    if (title.length < TITLE_MIN_LENGTH) {
+      toast.error(`El titulo debe tener al menos ${TITLE_MIN_LENGTH} caracteres`);
       return false;
     }
 
-    if (editForm.description.trim().length < 20) {
-      toast.error('La descripcion debe tener al menos 20 caracteres');
+    if (title.length > TITLE_MAX_LENGTH) {
+      toast.error(`El titulo no puede superar ${TITLE_MAX_LENGTH} caracteres`);
+      return false;
+    }
+
+    if (description.length < DESCRIPTION_MIN_LENGTH) {
+      toast.error(`La descripcion debe tener al menos ${DESCRIPTION_MIN_LENGTH} caracteres`);
+      return false;
+    }
+
+    if (description.length > DESCRIPTION_MAX_LENGTH) {
+      toast.error(`La descripcion no puede superar ${DESCRIPTION_MAX_LENGTH} caracteres`);
       return false;
     }
 
@@ -642,9 +660,13 @@ export default function MyListings() {
                 <Input
                   id="listing-title"
                   value={editForm.title}
+                  maxLength={TITLE_MAX_LENGTH}
                   onChange={(event) => setEditForm({ ...editForm, title: event.target.value })}
                   disabled={saving}
                 />
+                <p className="text-xs text-muted-foreground text-right">
+                  {editForm.title.length}/{TITLE_MAX_LENGTH}
+                </p>
               </div>
 
               <div className="space-y-2">
@@ -653,9 +675,13 @@ export default function MyListings() {
                   id="listing-description"
                   rows={5}
                   value={editForm.description}
+                  maxLength={DESCRIPTION_MAX_LENGTH}
                   onChange={(event) => setEditForm({ ...editForm, description: event.target.value })}
                   disabled={saving}
                 />
+                <p className="text-xs text-muted-foreground text-right">
+                  {editForm.description.length}/{DESCRIPTION_MAX_LENGTH}
+                </p>
               </div>
 
               <div className="grid sm:grid-cols-2 gap-4">
