@@ -39,11 +39,29 @@ interface EditProfileSheetProps {
   onProfileUpdated: () => void;
 }
 
-const AVAILABLE_LANGUAGES = ['Español', 'English', 'Français', 'Deutsch', 'Italiano', 'Português', '中文', 'العربية'];
+const AVAILABLE_LANGUAGES = [
+  { id: 'es', label: 'Español' },
+  { id: 'en', label: 'English' },
+  { id: 'fr', label: 'Français' },
+  { id: 'de', label: 'Deutsch' },
+  { id: 'it', label: 'Italiano' },
+  { id: 'pt', label: 'Português' },
+  { id: 'zh', label: '中文' },
+  { id: 'ar', label: 'العربية' },
+];
 const MAX_DISPLAY_NAME_LENGTH = 80;
 const MAX_BIO_LENGTH = 500;
+const MIN_BIO_LENGTH = 20;
 const MAX_CITY_LENGTH = 80;
 const MAX_PROVINCE_LENGTH = 80;
+
+const normalizeLanguage = (language: string) => {
+  const option = AVAILABLE_LANGUAGES.find(
+    lang => lang.id === language || lang.label === language
+  );
+
+  return option?.id ?? language;
+};
 
 export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated }: EditProfileSheetProps) {
   const { t } = useTranslation();
@@ -58,7 +76,7 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
     bio: profile.bio || '',
     city: profile.city || '',
     province_code: profile.province_code || '',
-    languages: profile.languages || [],
+    languages: (profile.languages || []).map(normalizeLanguage),
     photo_url: profile.photo_url || '',
   });
 
@@ -120,12 +138,12 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
     }));
   };
 
-  const toggleLanguage = (language: string) => {
+  const toggleLanguage = (languageId: string) => {
     setFormData(prev => ({
       ...prev,
-      languages: prev.languages.includes(language)
-        ? prev.languages.filter(l => l !== language)
-        : [...prev.languages, language]
+      languages: prev.languages.includes(languageId)
+        ? prev.languages.filter(l => l !== languageId)
+        : [...prev.languages, languageId]
     }));
   };
 
@@ -147,8 +165,12 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
       return `La bio no puede superar ${MAX_BIO_LENGTH} caracteres.`;
     }
 
-    if ((city && !province) || (!city && province)) {
-      return 'Completa ciudad y provincia, o deja ambas vacias.';
+    if (bio.length < MIN_BIO_LENGTH) {
+      return `Cuéntanos un poco sobre ti, al menos ${MIN_BIO_LENGTH} caracteres.`;
+    }
+
+    if (city.length < 2 || province.length < 2) {
+      return 'Completa ciudad y provincia.';
     }
 
     if (city.length > MAX_CITY_LENGTH || province.length > MAX_PROVINCE_LENGTH) {
@@ -177,6 +199,7 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
     const cleanBio = formData.bio.trim();
     const cleanCity = formData.city.trim();
     const cleanProvince = formData.province_code.trim();
+    const cleanLanguages = formData.languages.map(normalizeLanguage);
 
     setSaving(true);
     try {
@@ -187,7 +210,7 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
           bio: cleanBio || null,
           city: cleanCity || null,
           province_code: cleanProvince || null,
-          languages: formData.languages.length > 0 ? formData.languages : null,
+          languages: cleanLanguages,
           photo_url: formData.photo_url || null,
         })
         .eq('user_id', profile.user_id);
@@ -306,12 +329,12 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
             <div className="flex flex-wrap gap-2">
               {AVAILABLE_LANGUAGES.map((lang) => (
                 <Badge
-                  key={lang}
-                  variant={formData.languages.includes(lang) ? 'default' : 'outline'}
+                  key={lang.id}
+                  variant={formData.languages.includes(lang.id) ? 'default' : 'outline'}
                   className="rounded-full cursor-pointer transition-colors"
-                  onClick={() => toggleLanguage(lang)}
+                  onClick={() => toggleLanguage(lang.id)}
                 >
-                  {lang}
+                  {lang.label}
                 </Badge>
               ))}
             </div>
