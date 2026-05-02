@@ -11,6 +11,7 @@ import { EditProfileSheet } from '@/components/profile/EditProfileSheet';
 import { IntentionBadges } from '@/components/IntentionBadge';
 import { toast } from 'sonner';
 import { useSEO } from '@/hooks/useSEO';
+import { getLanguageLabel } from '@/lib/profileOptions';
 
 type ProfileIntention = {
   intention_type: 'seek_room' | 'offer_room' | 'seek_flatmate';
@@ -24,9 +25,16 @@ interface ProfileData {
   handle: string | null;
   bio: string | null;
   photo_url: string | null;
+  photos?: string[] | null;
   languages: string[] | null;
   city: string | null;
   province_code: string | null;
+  autonomous_community?: string | null;
+  budget_min?: number | null;
+  budget_max?: number | null;
+  move_in_date?: string | null;
+  min_stay_months?: number | null;
+  occupation?: string | null;
   test_completed: boolean | null;
   trust_score: number;
   trust_badge: string;
@@ -100,6 +108,16 @@ export default function Profile() {
         toast.error(t('profile.errorLoading'));
         throw error;
       }
+
+      const { data: baseProfileData, error: baseProfileError } = await supabase
+        .from('profiles')
+        .select('autonomous_community, budget_min, budget_max, move_in_date, min_stay_months, occupation, photos, province, city, bio, languages, name')
+        .eq('id', user.id)
+        .maybeSingle();
+
+      if (baseProfileError) {
+        console.warn('Error fetching base profile:', baseProfileError);
+      }
       
       const { data: intentionsData, error: intentionsError } = await supabase.rpc('convinter_get_intentions', {
         p_profile_id: user.id,
@@ -113,6 +131,18 @@ export default function Profile() {
 
       setProfile({
         ...(data as ProfileData),
+        autonomous_community: baseProfileData?.autonomous_community ?? null,
+        budget_min: baseProfileData?.budget_min ?? null,
+        budget_max: baseProfileData?.budget_max ?? null,
+        move_in_date: baseProfileData?.move_in_date ?? null,
+        min_stay_months: baseProfileData?.min_stay_months ?? null,
+        occupation: baseProfileData?.occupation ?? null,
+        photos: baseProfileData?.photos ?? null,
+        province_code: data?.province_code ?? baseProfileData?.province ?? null,
+        city: data?.city ?? baseProfileData?.city ?? null,
+        bio: data?.bio ?? baseProfileData?.bio ?? null,
+        display_name: data?.display_name ?? baseProfileData?.name ?? null,
+        languages: data?.languages ?? baseProfileData?.languages ?? null,
         intentions: intentionsResult?.ok ? intentionsResult.intentions ?? [] : [],
       });
     } catch (error) {
@@ -234,7 +264,7 @@ export default function Profile() {
                   <div className="flex flex-wrap gap-2">
                     {profile.languages.map((l, i) => (
                       <Badge key={i} variant="outline" className="rounded-full">
-                        {l}
+                        {getLanguageLabel(l)}
                       </Badge>
                     ))}
                   </div>

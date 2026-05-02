@@ -2,16 +2,18 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Home, Key, Users, MapPin, Euro, Calendar, Languages, Briefcase, ArrowLeft, ArrowRight, Check } from 'lucide-react';
+import { Home, Key, Users, MapPin, Euro, Calendar, Languages, Briefcase, ArrowLeft, ArrowRight, Check, Camera, X, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useSEO } from '@/hooks/useSEO';
+import { ImageCropperDialog } from '@/components/profile/ImageCropperDialog';
 
 type IntentionType = 'seek_room' | 'offer_room' | 'seek_flatmate';
 
@@ -27,6 +29,8 @@ interface OnboardingData {
   minStayMonths: string;
   languages: string[];
   occupation: string;
+  bio: string;
+  photos: string[];
   urgency: 'urgent' | 'soon' | 'flexible' | 'exploring';
 }
 
@@ -71,7 +75,10 @@ const LANGUAGES = [
 
 const MAX_CITY_LENGTH = 80;
 const MAX_OCCUPATION_LENGTH = 100;
+const MIN_BIO_LENGTH = 20;
+const MAX_BIO_LENGTH = 500;
 const MAX_BUDGET = 10000;
+const PROFILE_PHOTO_LIMIT = 2;
 const todayIso = () => new Date().toISOString().split('T')[0];
 const toPositiveNumber = (value: string) => Number(value);
 
@@ -82,6 +89,9 @@ const Onboarding = () => {
   const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [cropperOpen, setCropperOpen] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [data, setData] = useState<OnboardingData>({
     intentions: [],
     primaryIntention: null,
@@ -94,6 +104,8 @@ const Onboarding = () => {
     minStayMonths: '',
     languages: [],
     occupation: '',
+    bio: '',
+    photos: [],
     urgency: 'flexible',
   });
 
@@ -148,6 +160,69 @@ const Onboarding = () => {
     }));
   };
 
+  const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (data.photos.length >= PROFILE_PHOTO_LIMIT) {
+      toast.error(`Puedes subir un maximo de ${PROFILE_PHOTO_LIMIT} fotos.`);
+      e.target.value = '';
+      return;
+    }
+
+    const imageUrl = URL.createObjectURL(file);
+    setSelectedImage(imageUrl);
+    setCropperOpen(true);
+    e.target.value = '';
+  };
+
+  const handlePhotoCropComplete = async (croppedBlob: Blob) => {
+    setUploadingPhoto(true);
+
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const userId = sessionData.session?.user.id;
+
+      if (!userId) {
+        throw new Error('NOT_AUTHENTICATED');
+      }
+
+      const fileName = `${userId}/${Date.now()}.jpg`;
+      const { error: uploadError } = await supabase.storage
+        .from('profile-photos')
+        .upload(fileName, croppedBlob, { contentType: 'image/jpeg' });
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('profile-photos')
+        .getPublicUrl(fileName);
+
+      setData((prev) => ({
+        ...prev,
+        photos: [...prev.photos, publicUrl].slice(0, PROFILE_PHOTO_LIMIT),
+      }));
+
+      toast.success('Foto anadida al perfil.');
+    } catch (error) {
+      console.error('Error uploading photo:', error);
+      toast.error('No se pudo subir la foto del perfil.');
+    } finally {
+      if (selectedImage) {
+        URL.revokeObjectURL(selectedImage);
+        setSelectedImage(null);
+      }
+      setUploadingPhoto(false);
+    }
+  };
+
+  const removePhoto = (index: number) => {
+    setData((prev) => ({
+      ...prev,
+      photos: prev.photos.filter((_, currentIndex) => currentIndex !== index),
+    }));
+  };
+
   const canProceed = (step = currentStep) => {
     switch (step) {
       case 1:
@@ -176,7 +251,12 @@ const Onboarding = () => {
           );
         }
       case 4:
-        return data.languages.length > 0 && data.occupation.trim().length <= MAX_OCCUPATION_LENGTH;
+        return (
+          data.languages.length > 0 &&
+          data.occupation.trim().length <= MAX_OCCUPATION_LENGTH &&
+          data.bio.trim().length >= MIN_BIO_LENGTH &&
+          data.bio.trim().length <= MAX_BIO_LENGTH
+        );
       default:
         return true;
     }
@@ -191,7 +271,7 @@ const Onboarding = () => {
       case 3:
         return 'Revisa el presupuesto: el minimo no puede superar al maximo y la fecha no puede estar en el pasado.';
       case 4:
-        return 'Selecciona al menos un idioma y revisa la longitud de la ocupacion.';
+        return 'Selecciona al menos un idioma, revisa la ocupacion y completa "Sobre ti" con al menos 20 caracteres.';
       default:
         return 'Revisa los datos antes de continuar.';
     }
@@ -232,14 +312,24 @@ const Onboarding = () => {
         return;
       }
 
+      const displayName =
+        typeof session.user.user_metadata?.display_name === 'string'
+          ? session.user.user_metadata.display_name
+          : typeof session.user.user_metadata?.name === 'string'
+            ? session.user.user_metadata.name
+            : session.user.email?.split('@')[0] || null;
+
       // 1. Actualizar perfil básico (convinter_profiles o profiles según tu esquema)
       const { error: profileError } = await supabase
         .from('convinter_profiles')
         .upsert({
           user_id: session.user.id,
+          display_name: displayName,
+          bio: data.bio.trim() || null,
           city: data.city || null,
           province_code: data.province || null,
           languages: data.languages,
+          photo_url: data.photos[0] || null,
         });
 
       if (profileError) {
@@ -252,6 +342,8 @@ const Onboarding = () => {
         .from('profiles')
         .upsert({
           id: session.user.id,
+          name: displayName,
+          bio: data.bio.trim() || null,
           autonomous_community: data.autonomousCommunity || null,
           province: data.province || null,
           city: data.city || null,
@@ -261,6 +353,7 @@ const Onboarding = () => {
           min_stay_months: data.minStayMonths ? parseInt(data.minStayMonths) : null,
           occupation: data.occupation || null,
           languages: data.languages,
+          photos: data.photos,
           // Mapear intención primaria a user_type
           user_type: data.primaryIntention === 'seek_room' ? 'seeking_room' 
             : data.primaryIntention === 'offer_room' ? 'offering_room'
@@ -555,6 +648,81 @@ const Onboarding = () => {
                   onChange={(e) => setData(prev => ({ ...prev, occupation: e.target.value }))}
                 />
               </div>
+
+              <div className="space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <Label>Fotos del perfil</Label>
+                  <span className="text-xs text-muted-foreground">
+                    {data.photos.length}/{PROFILE_PHOTO_LIMIT}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  {data.photos.map((photo, index) => (
+                    <div key={photo} className="relative aspect-[4/3] overflow-hidden rounded-xl border bg-muted">
+                      <img
+                        src={photo}
+                        alt={`Foto ${index + 1}`}
+                        className="h-full w-full object-cover"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removePhoto(index)}
+                        className="absolute right-2 top-2 rounded-full bg-background/85 p-1 shadow-sm"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                      {index === 0 && (
+                        <span className="absolute bottom-2 left-2 rounded-full bg-background/85 px-2 py-1 text-xs">
+                          Portada
+                        </span>
+                      )}
+                    </div>
+                  ))}
+
+                  {data.photos.length < PROFILE_PHOTO_LIMIT && (
+                    <label className="flex aspect-[4/3] cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-border bg-muted/30 transition-colors hover:border-primary">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={handlePhotoSelect}
+                        disabled={uploadingPhoto}
+                      />
+                      {uploadingPhoto ? (
+                        <Loader2 className="mb-2 h-5 w-5 animate-spin text-muted-foreground" />
+                      ) : (
+                        <Camera className="mb-2 h-5 w-5 text-muted-foreground" />
+                      )}
+                      <span className="text-sm text-muted-foreground">Anadir foto</span>
+                    </label>
+                  )}
+                </div>
+
+                <p className="text-xs text-muted-foreground">
+                  Puedes subir hasta {PROFILE_PHOTO_LIMIT} fotos. La primera sera la portada del perfil.
+                </p>
+              </div>
+
+              <div>
+                <div className="mb-2 flex items-center justify-between gap-3">
+                  <Label htmlFor="bio">Sobre ti</Label>
+                  <span className="text-xs text-muted-foreground">
+                    {data.bio.trim().length}/{MAX_BIO_LENGTH}
+                  </span>
+                </div>
+                <Textarea
+                  id="bio"
+                  rows={5}
+                  maxLength={MAX_BIO_LENGTH}
+                  placeholder="Cuentanos un poco sobre ti, tu forma de convivir y lo que valoras en casa."
+                  value={data.bio}
+                  onChange={(e) => setData(prev => ({ ...prev, bio: e.target.value }))}
+                />
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Minimo {MIN_BIO_LENGTH} caracteres.
+                </p>
+              </div>
             </div>
           </div>
         );
@@ -632,6 +800,13 @@ const Onboarding = () => {
           )}
         </div>
       </div>
+
+      <ImageCropperDialog
+        open={cropperOpen}
+        onOpenChange={setCropperOpen}
+        imageSrc={selectedImage || ''}
+        onCropComplete={handlePhotoCropComplete}
+      />
     </div>
   );
 };
