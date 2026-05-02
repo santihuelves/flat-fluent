@@ -1,4 +1,4 @@
-import { ChangeEvent, useMemo, useRef, useState } from 'react';
+import { ChangeEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Home, Loader2, Search, Upload, Users, X } from 'lucide-react';
@@ -88,6 +88,10 @@ export default function CreateListing() {
     url: URL.createObjectURL(file),
   })), [photoFiles]);
 
+  useEffect(() => () => {
+    previews.forEach((preview) => URL.revokeObjectURL(preview.url));
+  }, [previews]);
+
   const handleTypeSelect = (type: ListingKind) => {
     setFormData({ ...formData, type });
     setStep(2);
@@ -97,12 +101,17 @@ export default function CreateListing() {
     const files = Array.from(event.target.files ?? []);
     const imageFiles = files.filter((file) => file.type.startsWith('image/'));
     const validFiles = imageFiles.filter((file) => file.size <= 5 * 1024 * 1024);
+    const availableSlots = Math.max(0, 8 - photoFiles.length);
 
     if (validFiles.length !== files.length) {
       toast.warning('Algunas fotos se han omitido: solo imágenes de hasta 5MB.');
     }
 
-    setPhotoFiles((current) => [...current, ...validFiles].slice(0, 8));
+    if (validFiles.length > availableSlots) {
+      toast.warning('Puedes subir un maximo de 8 fotos por anuncio.');
+    }
+
+    setPhotoFiles((current) => [...current, ...validFiles.slice(0, availableSlots)]);
     event.target.value = '';
   };
 
@@ -123,6 +132,33 @@ export default function CreateListing() {
       toast.error('Selecciona una ciudad');
       return false;
     }
+    return true;
+  };
+
+  const validateDetails = () => {
+    if (formData.price) {
+      const price = Number(formData.price);
+      if (!Number.isFinite(price) || price < 0) {
+        toast.error('Introduce un precio valido');
+        return false;
+      }
+      if (price > 10000) {
+        toast.error('El precio mensual parece demasiado alto');
+        return false;
+      }
+    }
+
+    if (formData.availableDate) {
+      const selectedDate = new Date(`${formData.availableDate}T00:00:00`);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      if (selectedDate < today) {
+        toast.error('La fecha disponible no puede estar en el pasado');
+        return false;
+      }
+    }
+
     return true;
   };
 
@@ -148,7 +184,7 @@ export default function CreateListing() {
   };
 
   const handleSubmit = async () => {
-    if (!selectedType || !validateStepTwo()) return;
+    if (!selectedType || !validateStepTwo() || !validateDetails()) return;
 
     setIsSubmitting(true);
 
@@ -389,24 +425,32 @@ export default function CreateListing() {
                 />
                 <button
                   type="button"
-                  className="w-full border-2 border-dashed border-border rounded-lg p-8 text-center hover:border-primary transition-colors"
+                  className="w-full border-2 border-dashed border-border rounded-lg p-8 text-center hover:border-primary transition-colors disabled:cursor-not-allowed disabled:opacity-60"
                   onClick={() => fileInputRef.current?.click()}
+                  disabled={isSubmitting || photoFiles.length >= 8}
                 >
                   <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
                   <p className="text-sm text-muted-foreground">Selecciona hasta 8 fotos JPG, PNG o WebP</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{photoFiles.length}/8 fotos seleccionadas</p>
                 </button>
 
                 {previews.length > 0 && (
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     {previews.map(({ file, url }, index) => (
-                      <div key={`${file.name}-${index}`} className="relative aspect-square rounded-lg overflow-hidden bg-muted">
+                      <div key={`${file.name}-${index}`} className="relative aspect-square rounded-lg overflow-hidden bg-muted border border-border">
                         <img src={url} alt={file.name} className="h-full w-full object-cover" />
+                        {index === 0 && (
+                          <span className="absolute left-1 top-1 rounded-full bg-background/90 px-2 py-0.5 text-xs font-medium">
+                            Portada
+                          </span>
+                        )}
                         <Button
                           type="button"
                           variant="destructive"
                           size="icon"
                           className="absolute right-1 top-1 h-7 w-7"
                           onClick={() => removePhoto(index)}
+                          disabled={isSubmitting}
                         >
                           <X className="h-4 w-4" />
                         </Button>
