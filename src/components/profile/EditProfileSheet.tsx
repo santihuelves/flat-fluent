@@ -30,10 +30,12 @@ import {
 import {
   decodeLivingTraits,
   decodeOfferDetails,
-  decodeSeekerDetails,
+  decodeSeekFlatmateDetails,
+  decodeSeekRoomDetails,
   encodeLivingTraits,
   encodeOfferDetails,
-  encodeSeekerDetails,
+  encodeSeekFlatmateDetails,
+  encodeSeekRoomDetails,
   PROPERTY_CONTEXT_OPTIONS,
   SEEKER_GOAL_OPTIONS,
   YES_NO_OPTIONS,
@@ -100,10 +102,14 @@ type FormState = {
   has_pet: '' | 'yes' | 'no';
   household_size: '' | 'solo' | 'pair' | 'group_3_plus';
   includes_minor: '' | 'yes' | 'no';
-  seeker_goal: '' | 'need_room_now' | 'want_flatmate_then_home' | 'open_to_both';
-  accepts_smoking_home: '' | 'yes' | 'no';
-  accepts_pets_home: '' | 'yes' | 'no';
-  accepts_couples_home: '' | 'yes' | 'no';
+  seek_room_goal: '' | 'need_room_now' | 'want_flatmate_then_home' | 'open_to_both';
+  seek_room_accepts_smoking_home: '' | 'yes' | 'no';
+  seek_room_accepts_pets_home: '' | 'yes' | 'no';
+  seek_room_accepts_couples_home: '' | 'yes' | 'no';
+  seek_flatmate_goal: '' | 'need_room_now' | 'want_flatmate_then_home' | 'open_to_both';
+  seek_flatmate_accepts_smoking_home: '' | 'yes' | 'no';
+  seek_flatmate_accepts_pets_home: '' | 'yes' | 'no';
+  seek_flatmate_accepts_couples_home: '' | 'yes' | 'no';
   property_context: '' | 'shared_flat' | 'family_home' | 'owner_occupied_flat';
   current_household_count: string;
   allows_couples: '' | 'yes' | 'no';
@@ -113,33 +119,46 @@ type FormState = {
   allows_smoking: '' | 'yes' | 'no';
 };
 
-const buildInitialFormData = (profile: ProfileData): FormState => ({
-  ...decodeLivingTraits(profile.lifestyle_tags),
-  display_name: profile.display_name || '',
-  bio: profile.bio || '',
-  autonomous_community: profile.autonomous_community || '',
-  city: profile.city || '',
-  province_code: profile.province_code || '',
-  budget_min: profile.budget_min?.toString() || '',
-  budget_max: profile.budget_max?.toString() || '',
-  move_in_date: profile.move_in_date || '',
-  min_stay_months: profile.min_stay_months?.toString() || '',
-  occupation: profile.occupation || '',
-  languages: (profile.languages || []).map(normalizeLanguage),
-  photos: (profile.photos && profile.photos.length > 0
-    ? profile.photos
-    : profile.photo_url
-      ? [profile.photo_url]
-      : []
-  ).slice(0, PROFILE_PHOTO_LIMIT),
-  ...decodeSeekerDetails(
-    profile.intentions?.find((intention) => intention.is_primary && intention.intention_type !== 'offer_room')?.details ??
-      profile.intentions?.find((intention) => intention.intention_type !== 'offer_room')?.details
-  ),
-  ...decodeOfferDetails(
-    profile.intentions?.find((intention) => intention.intention_type === 'offer_room')?.details
-  ),
-});
+const getIntention = (
+  intentions: ProfileIntention[] | undefined,
+  intentionType: ProfileIntention['intention_type']
+) => intentions?.find((intention) => intention.intention_type === intentionType) ?? null;
+
+const buildInitialFormData = (profile: ProfileData): FormState => {
+  const seekRoomDetails = decodeSeekRoomDetails(getIntention(profile.intentions, 'seek_room')?.details);
+  const seekFlatmateDetails = decodeSeekFlatmateDetails(getIntention(profile.intentions, 'seek_flatmate')?.details);
+  const offerDetails = decodeOfferDetails(getIntention(profile.intentions, 'offer_room')?.details);
+
+  return {
+    ...decodeLivingTraits(profile.lifestyle_tags),
+    display_name: profile.display_name || '',
+    bio: profile.bio || '',
+    autonomous_community: profile.autonomous_community || '',
+    city: profile.city || '',
+    province_code: profile.province_code || '',
+    budget_min: profile.budget_min?.toString() || '',
+    budget_max: profile.budget_max?.toString() || '',
+    move_in_date: profile.move_in_date || '',
+    min_stay_months: profile.min_stay_months?.toString() || '',
+    occupation: profile.occupation || '',
+    languages: (profile.languages || []).map(normalizeLanguage),
+    photos: (profile.photos && profile.photos.length > 0
+      ? profile.photos
+      : profile.photo_url
+        ? [profile.photo_url]
+        : []
+    ).slice(0, PROFILE_PHOTO_LIMIT),
+    seek_room_goal: seekRoomDetails.seekerGoal,
+    seek_room_accepts_smoking_home: seekRoomDetails.acceptsSmokingHome,
+    seek_room_accepts_pets_home: seekRoomDetails.acceptsPetsHome,
+    seek_room_accepts_couples_home: seekRoomDetails.acceptsCouplesHome,
+    seek_flatmate_goal: seekFlatmateDetails.seekerGoal,
+    seek_flatmate_accepts_smoking_home: seekFlatmateDetails.acceptsSmokingHome,
+    seek_flatmate_accepts_pets_home: seekFlatmateDetails.acceptsPetsHome,
+    seek_flatmate_accepts_couples_home: seekFlatmateDetails.acceptsCouplesHome,
+    ...offerDetails,
+  };
+};
 
 export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated }: EditProfileSheetProps) {
   const { t } = useTranslation();
@@ -156,8 +175,11 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
     }
   }, [open, profile]);
 
-  const hasSeekingIntentions = Boolean(
-    profile.intentions?.some((intention) => intention.intention_type !== 'offer_room')
+  const hasSeekRoomIntention = Boolean(
+    profile.intentions?.some((intention) => intention.intention_type === 'seek_room')
+  );
+  const hasSeekFlatmateIntention = Boolean(
+    profile.intentions?.some((intention) => intention.intention_type === 'seek_flatmate')
   );
   const hasOfferRoomIntention = Boolean(
     profile.intentions?.some((intention) => intention.intention_type === 'offer_room')
@@ -375,13 +397,22 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
             allowsPets: formData.allows_pets,
             allowsSmoking: formData.allows_smoking,
           });
-        } else {
-          detailsPayload = encodeSeekerDetails(intention.details, {
-            seekerGoal: formData.seeker_goal,
-            acceptsSmokingHome: formData.accepts_smoking_home,
-            acceptsPetsHome: formData.accepts_pets_home,
-            acceptsCouplesHome: formData.accepts_couples_home,
+        } else if (intention.intention_type === 'seek_room') {
+          detailsPayload = encodeSeekRoomDetails(intention.details, {
+            seekerGoal: formData.seek_room_goal,
+            acceptsSmokingHome: formData.seek_room_accepts_smoking_home,
+            acceptsPetsHome: formData.seek_room_accepts_pets_home,
+            acceptsCouplesHome: formData.seek_room_accepts_couples_home,
           });
+        } else if (intention.intention_type === 'seek_flatmate') {
+          detailsPayload = encodeSeekFlatmateDetails(intention.details, {
+            seekerGoal: formData.seek_flatmate_goal,
+            acceptsSmokingHome: formData.seek_flatmate_accepts_smoking_home,
+            acceptsPetsHome: formData.seek_flatmate_accepts_pets_home,
+            acceptsCouplesHome: formData.seek_flatmate_accepts_couples_home,
+          });
+        } else {
+          continue;
         }
 
         const { data: intentionResult, error: intentionError } = await supabase.rpc('convinter_set_intention', {
@@ -626,14 +657,14 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
             </div>
           </div>
 
-          {hasSeekingIntentions && (
+          {hasSeekRoomIntention && (
             <div className="space-y-3 rounded-xl border border-border/60 p-4">
-              <Label>Lo que busco</Label>
+              <Label>Busco habitacion</Label>
               <div className="space-y-2">
                 <Label>Objetivo</Label>
                 <Select
-                  value={formData.seeker_goal}
-                  onValueChange={(value) => setFormData((prev) => ({ ...prev, seeker_goal: value as FormState['seeker_goal'] }))}
+                  value={formData.seek_room_goal}
+                  onValueChange={(value) => setFormData((prev) => ({ ...prev, seek_room_goal: value as FormState['seek_room_goal'] }))}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Selecciona objetivo" />
@@ -652,8 +683,8 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
                 <div className="space-y-2">
                   <Label>Acepta fumadores</Label>
                   <Select
-                    value={formData.accepts_smoking_home}
-                    onValueChange={(value) => setFormData((prev) => ({ ...prev, accepts_smoking_home: value as FormState['accepts_smoking_home'] }))}
+                    value={formData.seek_room_accepts_smoking_home}
+                    onValueChange={(value) => setFormData((prev) => ({ ...prev, seek_room_accepts_smoking_home: value as FormState['seek_room_accepts_smoking_home'] }))}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Selecciona" />
@@ -670,8 +701,8 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
                 <div className="space-y-2">
                   <Label>Acepta mascotas</Label>
                   <Select
-                    value={formData.accepts_pets_home}
-                    onValueChange={(value) => setFormData((prev) => ({ ...prev, accepts_pets_home: value as FormState['accepts_pets_home'] }))}
+                    value={formData.seek_room_accepts_pets_home}
+                    onValueChange={(value) => setFormData((prev) => ({ ...prev, seek_room_accepts_pets_home: value as FormState['seek_room_accepts_pets_home'] }))}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Selecciona" />
@@ -688,8 +719,89 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
                 <div className="space-y-2">
                   <Label>Acepta parejas</Label>
                   <Select
-                    value={formData.accepts_couples_home}
-                    onValueChange={(value) => setFormData((prev) => ({ ...prev, accepts_couples_home: value as FormState['accepts_couples_home'] }))}
+                    value={formData.seek_room_accepts_couples_home}
+                    onValueChange={(value) => setFormData((prev) => ({ ...prev, seek_room_accepts_couples_home: value as FormState['seek_room_accepts_couples_home'] }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecciona" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {YES_NO_OPTIONS.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {hasSeekFlatmateIntention && (
+            <div className="space-y-3 rounded-xl border border-border/60 p-4">
+              <Label>Busco companero/a para alquilar juntos</Label>
+              <div className="space-y-2">
+                <Label>Objetivo</Label>
+                <Select
+                  value={formData.seek_flatmate_goal}
+                  onValueChange={(value) => setFormData((prev) => ({ ...prev, seek_flatmate_goal: value as FormState['seek_flatmate_goal'] }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecciona objetivo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SEEKER_GOAL_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <div className="space-y-2">
+                  <Label>Acepta fumadores</Label>
+                  <Select
+                    value={formData.seek_flatmate_accepts_smoking_home}
+                    onValueChange={(value) => setFormData((prev) => ({ ...prev, seek_flatmate_accepts_smoking_home: value as FormState['seek_flatmate_accepts_smoking_home'] }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecciona" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {YES_NO_OPTIONS.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Acepta mascotas</Label>
+                  <Select
+                    value={formData.seek_flatmate_accepts_pets_home}
+                    onValueChange={(value) => setFormData((prev) => ({ ...prev, seek_flatmate_accepts_pets_home: value as FormState['seek_flatmate_accepts_pets_home'] }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecciona" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {YES_NO_OPTIONS.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Acepta parejas</Label>
+                  <Select
+                    value={formData.seek_flatmate_accepts_couples_home}
+                    onValueChange={(value) => setFormData((prev) => ({ ...prev, seek_flatmate_accepts_couples_home: value as FormState['seek_flatmate_accepts_couples_home'] }))}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Selecciona" />

@@ -17,6 +17,9 @@ export type SeekerDetailsForm = {
   acceptsCouplesHome: YesNoValue;
 };
 
+export type SeekRoomDetailsForm = SeekerDetailsForm;
+export type SeekFlatmateDetailsForm = SeekerDetailsForm;
+
 export type OfferDetailsForm = {
   propertyContext: PropertyContextValue;
   currentHouseholdCount: string;
@@ -120,6 +123,12 @@ export const decodeSeekerDetails = (value: unknown): SeekerDetailsForm => {
   };
 };
 
+export const decodeSeekRoomDetails = (value: unknown): SeekRoomDetailsForm =>
+  decodeSeekerDetails(value);
+
+export const decodeSeekFlatmateDetails = (value: unknown): SeekFlatmateDetailsForm =>
+  decodeSeekerDetails(value);
+
 export const decodeOfferDetails = (value: unknown): OfferDetailsForm => {
   const details = asRecord(value);
 
@@ -151,6 +160,16 @@ export const encodeSeekerDetails = (
     accepts_couples_home: details.acceptsCouplesHome ? details.acceptsCouplesHome === 'yes' : null,
   };
 };
+
+export const encodeSeekRoomDetails = (
+  existingValue: unknown,
+  details: SeekRoomDetailsForm
+) => encodeSeekerDetails(existingValue, details);
+
+export const encodeSeekFlatmateDetails = (
+  existingValue: unknown,
+  details: SeekFlatmateDetailsForm
+) => encodeSeekerDetails(existingValue, details);
 
 export const encodeOfferDetails = (
   existingValue: unknown,
