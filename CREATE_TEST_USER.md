@@ -1,126 +1,48 @@
-# 🧪 Crear Usuario de Prueba
+# LEGACY: crear usuario de prueba
 
-## Opción 1: Registro Normal (RECOMENDADO)
+## Estado de este documento
 
-La forma más sencilla es registrar un nuevo usuario desde la aplicación:
+Este archivo se conserva solo como **documentacion legacy de testing**.
 
-1. **Abre el navegador** en: http://localhost:8080/signup
-2. **Registra un nuevo usuario**:
-   - Email: `test@test.com`
-   - Password: `Test123456`
-   - Nombre: `María García Test`
-3. **Completa el Onboarding**:
-   - Selecciona **"Busco habitación"** ✅ (Principal)
-   - Selecciona **"Busco compañero/a para alquilar piso"** ✅
-   - Completa los demás pasos
-4. **¡Listo!** Ya puedes probar en Discover con los filtros
+### Importante
 
----
+- Contiene referencias historicas y pasos manuales antiguos.
+- Incluye el project ref antiguo `glsyzczyisengwwieuvt`.
+- **No debe tomarse como documentacion operativa actual**.
 
-## Opción 2: SQL Directo (Si quieres datos pre-poblados)
+La referencia operativa actual del repo es:
+- `iahjepkbjapxqsdsgiob`
 
-Si prefieres crear el usuario desde la base de datos:
+Consulta primero:
+- [README.md](C:/Users/Santi/Documents/Codex/2026-04-27/https-github-com-santihuelves-flat-fluent/README.md)
+- [migrations_manual/README.md](C:/Users/Santi/Documents/Codex/2026-04-27/https-github-com-santihuelves-flat-fluent/migrations_manual/README.md)
 
-1. Ve a tu **Dashboard de Supabase**: https://supabase.com/dashboard/project/glsyzczyisengwwieuvt/sql/new
+## Por que se conserva
 
-2. **Copia y pega este SQL**:
+Se mantiene para:
+- entender pruebas antiguas,
+- recuperar contexto de QA,
+- y rastrear como se creaban perfiles de prueba en una fase anterior del proyecto.
 
-```sql
--- Primero, registra el usuario manualmente en la app (http://localhost:8080/signup)
--- con email: test@test.com y password: Test123456
--- Luego ejecuta este script para añadir sus intenciones:
+## Contenido legacy original
 
--- SUSTITUYE 'USER_ID_AQUI' por el ID real del usuario después de registrarte
-DO $$
-DECLARE
-  user_uuid uuid := 'USER_ID_AQUI'::uuid; -- ⚠️ CAMBIAR ESTO
-BEGIN
-  -- Crear perfil completo
-  INSERT INTO public.convinter_profiles (
-    user_id,
-    display_name,
-    bio,
-    languages,
-    province_code,
-    city,
-    trust_score,
-    selfie_verified
-  ) VALUES (
-    user_uuid,
-    'María García',
-    'Profesora de inglés, amante del yoga y la cocina. Busco ambiente tranquilo y responsable. 🧘‍♀️',
-    ARRAY['es', 'en'],
-    'M',
-    'Madrid',
-    75,
-    true
-  ) ON CONFLICT (user_id) DO UPDATE SET
-    display_name = EXCLUDED.display_name,
-    bio = EXCLUDED.bio,
-    updated_at = now();
+### Opcion 1: Registro normal (historico)
 
-  -- Intención 1: Busco habitación (Principal)
-  INSERT INTO public.convinter_profile_intentions (
-    profile_id,
-    intention_type,
-    is_primary,
-    urgency,
-    priority
-  ) VALUES (
-    user_uuid,
-    'seek_room',
-    true,
-    'soon',
-    10
-  ) ON CONFLICT (profile_id, intention_type, active) DO UPDATE SET
-    is_primary = true,
-    updated_at = now();
+1. Abrir `http://localhost:8080/signup`
+2. Registrar un usuario de prueba
+3. Completar onboarding
+4. Probar filtros y discover
 
-  -- Intención 2: Busco compañero
-  INSERT INTO public.convinter_profile_intentions (
-    profile_id,
-    intention_type,
-    is_primary,
-    urgency,
-    priority
-  ) VALUES (
-    user_uuid,
-    'seek_flatmate',
-    false,
-    'flexible',
-    5
-  ) ON CONFLICT (profile_id, intention_type, active) DO UPDATE SET
-    urgency = 'flexible',
-    updated_at = now();
+### Opcion 2: SQL directo (historico)
 
-  RAISE NOTICE '✅ Perfil e intenciones creados!';
-END $$;
-```
+Este flujo apuntaba al dashboard SQL del proyecto antiguo:
+- `glsyzczyisengwwieuvt`
 
----
+Por eso queda marcado como **legacy** y no debe reutilizarse sin adaptar primero el entorno real actual.
 
-## 🎯 Qué Probar
+## Recomendacion actual
 
-Una vez tengas el usuario:
-
-1. **Login**: Inicia sesión con las credenciales
-2. **Perfil**: Ve a /profile y verifica que se muestren los badges de intención
-3. **Discover**: 
-   - Abre /discover
-   - Click en el filtro "Todas"
-   - Verifica que aparecen las 3 opciones con iconos
-   - Filtra por "Busca habitación"
-4. **Onboarding** (si creaste otro usuario):
-   - Ve a /onboarding
-   - Prueba seleccionar múltiples intenciones
-   - Verifica que aparece el badge "Principal"
-
----
-
-## 📝 Credenciales Sugeridas
-
-```
-Email: test@test.com
-Password: Test123456
-Nombre: María García
-```
+Si hoy hace falta crear usuarios demo o de prueba:
+- prioriza los seeds demo documentados,
+- o usa el flujo actual de la app y el backend correcto,
+- pero no sigas este archivo literalmente sin revisar project ref, rutas y esquema vigente.
