@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { motion } from 'framer-motion';
-import { User, Camera, MapPin, FileText, Edit2, CheckCircle, AlertCircle, Loader2, Home } from 'lucide-react';
+import { User, Camera, MapPin, FileText, Edit2, CheckCircle, AlertCircle, Loader2, Home, Briefcase, Calendar, Wallet, Clock3, Images, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useTranslation } from 'react-i18next';
@@ -12,11 +12,19 @@ import { IntentionBadges } from '@/components/IntentionBadge';
 import { toast } from 'sonner';
 import { useSEO } from '@/hooks/useSEO';
 import { getLanguageLabel } from '@/lib/profileOptions';
+import {
+  decodeOfferDetails,
+  decodeSeekerDetails,
+  getPropertyContextLabel,
+  getSeekerGoalLabel,
+  getYesNoLabel,
+} from '@/lib/profileTraits';
 
 type ProfileIntention = {
   intention_type: 'seek_room' | 'offer_room' | 'seek_flatmate';
   is_primary: boolean;
   urgency?: string;
+  details?: Record<string, unknown> | null;
 };
 
 interface ProfileData {
@@ -32,6 +40,7 @@ interface ProfileData {
   autonomous_community?: string | null;
   budget_min?: number | null;
   budget_max?: number | null;
+  lifestyle_tags?: string[] | null;
   move_in_date?: string | null;
   min_stay_months?: number | null;
   occupation?: string | null;
@@ -111,7 +120,7 @@ export default function Profile() {
 
       const { data: baseProfileData, error: baseProfileError } = await supabase
         .from('profiles')
-        .select('autonomous_community, budget_min, budget_max, move_in_date, min_stay_months, occupation, photos, province, city, bio, languages, name')
+        .select('autonomous_community, budget_min, budget_max, lifestyle_tags, move_in_date, min_stay_months, occupation, photos, province, city, bio, languages, name')
         .eq('id', user.id)
         .maybeSingle();
 
@@ -134,6 +143,7 @@ export default function Profile() {
         autonomous_community: baseProfileData?.autonomous_community ?? null,
         budget_min: baseProfileData?.budget_min ?? null,
         budget_max: baseProfileData?.budget_max ?? null,
+        lifestyle_tags: baseProfileData?.lifestyle_tags ?? null,
         move_in_date: baseProfileData?.move_in_date ?? null,
         min_stay_months: baseProfileData?.min_stay_months ?? null,
         occupation: baseProfileData?.occupation ?? null,
@@ -177,7 +187,92 @@ export default function Profile() {
     );
   }
 
-  
+  const displayName = profile.display_name || profile.handle || authFallbackName || t('profile.noName');
+  const galleryPhotos = profile.photos?.filter((photo): photo is string => typeof photo === 'string' && photo.length > 0) ?? [];
+  const additionalPhotos = galleryPhotos.filter((photo) => photo !== profile.photo_url).slice(0, 1);
+  const hasPracticalDetails = Boolean(
+    profile.autonomous_community ||
+      profile.province_code ||
+      profile.budget_min ||
+      profile.budget_max ||
+      profile.move_in_date ||
+      profile.min_stay_months ||
+      profile.occupation
+  );
+
+  const budgetLabel =
+    profile.budget_min && profile.budget_max
+      ? `${profile.budget_min} - ${profile.budget_max} EUR/mes`
+      : profile.budget_min
+        ? `Desde ${profile.budget_min} EUR/mes`
+        : profile.budget_max
+          ? `Hasta ${profile.budget_max} EUR/mes`
+          : null;
+
+  const moveInLabel = profile.move_in_date
+    ? new Date(profile.move_in_date).toLocaleDateString()
+    : null;
+
+  const minStayLabel = profile.min_stay_months
+    ? `${profile.min_stay_months} ${profile.min_stay_months === 1 ? 'mes' : 'meses'}`
+    : null;
+
+  const locationBits = [profile.city, profile.province_code, profile.autonomous_community].filter(Boolean);
+  const primarySeekingIntention =
+    profile.intentions?.find((intention) => intention.is_primary && intention.intention_type !== 'offer_room') ??
+    profile.intentions?.find((intention) => intention.intention_type !== 'offer_room') ??
+    null;
+  const offerIntention = profile.intentions?.find((intention) => intention.intention_type === 'offer_room') ?? null;
+  const seekerDetails = primarySeekingIntention ? decodeSeekerDetails(primarySeekingIntention.details) : null;
+  const offerDetails = offerIntention ? decodeOfferDetails(offerIntention.details) : null;
+  const seekerLabels = seekerDetails
+    ? [
+        getSeekerGoalLabel(seekerDetails.seekerGoal),
+        getYesNoLabel(seekerDetails.acceptsSmokingHome, 'Acepta piso con fumadores', 'No quiere piso con fumadores'),
+        getYesNoLabel(seekerDetails.acceptsPetsHome, 'Acepta mascotas', 'Prefiere sin mascotas'),
+        getYesNoLabel(seekerDetails.acceptsCouplesHome, 'Acepta parejas', 'Prefiere no convivir con parejas'),
+      ].filter((label): label is string => Boolean(label))
+    : [];
+  const offerLabels = offerDetails
+    ? [
+        getPropertyContextLabel(offerDetails.propertyContext),
+        offerDetails.currentHouseholdCount
+          ? `${offerDetails.currentHouseholdCount} persona${offerDetails.currentHouseholdCount === '1' ? '' : 's'} viviendo ya en casa`
+          : null,
+        getYesNoLabel(offerDetails.allowsCouples, 'Admite parejas', 'No admite parejas'),
+        getYesNoLabel(offerDetails.allowsTwoPeople, 'Admite dos personas', 'No admite dos personas'),
+        getYesNoLabel(offerDetails.allowsMinors, 'Admite menores', 'No admite menores'),
+        getYesNoLabel(offerDetails.allowsPets, 'Admite mascotas', 'No admite mascotas'),
+        getYesNoLabel(offerDetails.allowsSmoking, 'Se puede fumar', 'No se puede fumar'),
+      ].filter((label): label is string => Boolean(label))
+    : [];
+
+  const infoCards = [
+    {
+      key: 'occupation',
+      icon: Briefcase,
+      label: 'Ocupacion',
+      value: profile.occupation,
+    },
+    {
+      key: 'budget',
+      icon: Wallet,
+      label: 'Presupuesto',
+      value: budgetLabel,
+    },
+    {
+      key: 'move-in',
+      icon: Calendar,
+      label: 'Fecha de entrada',
+      value: moveInLabel,
+    },
+    {
+      key: 'stay',
+      icon: Clock3,
+      label: 'Estancia minima',
+      value: minStayLabel,
+    },
+  ].filter((item) => Boolean(item.value));
 
   return (
     <Layout>
@@ -233,15 +328,9 @@ export default function Profile() {
               {/* Basic Info */}
               <div>
                 <h2 className="text-2xl font-bold mb-2">
-                  {profile.display_name || profile.handle || authFallbackName || t('profile.noName')}
+                  {displayName}
                 </h2>
                 <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
-                  {profile.city && (
-                    <div className="flex items-center gap-1">
-                      <MapPin className="h-4 w-4" />
-                      {profile.city}
-                    </div>
-                  )}
                   {profile.selfie_verified && (
                     <Badge variant="secondary" className="rounded-full">
                       ✓ {t('profile.verified')}
@@ -256,6 +345,27 @@ export default function Profile() {
                   )}
                 </div>
               </div>
+
+              {/* Photo Gallery */}
+              {additionalPhotos.length > 0 && (
+                <div>
+                  <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground mb-2">
+                    <Images className="h-4 w-4" />
+                    Fotos del perfil
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {additionalPhotos.map((photo, index) => (
+                      <div key={`${photo}-${index}`} className="aspect-[4/3] overflow-hidden rounded-xl bg-muted">
+                        <img
+                          src={photo}
+                          alt={`${displayName} ${index + 2}`}
+                          className="h-full w-full object-cover"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Languages */}
               {profile.languages && profile.languages.length > 0 && (
@@ -289,10 +399,77 @@ export default function Profile() {
                 </div>
               )}
 
+              {/* Practical Details */}
+              {hasPracticalDetails && (
+                <div className="space-y-4">
+                  <div>
+                    <h3 className="text-sm font-semibold text-muted-foreground mb-2">Resumen practico</h3>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      {infoCards.map(({ key, icon: Icon, label, value }) => (
+                        <div key={key} className="rounded-xl border border-border/60 bg-background/70 p-4">
+                          <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground mb-2">
+                            <Icon className="h-4 w-4" />
+                            {label}
+                          </div>
+                          <p className="text-sm font-medium text-foreground">{value}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {locationBits.length > 0 && (
+                    <div className="rounded-xl border border-border/60 bg-background/70 p-4">
+                      <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground mb-2">
+                        <MapPin className="h-4 w-4" />
+                        Ubicacion
+                      </div>
+                      <p className="text-sm font-medium text-foreground">{locationBits.join(' - ')}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Intention Specific Conditions */}
+              {(seekerLabels.length > 0 || offerLabels.length > 0) && (
+                <div className="space-y-4">
+                  {seekerLabels.length > 0 && (
+                    <div className="rounded-xl border border-border/60 bg-background/70 p-4">
+                      <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground mb-3">
+                        <ShieldCheck className="h-4 w-4" />
+                        Lo que busco
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {seekerLabels.map((label) => (
+                          <Badge key={label} variant="secondary" className="rounded-full">
+                            {label}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {offerLabels.length > 0 && (
+                    <div className="rounded-xl border border-border/60 bg-background/70 p-4">
+                      <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground mb-3">
+                        <Home className="h-4 w-4" />
+                        Lo que ofrezco
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {offerLabels.map((label) => (
+                          <Badge key={label} variant="secondary" className="rounded-full">
+                            {label}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Bio */}
               {profile.bio && (
                 <div>
-                  <h3 className="text-sm font-semibold text-muted-foreground mb-2">{t('profile.about')}</h3>
+                  <h3 className="text-sm font-semibold text-muted-foreground mb-2">Sobre ti y convivencia</h3>
                   <p className="text-sm">{profile.bio}</p>
                 </div>
               )}

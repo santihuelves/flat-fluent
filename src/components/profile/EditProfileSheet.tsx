@@ -27,6 +27,24 @@ import {
   normalizeLanguage,
   todayIso,
 } from '@/lib/profileOptions';
+import {
+  decodeLivingTraits,
+  decodeOfferDetails,
+  decodeSeekerDetails,
+  encodeLivingTraits,
+  encodeOfferDetails,
+  encodeSeekerDetails,
+  PROPERTY_CONTEXT_OPTIONS,
+  SEEKER_GOAL_OPTIONS,
+  YES_NO_OPTIONS,
+} from '@/lib/profileTraits';
+
+type ProfileIntention = {
+  intention_type: 'seek_room' | 'offer_room' | 'seek_flatmate';
+  is_primary: boolean;
+  urgency?: string;
+  details?: Record<string, unknown> | null;
+};
 
 interface ProfileData {
   user_id: string;
@@ -41,6 +59,7 @@ interface ProfileData {
   autonomous_community?: string | null;
   budget_min?: number | null;
   budget_max?: number | null;
+  lifestyle_tags?: string[] | null;
   move_in_date?: string | null;
   min_stay_months?: number | null;
   occupation?: string | null;
@@ -54,6 +73,7 @@ interface ProfileData {
   trust_score: number;
   trust_badge: string;
   selfie_verified: boolean;
+  intentions?: ProfileIntention[];
 }
 
 interface EditProfileSheetProps {
@@ -76,9 +96,25 @@ type FormState = {
   occupation: string;
   languages: string[];
   photos: string[];
+  is_smoker: '' | 'yes' | 'no';
+  has_pet: '' | 'yes' | 'no';
+  household_size: '' | 'solo' | 'pair' | 'group_3_plus';
+  includes_minor: '' | 'yes' | 'no';
+  seeker_goal: '' | 'need_room_now' | 'want_flatmate_then_home' | 'open_to_both';
+  accepts_smoking_home: '' | 'yes' | 'no';
+  accepts_pets_home: '' | 'yes' | 'no';
+  accepts_couples_home: '' | 'yes' | 'no';
+  property_context: '' | 'shared_flat' | 'family_home' | 'owner_occupied_flat';
+  current_household_count: string;
+  allows_couples: '' | 'yes' | 'no';
+  allows_two_people: '' | 'yes' | 'no';
+  allows_minors: '' | 'yes' | 'no';
+  allows_pets: '' | 'yes' | 'no';
+  allows_smoking: '' | 'yes' | 'no';
 };
 
 const buildInitialFormData = (profile: ProfileData): FormState => ({
+  ...decodeLivingTraits(profile.lifestyle_tags),
   display_name: profile.display_name || '',
   bio: profile.bio || '',
   autonomous_community: profile.autonomous_community || '',
@@ -96,6 +132,13 @@ const buildInitialFormData = (profile: ProfileData): FormState => ({
       ? [profile.photo_url]
       : []
   ).slice(0, PROFILE_PHOTO_LIMIT),
+  ...decodeSeekerDetails(
+    profile.intentions?.find((intention) => intention.is_primary && intention.intention_type !== 'offer_room')?.details ??
+      profile.intentions?.find((intention) => intention.intention_type !== 'offer_room')?.details
+  ),
+  ...decodeOfferDetails(
+    profile.intentions?.find((intention) => intention.intention_type === 'offer_room')?.details
+  ),
 });
 
 export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated }: EditProfileSheetProps) {
@@ -112,6 +155,13 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
       setFormData(buildInitialFormData(profile));
     }
   }, [open, profile]);
+
+  const hasSeekingIntentions = Boolean(
+    profile.intentions?.some((intention) => intention.intention_type !== 'offer_room')
+  );
+  const hasOfferRoomIntention = Boolean(
+    profile.intentions?.some((intention) => intention.intention_type === 'offer_room')
+  );
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -208,7 +258,7 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
     }
 
     if (bio.length < MIN_BIO_LENGTH || bio.length > MAX_BIO_LENGTH) {
-      return `La seccion "Sobre ti" debe tener entre ${MIN_BIO_LENGTH} y ${MAX_BIO_LENGTH} caracteres.`;
+      return `La seccion "Sobre ti y convivencia" debe tener entre ${MIN_BIO_LENGTH} y ${MAX_BIO_LENGTH} caracteres.`;
     }
 
     if (!formData.autonomous_community) {
@@ -268,6 +318,12 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
     const cleanOccupation = formData.occupation.trim();
     const cleanLanguages = formData.languages.map(normalizeLanguage);
     const cleanPhotos = formData.photos.slice(0, PROFILE_PHOTO_LIMIT);
+    const encodedLifestyleTags = encodeLivingTraits(profile.lifestyle_tags, {
+      isSmoker: formData.is_smoker,
+      hasPet: formData.has_pet,
+      householdSize: formData.household_size,
+      includesMinor: formData.includes_minor,
+    });
 
     setSaving(true);
     try {
@@ -295,6 +351,7 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
           city: cleanCity,
           budget_min: Number(formData.budget_min),
           budget_max: Number(formData.budget_max),
+          lifestyle_tags: encodedLifestyleTags,
           move_in_date: formData.move_in_date || null,
           min_stay_months: Number(formData.min_stay_months),
           occupation: cleanOccupation || null,
@@ -304,6 +361,41 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
         .eq('id', profile.user_id);
 
       if (profilesError) throw profilesError;
+
+      for (const intention of profile.intentions ?? []) {
+        let detailsPayload = intention.details ?? {};
+
+        if (intention.intention_type === 'offer_room') {
+          detailsPayload = encodeOfferDetails(intention.details, {
+            propertyContext: formData.property_context,
+            currentHouseholdCount: formData.current_household_count,
+            allowsCouples: formData.allows_couples,
+            allowsTwoPeople: formData.allows_two_people,
+            allowsMinors: formData.allows_minors,
+            allowsPets: formData.allows_pets,
+            allowsSmoking: formData.allows_smoking,
+          });
+        } else {
+          detailsPayload = encodeSeekerDetails(intention.details, {
+            seekerGoal: formData.seeker_goal,
+            acceptsSmokingHome: formData.accepts_smoking_home,
+            acceptsPetsHome: formData.accepts_pets_home,
+            acceptsCouplesHome: formData.accepts_couples_home,
+          });
+        }
+
+        const { data: intentionResult, error: intentionError } = await supabase.rpc('convinter_set_intention', {
+          p_intention_type: intention.intention_type,
+          p_is_primary: intention.is_primary,
+          p_urgency: intention.urgency || 'flexible',
+          p_details: detailsPayload,
+        });
+
+        const parsedResult = intentionResult as unknown as { ok?: boolean } | null;
+        if (intentionError || parsedResult?.ok === false) {
+          throw intentionError ?? new Error(`No se pudo actualizar la intencion ${intention.intention_type}`);
+        }
+      }
 
       toast({
         title: t('profile.saved'),
@@ -393,7 +485,7 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
 
           <div className="space-y-3">
             <div className="flex items-center justify-between gap-3">
-              <Label htmlFor="bio">{t('profile.bioLabel')}</Label>
+              <Label htmlFor="bio">Sobre ti y convivencia</Label>
               <span className="text-xs text-muted-foreground">
                 {formData.bio.trim().length}/{MAX_BIO_LENGTH}
               </span>
@@ -403,7 +495,7 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
               value={formData.bio}
               maxLength={MAX_BIO_LENGTH}
               onChange={(e) => setFormData((prev) => ({ ...prev, bio: e.target.value }))}
-              placeholder={t('profile.bioPlaceholder')}
+              placeholder="Cuentanos quien eres, como convives y que valoras en casa."
               rows={5}
             />
           </div>
@@ -533,6 +625,215 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
               ))}
             </div>
           </div>
+
+          {hasSeekingIntentions && (
+            <div className="space-y-3 rounded-xl border border-border/60 p-4">
+              <Label>Lo que busco</Label>
+              <div className="space-y-2">
+                <Label>Objetivo</Label>
+                <Select
+                  value={formData.seeker_goal}
+                  onValueChange={(value) => setFormData((prev) => ({ ...prev, seeker_goal: value as FormState['seeker_goal'] }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecciona objetivo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SEEKER_GOAL_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <div className="space-y-2">
+                  <Label>Acepta fumadores</Label>
+                  <Select
+                    value={formData.accepts_smoking_home}
+                    onValueChange={(value) => setFormData((prev) => ({ ...prev, accepts_smoking_home: value as FormState['accepts_smoking_home'] }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecciona" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {YES_NO_OPTIONS.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Acepta mascotas</Label>
+                  <Select
+                    value={formData.accepts_pets_home}
+                    onValueChange={(value) => setFormData((prev) => ({ ...prev, accepts_pets_home: value as FormState['accepts_pets_home'] }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecciona" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {YES_NO_OPTIONS.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Acepta parejas</Label>
+                  <Select
+                    value={formData.accepts_couples_home}
+                    onValueChange={(value) => setFormData((prev) => ({ ...prev, accepts_couples_home: value as FormState['accepts_couples_home'] }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecciona" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {YES_NO_OPTIONS.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {hasOfferRoomIntention && (
+            <div className="space-y-3 rounded-xl border border-border/60 p-4">
+              <Label>Lo que ofrezco</Label>
+              <div className="space-y-2">
+                <Label>Tipo de vivienda</Label>
+                <Select
+                  value={formData.property_context}
+                  onValueChange={(value) => setFormData((prev) => ({ ...prev, property_context: value as FormState['property_context'] }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecciona contexto" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PROPERTY_CONTEXT_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Personas viviendo ya en casa</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  value={formData.current_household_count}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, current_household_count: e.target.value }))}
+                  placeholder="0"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label>Admite parejas</Label>
+                  <Select
+                    value={formData.allows_couples}
+                    onValueChange={(value) => setFormData((prev) => ({ ...prev, allows_couples: value as FormState['allows_couples'] }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecciona" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {YES_NO_OPTIONS.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Admite dos personas</Label>
+                  <Select
+                    value={formData.allows_two_people}
+                    onValueChange={(value) => setFormData((prev) => ({ ...prev, allows_two_people: value as FormState['allows_two_people'] }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecciona" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {YES_NO_OPTIONS.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Admite menores</Label>
+                  <Select
+                    value={formData.allows_minors}
+                    onValueChange={(value) => setFormData((prev) => ({ ...prev, allows_minors: value as FormState['allows_minors'] }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecciona" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {YES_NO_OPTIONS.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Admite mascotas</Label>
+                  <Select
+                    value={formData.allows_pets}
+                    onValueChange={(value) => setFormData((prev) => ({ ...prev, allows_pets: value as FormState['allows_pets'] }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecciona" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {YES_NO_OPTIONS.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Se puede fumar</Label>
+                  <Select
+                    value={formData.allows_smoking}
+                    onValueChange={(value) => setFormData((prev) => ({ ...prev, allows_smoking: value as FormState['allows_smoking'] }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecciona" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {YES_NO_OPTIONS.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+          )}
 
           <Button onClick={handleSave} disabled={saving} className="w-full" variant="hero">
             {saving ? (
