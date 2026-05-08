@@ -33,6 +33,54 @@ Future possible intention:
 
 For now, `seek_flatmate` can cover users who want to find someone first and then rent together.
 
+## Fuente principal y alcance de producto
+
+Reglas de producto para este modelo:
+
+1. El perfil representa a la persona.
+2. Las intenciones representan lo que esa persona busca ahora.
+3. Los listings representan publicaciones concretas, por ejemplo una habitacion disponible o una busqueda activa de companero/a.
+4. `convinter_profile_intentions` es la fuente principal para los datos especificos de intencion.
+5. `profiles.user_type` debe tratarse como legacy / compatibilidad temporal.
+
+## Significado de cada intencion
+
+### `seek_room`
+
+Significado:
+
+- La persona busca una habitacion que ya existe y que ya esta disponible, o que lo estara pronto, dentro de una vivienda existente.
+
+Interpretacion de producto:
+
+- La persona necesita un lugar concreto al que mudarse.
+- La compatibilidad importa, pero la oferta de vivienda ya existe.
+- El lado de listing suele ser una habitacion ofertada o un hogar ya montado.
+
+### `offer_room`
+
+Significado:
+
+- La persona ofrece una habitacion en una vivienda, piso o casa familiar ya existente.
+
+Interpretacion de producto:
+
+- El contexto del hogar ya existe.
+- La persona define reglas de convivencia, ocupacion actual y quien puede entrar.
+- El lado de listing es una oferta concreta de habitacion.
+
+### `seek_flatmate`
+
+Significado:
+
+- La persona busca companero/a para alquilar una vivienda juntos desde cero, no simplemente para entrar en una habitacion ya disponible.
+
+Interpretacion de producto:
+
+- El objetivo compartido es construir una futura busqueda de vivienda juntos.
+- La compatibilidad importa antes de que exista una habitacion concreta.
+- El lado de listing puede representar una busqueda activa de futuro companero/a, no una habitacion ya disponible.
+
 ## Data blocks
 
 ### 1. Core identity
@@ -117,6 +165,82 @@ Suggested enums:
   - `this_month`
   - `flexible`
 
+## Campos compartidos entre `seek_room` y `seek_flatmate`
+
+Estos campos pueden compartirse razonablemente entre ambas intenciones de busqueda porque describen compatibilidad, tiempos y reglas de aceptacion.
+
+### MVP actual / recomendado ahora
+
+- `seeker_goal`
+- `preferred_zones`
+- `urgency_level`
+- `accepts_smoking_home`
+- `accepts_pets_home`
+- `accepts_couples_home`
+- `accepts_students_home`
+- `accepts_workers_home`
+
+### Principio compartido
+
+- ambas siguen siendo intenciones de busqueda;
+- ambas necesitan tiempos, compatibilidad y preferencias de zona;
+- pero no deben tratarse automaticamente como si fueran el mismo producto.
+
+## Campos especificos de `seek_room`
+
+Estos campos son especificos de una persona que necesita una habitacion que ya existe.
+
+### MVP actual / recomendado ahora
+
+- `room_type_needed`
+- `needs_private_bathroom`
+
+### Fase futura
+
+- `furnished_required`
+- `max_existing_household_count`
+- `preferred_home_type`
+
+### Razon
+
+- `seek_room` trata sobre entrar en una vivienda ya existente;
+- por eso importan mas las caracteristicas de la habitacion y las condiciones del hogar ya montado que la dinamica de co-busqueda.
+
+## Campos especificos de `seek_flatmate`
+
+Estos campos son especificos de una persona que quiere encontrar primero a otra persona y alquilar despues juntos.
+
+### MVP actual / recomendado ahora
+
+No es necesario implementar inmediatamente todos los campos diferenciales. En MVP basta con dejar clara la separacion conceptual respecto a `seek_room` y reutilizar solo los campos compartidos estrictamente necesarios.
+
+### Fase futura
+
+- `co_search_readiness`
+- `target_household_size`
+- `search_scope`
+- `shared_search_commitment`
+
+Significado sugerido:
+
+- `co_search_readiness`: si la persona esta lista para empezar ya o aun esta explorando
+- `target_household_size`: si quiere alquilar entre 2 o construir un grupo mayor
+- `search_scope`: si quiere buscar solo en una zona o de forma mas amplia
+- `shared_search_commitment`: si busca una persona realmente comprometida o una exploracion mas casual
+
+Ejemplos de enums recomendados para una fase futura:
+
+- `co_search_readiness`: `ready_now`, `soon`, `exploring`
+- `target_household_size`: `two_people`, `three_people`, `open_group`
+- `search_scope`: `single_area`, `multi_area`, `open_city`
+- `shared_search_commitment`: `serious_only`, `moderate`, `exploratory`
+
+### Razon
+
+- `seek_flatmate` no es simplemente "buscar habitacion con otra etiqueta";
+- es un flujo de alianza futura para buscar vivienda juntos;
+- por eso el modelo deberia capturar mejor la co-busqueda, la seriedad y el tipo de acuerdo deseado.
+
 ### 4. Offerer-specific household rules
 
 These fields apply to `offer_room`.
@@ -144,6 +268,33 @@ Suggested enums:
   - `student`
   - `worker`
   - `either`
+
+## Campos especificos de `offer_room`
+
+Estos campos son especificos de una persona que ofrece una habitacion en un contexto de vivienda ya existente.
+
+### MVP actual / recomendado ahora
+
+- `property_context`
+- `current_household_count`
+- `owner_lives_here`
+- `allows_couples`
+- `allows_two_people`
+- `allows_minors`
+- `allows_pets`
+- `allows_smoking`
+- `preferred_tenant_type`
+- `house_rules_summary`
+
+### Fase futura
+
+No es obligatorio ampliar mas este bloque en esta fase documental. Si hiciera falta, los refinamientos vendrian despues de validar manualmente el flujo MVP.
+
+### Razon
+
+- `offer_room` trata sobre un hogar que ya existe;
+- por eso las reglas de convivencia y la ocupacion son datos de primer nivel;
+- y no deben mezclarse conceptualmente con rasgos que describen solo a la persona.
 
 ## Person fields vs home fields
 
@@ -180,6 +331,23 @@ This split must stay explicit in the UI and in storage.
 - `accepts_couples_home`
 - `accepts_students_home`
 - `accepts_workers_home`
+
+## Nota temporal de MVP sobre `lifestyle_tags`
+
+Durante MVP, `profiles.lifestyle_tags` puede usarse como mecanismo temporal para guardar rasgos estructurados de convivencia como:
+
+- smoker / non-smoker
+- has pet / no pet
+- household size
+- includes minor
+
+Pero esto debe tratarse como una estrategia temporal y controlada, no como un sistema abierto de tags libres sin gobierno.
+
+Regla:
+
+- los rasgos gestionados dentro de `lifestyle_tags` deben seguir una convencion controlada;
+- no deben mezclarse sin control con tags libres no relacionados;
+- y una futura limpieza deberia mantener clara la diferencia entre rasgos estructurados y etiquetado libre.
 
 ## Public profile structure
 
@@ -395,3 +563,19 @@ Implement phase 1 only:
 - and update the profile screen to render them cleanly.
 
 Do not redesign matching logic in the same step.
+
+## Implementation note for the current MVP phase
+
+Current phase:
+
+- document and consolidate the conceptual model only.
+
+Next phase:
+
+- adjust the UI of `EditProfileSheet` so `seek_room` and `seek_flatmate` are separated more clearly instead of sharing the same seeker block too loosely.
+
+Not part of the current phase:
+
+- no database changes yet;
+- no SQL changes yet;
+- no migration changes yet.
