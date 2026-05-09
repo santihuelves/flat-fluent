@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { motion } from 'framer-motion';
-import { User, Camera, MapPin, FileText, Edit2, CheckCircle, AlertCircle, Loader2, Home, Briefcase, Calendar, Wallet, Clock3, Images, ShieldCheck } from 'lucide-react';
+import { User, Camera, MapPin, FileText, Edit2, CheckCircle, AlertCircle, Loader2, Home, Briefcase, Calendar, Wallet, Clock3, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useTranslation } from 'react-i18next';
@@ -188,8 +188,10 @@ export default function Profile() {
   }
 
   const displayName = profile.display_name || profile.handle || authFallbackName || t('profile.noName');
-  const galleryPhotos = profile.photos?.filter((photo): photo is string => typeof photo === 'string' && photo.length > 0) ?? [];
-  const additionalPhotos = galleryPhotos.filter((photo) => photo !== profile.photo_url).slice(0, 1);
+  const primaryProfilePhoto =
+    profile.photos?.find((photo): photo is string => typeof photo === 'string' && photo.length > 0) ||
+    profile.photo_url ||
+    null;
   const hasPracticalDetails = Boolean(
     profile.autonomous_community ||
       profile.province_code ||
@@ -251,7 +253,7 @@ export default function Profile() {
     {
       key: 'occupation',
       icon: Briefcase,
-      label: 'Ocupacion',
+      label: 'Ocupación',
       value: profile.occupation,
     },
     {
@@ -269,7 +271,7 @@ export default function Profile() {
     {
       key: 'stay',
       icon: Clock3,
-      label: 'Estancia minima',
+      label: 'Estancia mínima',
       value: minStayLabel,
     },
   ].filter((item) => Boolean(item.value));
@@ -302,10 +304,10 @@ export default function Profile() {
             className="glass-card rounded-2xl overflow-hidden mb-6"
           >
             {/* Photo Section */}
-            {profile.photo_url ? (
+            {primaryProfilePhoto ? (
               <div className="relative aspect-video bg-muted">
                 <img 
-                  src={profile.photo_url} 
+                  src={primaryProfilePhoto} 
                   alt={profile.display_name || 'Profile'}
                   className="w-full h-full object-cover object-top"
                 />
@@ -346,27 +348,6 @@ export default function Profile() {
                 </div>
               </div>
 
-              {/* Photo Gallery */}
-              {additionalPhotos.length > 0 && (
-                <div>
-                  <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground mb-2">
-                    <Images className="h-4 w-4" />
-                    Fotos del perfil
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {additionalPhotos.map((photo, index) => (
-                      <div key={`${photo}-${index}`} className="aspect-[4/3] overflow-hidden rounded-xl bg-muted">
-                        <img
-                          src={photo}
-                          alt={`${displayName} ${index + 2}`}
-                          className="h-full w-full object-cover"
-                        />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
               {/* Languages */}
               {profile.languages && profile.languages.length > 0 && (
                 <div>
@@ -403,7 +384,7 @@ export default function Profile() {
               {hasPracticalDetails && (
                 <div className="space-y-4">
                   <div>
-                    <h3 className="text-sm font-semibold text-muted-foreground mb-2">Resumen practico</h3>
+                    <h3 className="text-sm font-semibold text-muted-foreground mb-2">Resumen práctico</h3>
                     <div className="grid gap-3 sm:grid-cols-2">
                       {infoCards.map(({ key, icon: Icon, label, value }) => (
                         <div key={key} className="rounded-xl border border-border/60 bg-background/70 p-4">
@@ -421,7 +402,7 @@ export default function Profile() {
                     <div className="rounded-xl border border-border/60 bg-background/70 p-4">
                       <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground mb-2">
                         <MapPin className="h-4 w-4" />
-                        Ubicacion
+                        Ubicación
                       </div>
                       <p className="text-sm font-medium text-foreground">{locationBits.join(' - ')}</p>
                     </div>

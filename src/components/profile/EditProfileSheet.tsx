@@ -15,7 +15,6 @@ import {
   AUTONOMOUS_COMMUNITIES,
   PROVINCES,
   LANGUAGE_OPTIONS,
-  PROFILE_PHOTO_LIMIT,
   MAX_DISPLAY_NAME_LENGTH,
   MAX_BIO_LENGTH,
   MIN_BIO_LENGTH,
@@ -40,6 +39,8 @@ import {
   SEEKER_GOAL_OPTIONS,
   YES_NO_OPTIONS,
 } from '@/lib/profileTraits';
+
+const PROFILE_PRIMARY_PHOTO_LIMIT = 1;
 
 type ProfileIntention = {
   intention_type: 'seek_room' | 'offer_room' | 'seek_flatmate';
@@ -142,12 +143,11 @@ const buildInitialFormData = (profile: ProfileData): FormState => {
     min_stay_months: profile.min_stay_months?.toString() || '',
     occupation: profile.occupation || '',
     languages: (profile.languages || []).map(normalizeLanguage),
-    photos: (profile.photos && profile.photos.length > 0
-      ? profile.photos
-      : profile.photo_url
-        ? [profile.photo_url]
-        : []
-    ).slice(0, PROFILE_PHOTO_LIMIT),
+    photos: (() => {
+      const firstValidPhoto = profile.photos?.find((photo): photo is string => typeof photo === 'string' && photo.length > 0);
+      const primaryPhoto = firstValidPhoto || profile.photo_url || null;
+      return primaryPhoto ? [primaryPhoto] : [];
+    })(),
     seek_room_goal: seekRoomDetails.seekerGoal,
     seek_room_accepts_smoking_home: seekRoomDetails.acceptsSmokingHome,
     seek_room_accepts_pets_home: seekRoomDetails.acceptsPetsHome,
@@ -189,10 +189,10 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (formData.photos.length >= PROFILE_PHOTO_LIMIT) {
+    if (formData.photos.length >= PROFILE_PRIMARY_PHOTO_LIMIT) {
       toast({
-        title: 'Limite alcanzado',
-        description: `Puedes subir un maximo de ${PROFILE_PHOTO_LIMIT} fotos al perfil.`,
+        title: 'Límite alcanzado',
+        description: 'Solo puedes tener una foto de perfil principal.',
         variant: 'destructive',
       });
       e.target.value = '';
@@ -222,7 +222,7 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
 
       setFormData((prev) => ({
         ...prev,
-        photos: [...prev.photos, publicUrl].slice(0, PROFILE_PHOTO_LIMIT),
+        photos: [publicUrl],
       }));
 
       toast({
@@ -280,11 +280,11 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
     }
 
     if (bio.length < MIN_BIO_LENGTH || bio.length > MAX_BIO_LENGTH) {
-      return `La seccion "Sobre ti y convivencia" debe tener entre ${MIN_BIO_LENGTH} y ${MAX_BIO_LENGTH} caracteres.`;
+      return `La sección "Sobre ti y convivencia" debe tener entre ${MIN_BIO_LENGTH} y ${MAX_BIO_LENGTH} caracteres.`;
     }
 
     if (!formData.autonomous_community) {
-      return 'Selecciona una comunidad autonoma.';
+      return 'Selecciona una comunidad autónoma.';
     }
 
     if (city.length < 2 || city.length > MAX_CITY_LENGTH) {
@@ -296,11 +296,11 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
     }
 
     if (!Number.isFinite(budgetMin) || !Number.isFinite(budgetMax) || budgetMin <= 0 || budgetMax <= 0) {
-      return 'Completa un presupuesto minimo y maximo validos.';
+      return 'Completa un presupuesto mínimo y máximo válidos.';
     }
 
     if (budgetMin > budgetMax || budgetMax > MAX_BUDGET) {
-      return 'Revisa el presupuesto: el minimo no puede superar al maximo.';
+      return 'Revisa el presupuesto: el mínimo no puede superar al máximo.';
     }
 
     if (!dateIsValid) {
@@ -308,7 +308,7 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
     }
 
     if (occupation.length > MAX_OCCUPATION_LENGTH) {
-      return `La ocupacion no puede superar ${MAX_OCCUPATION_LENGTH} caracteres.`;
+      return `La ocupación no puede superar ${MAX_OCCUPATION_LENGTH} caracteres.`;
     }
 
     if (formData.languages.length === 0) {
@@ -316,7 +316,7 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
     }
 
     if (!formData.min_stay_months) {
-      return 'Selecciona una estancia minima.';
+      return 'Selecciona una estancia mínima.';
     }
 
     return null;
@@ -339,7 +339,8 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
     const cleanProvince = formData.province_code.trim();
     const cleanOccupation = formData.occupation.trim();
     const cleanLanguages = formData.languages.map(normalizeLanguage);
-    const cleanPhotos = formData.photos.slice(0, PROFILE_PHOTO_LIMIT);
+    const cleanPrimaryPhoto = formData.photos.find((photo) => typeof photo === 'string' && photo.length > 0) || null;
+    const cleanPhotos = cleanPrimaryPhoto ? [cleanPrimaryPhoto] : [];
     const encodedLifestyleTags = encodeLivingTraits(profile.lifestyle_tags, {
       isSmoker: formData.is_smoker,
       hasPet: formData.has_pet,
@@ -458,13 +459,10 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
         <div className="space-y-6 py-6">
           <div className="space-y-3">
             <div className="flex items-center justify-between gap-3">
-              <Label>{t('profile.photo')}</Label>
-              <span className="text-xs text-muted-foreground">
-                {formData.photos.length}/{PROFILE_PHOTO_LIMIT}
-              </span>
+              <Label>Foto de perfil</Label>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3">
               {formData.photos.map((photo, index) => (
                 <div key={photo} className="relative aspect-[4/3] overflow-hidden rounded-xl border bg-muted">
                   <img src={photo} alt="" className="h-full w-full object-cover" />
@@ -483,7 +481,7 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
                 </div>
               ))}
 
-              {formData.photos.length < PROFILE_PHOTO_LIMIT && (
+              {formData.photos.length < PROFILE_PRIMARY_PHOTO_LIMIT && (
                 <label className="flex aspect-[4/3] cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-border bg-muted/30 transition-colors hover:border-primary">
                   <input
                     type="file"
@@ -497,7 +495,7 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
                   ) : (
                     <Camera className="mb-2 h-5 w-5 text-muted-foreground" />
                   )}
-                  <span className="text-sm text-muted-foreground">Anadir foto</span>
+                  <span className="text-sm text-muted-foreground">Añadir foto</span>
                 </label>
               )}
             </div>
@@ -526,19 +524,19 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
               value={formData.bio}
               maxLength={MAX_BIO_LENGTH}
               onChange={(e) => setFormData((prev) => ({ ...prev, bio: e.target.value }))}
-              placeholder="Cuentanos quien eres, como convives y que valoras en casa."
+              placeholder="Cuéntanos quién eres, cómo convives y qué valoras en casa."
               rows={5}
             />
           </div>
 
           <div className="space-y-3">
-            <Label>Ubicacion</Label>
+            <Label>Ubicación</Label>
             <Select
               value={formData.autonomous_community}
               onValueChange={(value) => setFormData((prev) => ({ ...prev, autonomous_community: value, province_code: '' }))}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Selecciona comunidad autonoma" />
+                <SelectValue placeholder="Selecciona comunidad autónoma" />
               </SelectTrigger>
               <SelectContent>
                 {AUTONOMOUS_COMMUNITIES.map((community) => (
@@ -577,7 +575,7 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
-              <Label>Presupuesto minimo</Label>
+              <Label>Presupuesto mínimo</Label>
               <Input
                 type="number"
                 min={1}
@@ -588,7 +586,7 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
               />
             </div>
             <div className="space-y-2">
-              <Label>Presupuesto maximo</Label>
+              <Label>Presupuesto máximo</Label>
               <Input
                 type="number"
                 min={1}
@@ -611,13 +609,13 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
               />
             </div>
             <div className="space-y-2">
-              <Label>Estancia minima</Label>
+              <Label>Estancia mínima</Label>
               <Select
                 value={formData.min_stay_months}
                 onValueChange={(value) => setFormData((prev) => ({ ...prev, min_stay_months: value }))}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Selecciona estancia" />
+                  <SelectValue placeholder="Selecciona estancia mínima" />
                 </SelectTrigger>
                 <SelectContent>
                   {MIN_STAY_OPTIONS.map((months) => (
@@ -631,7 +629,7 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
           </div>
 
           <div className="space-y-3">
-            <Label htmlFor="occupation">Ocupacion</Label>
+            <Label htmlFor="occupation">Ocupación</Label>
             <Input
               id="occupation"
               value={formData.occupation}
@@ -659,7 +657,7 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
 
           {hasSeekRoomIntention && (
             <div className="space-y-3 rounded-xl border border-border/60 p-4">
-              <Label>Busco habitacion</Label>
+              <Label>Busco habitación</Label>
               <div className="space-y-2">
                 <Label>Objetivo</Label>
                 <Select
@@ -740,7 +738,7 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
 
           {hasSeekFlatmateIntention && (
             <div className="space-y-3 rounded-xl border border-border/60 p-4">
-              <Label>Busco companero/a para alquilar juntos</Label>
+              <Label>Busco compañero/a para alquilar juntos</Label>
               <div className="space-y-2">
                 <Label>Objetivo</Label>
                 <Select

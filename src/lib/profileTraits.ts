@@ -31,20 +31,20 @@ export type OfferDetailsForm = {
 };
 
 export const YES_NO_OPTIONS = [
-  { value: 'yes', label: 'Si' },
+  { value: 'yes', label: 'Sí' },
   { value: 'no', label: 'No' },
 ] as const;
 
 export const HOUSEHOLD_SIZE_OPTIONS = [
   { value: 'solo', label: 'Voy solo' },
   { value: 'pair', label: 'Somos dos' },
-  { value: 'group_3_plus', label: 'Somos 3 o mas' },
+  { value: 'group_3_plus', label: 'Somos 3 o más' },
 ] as const;
 
 export const SEEKER_GOAL_OPTIONS = [
-  { value: 'need_room_now', label: 'Necesito habitacion ya' },
-  { value: 'want_flatmate_then_home', label: 'Quiero encontrar companero y luego piso' },
-  { value: 'open_to_both', label: 'Abierto a buscar habitacion o companero' },
+  { value: 'need_room_now', label: 'Necesito habitación ya' },
+  { value: 'want_flatmate_then_home', label: 'Quiero encontrar compañero y luego piso' },
+  { value: 'open_to_both', label: 'Abierto a buscar habitación o compañero' },
 ] as const;
 
 export const PROPERTY_CONTEXT_OPTIONS = [
