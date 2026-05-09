@@ -271,6 +271,7 @@ export type Database = {
           bills_included: boolean | null
           city: string | null
           created_at: string | null
+          details: Json
           description: string | null
           id: string
           listing_type: Database["public"]["Enums"]["convinter_listing_type"]
@@ -294,6 +295,7 @@ export type Database = {
           bills_included?: boolean | null
           city?: string | null
           created_at?: string | null
+          details?: Json
           description?: string | null
           id?: string
           listing_type?: Database["public"]["Enums"]["convinter_listing_type"]
@@ -317,6 +319,7 @@ export type Database = {
           bills_included?: boolean | null
           city?: string | null
           created_at?: string | null
+          details?: Json
           description?: string | null
           id?: string
           listing_type?: Database["public"]["Enums"]["convinter_listing_type"]
@@ -825,6 +828,7 @@ export type Database = {
           p_available_from?: string
           p_bills_included?: boolean
           p_city: string
+          p_details?: Json
           p_description: string
           p_listing_type: string
           p_min_stay_months?: number
@@ -1006,6 +1010,7 @@ export type Database = {
           p_available_from?: string
           p_bills_included?: boolean
           p_city?: string
+          p_details?: Json
           p_description?: string
           p_listing_id: string
           p_min_stay_months?: number
