@@ -494,12 +494,12 @@ export default function ListingDetail() {
                     {listing.listing_type === 'room' ? (
                       <>
                         <Home className="w-3 h-3 mr-1" />
-                        Ofrece habitación
+                        Habitación disponible
                       </>
                     ) : (
                       <>
                         <Users className="w-3 h-3 mr-1" />
-                        Busca habitación
+                        Busca compañero/a para alquilar juntos
                       </>
                     )}
                   </Badge>

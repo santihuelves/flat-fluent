@@ -1,7 +1,7 @@
 import { ChangeEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Home, Loader2, Search, Upload, Users, X } from 'lucide-react';
+import { ArrowLeft, Home, Loader2, Upload, Users, X } from 'lucide-react';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -22,8 +22,7 @@ const cities = [
 
 const listingTypes = [
   { value: 'offer_room', rpcType: 'room', label: 'Ofrezco habitación', icon: Home, description: 'Tengo una habitación disponible' },
-  { value: 'seek_room', rpcType: 'flatmate', label: 'Busco habitación', icon: Search, description: 'Busco una habitación para alquilar' },
-  { value: 'seek_roommate', rpcType: 'flatmate', label: 'Busco compañero/a', icon: Users, description: 'Busco alguien para alquilar juntos' },
+  { value: 'seek_flatmate', rpcType: 'flatmate', label: 'Busco compañero/a', icon: Users, description: 'Busco compañero/a para alquilar juntos' },
 ] as const;
 
 type ListingKind = typeof listingTypes[number]['value'];
@@ -88,6 +87,7 @@ export default function CreateListing() {
   });
 
   const selectedType = listingTypes.find((type) => type.value === formData.type);
+  const isFlatmateListing = selectedType?.rpcType === 'flatmate';
 
   const previews = useMemo(() => photoFiles.map((file) => ({
     file,
@@ -312,14 +312,14 @@ export default function CreateListing() {
         {step === 2 && (
           <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}>
             <h1 className="text-3xl font-bold mb-2">Información básica</h1>
-            <p className="text-muted-foreground mb-8">Cuéntanos más sobre tu anuncio</p>
+            <p className="text-muted-foreground mb-8">{isFlatmateListing ? 'Cuéntanos qué tipo de compañero/a buscas para alquilar juntos' : 'Cuéntanos más sobre tu habitación disponible'}</p>
 
             <div className="space-y-6">
               <div className="space-y-2">
                 <Label htmlFor="title">Título del anuncio</Label>
                 <Input
                   id="title"
-                  placeholder="Ej: Habitación luminosa en el centro"
+                  placeholder={isFlatmateListing ? 'Ej: Busco compañero/a tranquilo/a para alquilar juntos en Madrid' : 'Ej: Habitación luminosa en el centro'}
                   value={formData.title}
                   maxLength={TITLE_MAX_LENGTH}
                   onChange={(event) => setFormData({ ...formData, title: event.target.value })}
@@ -333,7 +333,7 @@ export default function CreateListing() {
                 <Label htmlFor="description">Descripción</Label>
                 <Textarea
                   id="description"
-                  placeholder="Describe el espacio, el ambiente del piso, qué buscas en un compañero/a..."
+                  placeholder={isFlatmateListing ? 'Describe qué tipo de convivencia buscas, presupuesto, zonas y tiempos para alquilar juntos...' : 'Describe el espacio, el ambiente del piso y qué buscas en la convivencia...'}
                   rows={5}
                   value={formData.description}
                   maxLength={DESCRIPTION_MAX_LENGTH}

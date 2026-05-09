@@ -201,7 +201,7 @@ export default function Listings() {
             <img src={image} alt={listing.title} className="w-full h-full object-cover" />
             <div className="absolute top-3 left-3 flex gap-2">
               <Badge variant={listing.listing_type === 'room' ? 'default' : 'secondary'} className="rounded-full">
-                {listing.listing_type === 'room' ? 'Ofrece habitación' : 'Busca habitación'}
+                {listing.listing_type === 'room' ? 'Habitación disponible' : 'Busca compañero/a para alquilar juntos'}
               </Badge>
               {listing.listing_verified && (
                 <Badge variant="outline" className="rounded-full bg-background/90">
@@ -263,7 +263,7 @@ export default function Listings() {
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-8">
           <div>
             <h1 className="text-3xl font-bold mb-2">Anuncios</h1>
-            <p className="text-muted-foreground">Habitaciones y personas buscando piso, desde Supabase.</p>
+            <p className="text-muted-foreground">Habitaciones disponibles y personas buscando compañero/a para alquilar juntos.</p>
           </div>
           <div className="flex flex-wrap gap-2">
             <Button asChild variant="outline" className="gap-2">

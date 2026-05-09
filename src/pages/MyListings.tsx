@@ -100,7 +100,7 @@ const formatUpdatedAt = (date: string | null) => {
 };
 
 const getListingTypeLabel = (listingType: Listing['listing_type']) => (
-  listingType === 'room' ? 'Habitacion' : 'Busca piso'
+  listingType === 'room' ? 'Habitacion disponible' : 'Busca companero/a para alquilar juntos'
 );
 
 const getListingImage = (listing: Listing) => {
