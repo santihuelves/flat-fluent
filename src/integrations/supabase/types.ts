@@ -272,6 +272,7 @@ export type Database = {
           city: string | null
           created_at: string | null
           description: string | null
+          details: Json
           id: string
           listing_type: Database["public"]["Enums"]["convinter_listing_type"]
           listing_verification_level: number | null
@@ -295,6 +296,7 @@ export type Database = {
           city?: string | null
           created_at?: string | null
           description?: string | null
+          details?: Json
           id?: string
           listing_type?: Database["public"]["Enums"]["convinter_listing_type"]
           listing_verification_level?: number | null
@@ -318,6 +320,7 @@ export type Database = {
           city?: string | null
           created_at?: string | null
           description?: string | null
+          details?: Json
           id?: string
           listing_type?: Database["public"]["Enums"]["convinter_listing_type"]
           listing_verification_level?: number | null
@@ -826,6 +829,7 @@ export type Database = {
           p_bills_included?: boolean
           p_city: string
           p_description: string
+          p_details?: Json
           p_listing_type: string
           p_min_stay_months?: number
           p_pets_allowed?: boolean
@@ -1007,6 +1011,7 @@ export type Database = {
           p_bills_included?: boolean
           p_city?: string
           p_description?: string
+          p_details?: Json
           p_listing_id: string
           p_min_stay_months?: number
           p_pets_allowed?: boolean
