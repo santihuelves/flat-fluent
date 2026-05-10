@@ -87,7 +87,8 @@ const cities = [
 const statusLabels: Record<string, string> = {
   active: 'Activo',
   paused: 'Pausado',
-  inactive: 'Pausado',
+  inactive: 'Legacy inactive',
+  deleted: 'Eliminado',
   draft: 'Borrador',
   pending: 'Pendiente',
 };
@@ -176,14 +177,13 @@ export default function MyListings() {
   const [searchQuery, setSearchQuery] = useState('');
 
   const activeCount = useMemo(() => listings.filter((listing) => listing.status === 'active').length, [listings]);
-  const pausedCount = useMemo(() => listings.filter((listing) => listing.status === 'paused' || listing.status === 'inactive').length, [listings]);
+  const pausedCount = useMemo(() => listings.filter((listing) => listing.status === 'paused').length, [listings]);
   const normalizedSearch = searchQuery.trim().toLowerCase();
   const visibleListings = useMemo(() => {
     const filtered = listings.filter((listing) => {
       const status = listing.status ?? '';
       const matchesStatus = statusFilter === 'all'
-        || status === statusFilter
-        || (statusFilter === 'paused' && status === 'inactive');
+        || status === statusFilter;
 
       if (!matchesStatus) return false;
       if (!normalizedSearch) return true;

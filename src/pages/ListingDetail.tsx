@@ -437,7 +437,8 @@ export default function ListingDetail() {
   const activePhoto = photos[Math.min(activePhotoIndex, photos.length - 1)] || '/placeholder.svg';
   const compatibilityReasons = compatibility?.breakdown?.reasons ?? [];
   const isOwner = currentUserId === owner.user_id;
-  const isListingPaused = listing.status !== 'active';
+  const isListingPaused = listing.status === 'paused';
+  const isListingDeleted = listing.status === 'deleted';
   const ownerAction = getOwnerAction();
   const OwnerActionIcon = ownerAction.icon;
   const roomDetails = normalizeRoomListingDetails(listing.details);
@@ -522,6 +523,11 @@ export default function ListingDetail() {
                       Pausado
                     </Badge>
                   )}
+                  {isListingDeleted && (
+                    <Badge variant="destructive" className="rounded-full">
+                      Eliminado
+                    </Badge>
+                  )}
                   {isOwner && (
                     <Badge variant="outline" className="rounded-full">
                       Tu anuncio
@@ -542,15 +548,17 @@ export default function ListingDetail() {
                 )}
               </motion.div>
 
-              {isOwner && isListingPaused && (
-                <Card className="border-amber-200 bg-amber-50 text-amber-950">
+              {isOwner && (isListingPaused || isListingDeleted) && (
+                <Card className={isListingDeleted ? 'border-rose-200 bg-rose-50 text-rose-950' : 'border-amber-200 bg-amber-50 text-amber-950'}>
                   <CardContent className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex gap-3">
                       <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0" />
                       <div>
-                        <h2 className="font-semibold">Este anuncio esta pausado</h2>
-                        <p className="text-sm text-amber-900">
-                          Solo tu puedes verlo. No aparece en busquedas publicas ni en listados de otros usuarios.
+                        <h2 className="font-semibold">{isListingDeleted ? 'Este anuncio esta eliminado' : 'Este anuncio esta pausado'}</h2>
+                        <p className={`text-sm ${isListingDeleted ? 'text-rose-900' : 'text-amber-900'}`}>
+                          {isListingDeleted
+                            ? 'Solo tu puedes verlo. No aparece en busquedas publicas y no se puede recuperar desde esta pantalla.'
+                            : 'Solo tu puedes verlo. No aparece en busquedas publicas ni en listados de otros usuarios.'}
                         </p>
                       </div>
                     </div>
