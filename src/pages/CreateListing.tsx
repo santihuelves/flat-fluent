@@ -474,12 +474,12 @@ export default function CreateListing() {
                 <div className="space-y-4 rounded-xl border border-border p-4">
                   <div>
                     <h2 className="font-semibold">Condiciones de convivencia</h2>
-                    <p className="text-sm text-muted-foreground">Estos detalles describen las normas concretas de esta habitacion.</p>
+                    <p className="text-sm text-muted-foreground">Estos detalles describen las normas concretas de esta habitación.</p>
                   </div>
 
                   <div className="grid sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label>Politica de visitas</Label>
+                      <Label>Política de visitas</Label>
                       <Select
                         value={formData.roomDetails.visitsPolicy}
                         onValueChange={(value) => setFormData({
@@ -488,7 +488,7 @@ export default function CreateListing() {
                         })}
                       >
                         <SelectTrigger>
-                          <SelectValue placeholder="Selecciona una opcion" />
+                          <SelectValue placeholder="Selecciona una opción" />
                         </SelectTrigger>
                         <SelectContent>
                           {visitsPolicyOptions.map((option) => (
@@ -499,7 +499,7 @@ export default function CreateListing() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label>{'\u00bfPara quien esta disponible la habitacion?'}</Label>
+                      <Label>{'\u00bfPara quién está disponible la habitación?'}</Label>
                       <Select
                         value={formData.roomDetails.occupancyPolicy}
                         onValueChange={(value) => setFormData({
@@ -508,7 +508,7 @@ export default function CreateListing() {
                         })}
                       >
                         <SelectTrigger>
-                          <SelectValue placeholder="Selecciona una opcion" />
+                          <SelectValue placeholder="Selecciona una opción" />
                         </SelectTrigger>
                         <SelectContent>
                           {occupancyPolicyOptions.map((option) => (
@@ -528,7 +528,7 @@ export default function CreateListing() {
                         })}
                       >
                         <SelectTrigger>
-                          <SelectValue placeholder="Selecciona una opcion" />
+                          <SelectValue placeholder="Selecciona una opción" />
                         </SelectTrigger>
                         <SelectContent>
                           {homeEnvironmentOptions.map((option) => (

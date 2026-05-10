@@ -19,7 +19,7 @@ export const occupancyPolicyOptions = [
   { value: 'single_only', label: 'Solo una persona' },
   { value: 'couple', label: 'Pareja' },
   { value: 'two_people', label: 'Dos personas' },
-  { value: 'to_agree', label: 'A valorar segun el caso' },
+  { value: 'to_agree', label: 'A valorar según el caso' },
 ] as const;
 
 const booleanOptions = new Set(['yes', 'no']);
@@ -205,7 +205,7 @@ export const getRoomListingDetailItems = (details: RoomListingDetails) => {
   }
 
   if (typeof details.owner_lives_here === 'boolean') {
-    items.push({ label: 'Propietario vive en la vivienda', value: details.owner_lives_here ? 'Si' : 'No' });
+    items.push({ label: 'Propietario vive en la vivienda', value: details.owner_lives_here ? 'Sí' : 'No' });
   }
 
   if (details.home_environment) {

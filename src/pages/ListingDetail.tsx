@@ -554,11 +554,11 @@ export default function ListingDetail() {
                     <div className="flex gap-3">
                       <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0" />
                       <div>
-                        <h2 className="font-semibold">{isListingDeleted ? 'Este anuncio esta eliminado' : 'Este anuncio esta pausado'}</h2>
+                        <h2 className="font-semibold">{isListingDeleted ? 'Este anuncio está eliminado' : 'Este anuncio está pausado'}</h2>
                         <p className={`text-sm ${isListingDeleted ? 'text-rose-900' : 'text-amber-900'}`}>
                           {isListingDeleted
-                            ? 'Solo tu puedes verlo. No aparece en busquedas publicas y no se puede recuperar desde esta pantalla.'
-                            : 'Solo tu puedes verlo. No aparece en busquedas publicas ni en listados de otros usuarios.'}
+                            ? 'Solo tú puedes verlo. No aparece en búsquedas públicas y no se puede recuperar desde esta pantalla.'
+                            : 'Solo tú puedes verlo. No aparece en búsquedas públicas ni en listados de otros usuarios.'}
                         </p>
                       </div>
                     </div>

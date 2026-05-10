@@ -307,22 +307,22 @@ export default function MyListings() {
     const description = editForm.description.trim();
 
     if (title.length < TITLE_MIN_LENGTH) {
-      toast.error(`El titulo debe tener al menos ${TITLE_MIN_LENGTH} caracteres`);
+      toast.error(`El título debe tener al menos ${TITLE_MIN_LENGTH} caracteres`);
       return false;
     }
 
     if (title.length > TITLE_MAX_LENGTH) {
-      toast.error(`El titulo no puede superar ${TITLE_MAX_LENGTH} caracteres`);
+      toast.error(`El título no puede superar ${TITLE_MAX_LENGTH} caracteres`);
       return false;
     }
 
     if (description.length < DESCRIPTION_MIN_LENGTH) {
-      toast.error(`La descripcion debe tener al menos ${DESCRIPTION_MIN_LENGTH} caracteres`);
+      toast.error(`La descripción debe tener al menos ${DESCRIPTION_MIN_LENGTH} caracteres`);
       return false;
     }
 
     if (description.length > DESCRIPTION_MAX_LENGTH) {
-      toast.error(`La descripcion no puede superar ${DESCRIPTION_MAX_LENGTH} caracteres`);
+      toast.error(`La descripción no puede superar ${DESCRIPTION_MAX_LENGTH} caracteres`);
       return false;
     }
 
@@ -551,7 +551,7 @@ export default function MyListings() {
               <Input
                 value={searchQuery}
                 onChange={(event) => setSearchQuery(event.target.value)}
-                placeholder="Buscar por titulo, ciudad o descripcion"
+                placeholder="Buscar por título, ciudad o descripción"
                 className="w-full sm:w-80"
               />
             </div>
@@ -699,7 +699,7 @@ export default function MyListings() {
           {editForm && (
             <div className="space-y-5">
               <div className="space-y-2">
-                <Label htmlFor="listing-title">Titulo</Label>
+                <Label htmlFor="listing-title">Título</Label>
                 <Input
                   id="listing-title"
                   value={editForm.title}
@@ -713,7 +713,7 @@ export default function MyListings() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="listing-description">Descripcion</Label>
+                <Label htmlFor="listing-description">Descripción</Label>
                 <Textarea
                   id="listing-description"
                   rows={5}
@@ -778,7 +778,7 @@ export default function MyListings() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="listing-min-stay">Estancia minima</Label>
+                  <Label htmlFor="listing-min-stay">Estancia mínima</Label>
                   <Select value={editForm.minStay} onValueChange={(value) => setEditForm({ ...editForm, minStay: value })} disabled={saving}>
                     <SelectTrigger id="listing-min-stay">
                       <SelectValue placeholder="Sin minimo" />
@@ -799,11 +799,11 @@ export default function MyListings() {
                   <Switch checked={editForm.billsIncluded} onCheckedChange={(checked) => setEditForm({ ...editForm, billsIncluded: checked })} disabled={saving} />
                 </div>
                 <div className="flex items-center justify-between rounded-lg border border-border p-3">
-                  <Label>Fumar</Label>
+                  <Label>Permite fumar</Label>
                   <Switch checked={editForm.smokingAllowed} onCheckedChange={(checked) => setEditForm({ ...editForm, smokingAllowed: checked })} disabled={saving} />
                 </div>
                 <div className="flex items-center justify-between rounded-lg border border-border p-3">
-                  <Label>Mascotas</Label>
+                  <Label>Permite mascotas</Label>
                   <Switch checked={editForm.petsAllowed} onCheckedChange={(checked) => setEditForm({ ...editForm, petsAllowed: checked })} disabled={saving} />
                 </div>
               </div>
@@ -812,12 +812,12 @@ export default function MyListings() {
                 <div className="space-y-4 rounded-xl border border-border p-4">
                   <div>
                     <h3 className="font-semibold">Condiciones de convivencia</h3>
-                    <p className="text-sm text-muted-foreground">Edita las normas concretas de esta habitacion anunciada.</p>
+                    <p className="text-sm text-muted-foreground">Edita las normas concretas de esta habitación anunciada.</p>
                   </div>
 
                   <div className="grid sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label>Politica de visitas</Label>
+                      <Label>Política de visitas</Label>
                       <Select
                         value={editForm.roomDetails.visitsPolicy}
                         onValueChange={(value) => setEditForm({
@@ -827,7 +827,7 @@ export default function MyListings() {
                         disabled={saving}
                       >
                         <SelectTrigger>
-                          <SelectValue placeholder="Selecciona una opcion" />
+                          <SelectValue placeholder="Selecciona una opción" />
                         </SelectTrigger>
                         <SelectContent>
                           {visitsPolicyOptions.map((option) => (
@@ -838,7 +838,7 @@ export default function MyListings() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label>{'\u00bfPara quien esta disponible la habitacion?'}</Label>
+                      <Label>{'\u00bfPara quién está disponible la habitación?'}</Label>
                       <Select
                         value={editForm.roomDetails.occupancyPolicy}
                         onValueChange={(value) => setEditForm({
@@ -848,7 +848,7 @@ export default function MyListings() {
                         disabled={saving}
                       >
                         <SelectTrigger>
-                          <SelectValue placeholder="Selecciona una opcion" />
+                          <SelectValue placeholder="Selecciona una opción" />
                         </SelectTrigger>
                         <SelectContent>
                           {occupancyPolicyOptions.map((option) => (
@@ -869,7 +869,7 @@ export default function MyListings() {
                         disabled={saving}
                       >
                         <SelectTrigger>
-                          <SelectValue placeholder="Selecciona una opcion" />
+                          <SelectValue placeholder="Selecciona una opción" />
                         </SelectTrigger>
                         <SelectContent>
                           {homeEnvironmentOptions.map((option) => (
@@ -893,7 +893,7 @@ export default function MyListings() {
                           <SelectValue placeholder="Sin especificar" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="yes">Si</SelectItem>
+                          <SelectItem value="yes">Sí</SelectItem>
                           <SelectItem value="no">No</SelectItem>
                         </SelectContent>
                       </Select>
@@ -913,7 +913,7 @@ export default function MyListings() {
                           <SelectValue placeholder="Sin especificar" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="yes">Si</SelectItem>
+                          <SelectItem value="yes">Sí</SelectItem>
                           <SelectItem value="no">No</SelectItem>
                         </SelectContent>
                       </Select>
@@ -1000,7 +1000,7 @@ export default function MyListings() {
                   </div>
                 ) : (
                   <div className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-                    Este anuncio aun no tiene fotos.
+                    Este anuncio aún no tiene fotos.
                   </div>
                 )}
 
@@ -1012,7 +1012,7 @@ export default function MyListings() {
                   disabled={saving || editForm.photos.length + newPhotoFiles.length >= 8}
                 >
                   <Upload className="h-4 w-4" />
-                  Anadir fotos
+                  Añadir fotos
                 </Button>
               </div>
             </div>
@@ -1036,8 +1036,8 @@ export default function MyListings() {
             </AlertDialogTitle>
             <AlertDialogDescription>
               {pendingAction?.status === 'active'
-                ? 'El anuncio volvera a mostrarse en las busquedas publicas.'
-                : 'El anuncio dejara de mostrarse en las busquedas publicas, pero podras reactivarlo despues.'}
+                ? 'El anuncio volverá a mostrarse en las búsquedas públicas.'
+                : 'El anuncio dejará de mostrarse en las búsquedas públicas, pero podrás reactivarlo después.'}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
