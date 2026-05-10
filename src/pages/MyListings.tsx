@@ -30,6 +30,7 @@ import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/integrations/supabase/client';
 import type { Tables } from '@/integrations/supabase/types';
+import { buildRoomListingDetailsFromForm, roomListingDetailsFormFromDetails, homeEnvironmentOptions, occupancyPolicyOptions, visitsPolicyOptions, type RoomListingDetailsForm } from '@/lib/listingDetails';
 import { toast } from 'sonner';
 import { useSEO } from '@/hooks/useSEO';
 
@@ -49,6 +50,7 @@ type EditForm = {
   title: string;
   description: string;
   city: string;
+  neighborhood: string;
   price: string;
   availableFrom: string;
   minStay: string;
@@ -56,6 +58,7 @@ type EditForm = {
   smokingAllowed: boolean;
   petsAllowed: boolean;
   photos: string[];
+  roomDetails: RoomListingDetailsForm;
 };
 
 type ListingStatusFilter = 'all' | 'active' | 'paused';
@@ -118,18 +121,41 @@ const getErrorMessage = (code?: string) => {
   return 'No se pudo actualizar el anuncio.';
 };
 
-const toEditForm = (listing: Listing): EditForm => ({
-  title: listing.title,
-  description: listing.description ?? '',
-  city: listing.city ?? '',
-  price: listing.price_monthly?.toString() ?? '',
-  availableFrom: listing.available_from ?? '',
-  minStay: listing.min_stay_months?.toString() ?? '',
-  billsIncluded: Boolean(listing.bills_included),
-  smokingAllowed: Boolean(listing.smoking_allowed),
-  petsAllowed: Boolean(listing.pets_allowed),
-  photos: listing.photos ?? [],
-});
+const LEGACY_NEIGHBORHOOD_PATTERN = /\n*\s*Barrio\/Zona:\s*(.+?)\s*$/i;
+
+const extractLegacyNeighborhood = (description: string | null | undefined) => {
+  if (!description) return { cleanDescription: '', neighborhood: '' };
+
+  const match = description.match(LEGACY_NEIGHBORHOOD_PATTERN);
+  if (!match) {
+    return { cleanDescription: description, neighborhood: '' };
+  }
+
+  return {
+    cleanDescription: description.replace(LEGACY_NEIGHBORHOOD_PATTERN, '').trimEnd(),
+    neighborhood: match[1].trim(),
+  };
+};
+
+const toEditForm = (listing: Listing): EditForm => {
+  const roomDetails = roomListingDetailsFormFromDetails(listing.details);
+  const { cleanDescription, neighborhood: legacyNeighborhood } = extractLegacyNeighborhood(listing.description);
+
+  return {
+    title: listing.title,
+    description: cleanDescription,
+    city: listing.city ?? '',
+    neighborhood: roomDetails.neighborhood || legacyNeighborhood,
+    price: listing.price_monthly?.toString() ?? '',
+    availableFrom: listing.available_from ?? '',
+    minStay: listing.min_stay_months?.toString() ?? '',
+    billsIncluded: Boolean(listing.bills_included),
+    smokingAllowed: Boolean(listing.smoking_allowed),
+    petsAllowed: Boolean(listing.pets_allowed),
+    photos: listing.photos ?? [],
+    roomDetails,
+  };
+};
 
 const sanitizeFileName = (name: string) => name.toLowerCase().replace(/[^a-z0-9.]+/g, '-');
 
@@ -188,6 +214,7 @@ export default function MyListings() {
     file,
     url: URL.createObjectURL(file),
   })), [newPhotoFiles]);
+  const isEditingRoomListing = editingListing?.listing_type === 'room';
 
   useEffect(() => () => {
     photoPreviews.forEach((preview) => URL.revokeObjectURL(preview.url));
@@ -322,6 +349,15 @@ export default function MyListings() {
       }
     }
 
+    const currentHouseholdCount = editForm.roomDetails.currentHouseholdCount.trim();
+    if (currentHouseholdCount) {
+      const count = Number(currentHouseholdCount);
+      if (!Number.isInteger(count) || count < 0) {
+        toast.error('Indica un numero valido de personas viviendo actualmente');
+        return false;
+      }
+    }
+
     return true;
   };
 
@@ -363,6 +399,12 @@ export default function MyListings() {
 
       const uploadedPhotos = await uploadPhotos(user.id);
       const photos = [...editForm.photos, ...uploadedPhotos];
+      const roomDetails = editingListing.listing_type === 'room'
+        ? buildRoomListingDetailsFromForm({
+            ...editForm.roomDetails,
+            neighborhood: editForm.neighborhood,
+          })
+        : undefined;
 
       const { data, error } = await supabase.rpc('convinter_update_listing', {
         p_listing_id: editingListing.id,
@@ -376,6 +418,7 @@ export default function MyListings() {
         p_smoking_allowed: editForm.smokingAllowed,
         p_pets_allowed: editForm.petsAllowed,
         p_photos: photos,
+        p_details: roomDetails,
       });
 
       if (error) throw error;
@@ -700,6 +743,16 @@ export default function MyListings() {
                 </div>
 
                 <div className="space-y-2">
+                  <Label htmlFor="listing-neighborhood">Barrio o zona</Label>
+                  <Input
+                    id="listing-neighborhood"
+                    value={editForm.neighborhood}
+                    onChange={(event) => setEditForm({ ...editForm, neighborhood: event.target.value })}
+                    disabled={saving}
+                  />
+                </div>
+
+                <div className="space-y-2">
                   <Label htmlFor="listing-price">Precio mensual</Label>
                   <Input
                     id="listing-price"
@@ -754,6 +807,136 @@ export default function MyListings() {
                   <Switch checked={editForm.petsAllowed} onCheckedChange={(checked) => setEditForm({ ...editForm, petsAllowed: checked })} disabled={saving} />
                 </div>
               </div>
+
+              {isEditingRoomListing && (
+                <div className="space-y-4 rounded-xl border border-border p-4">
+                  <div>
+                    <h3 className="font-semibold">Condiciones de convivencia</h3>
+                    <p className="text-sm text-muted-foreground">Edita las normas concretas de esta habitacion anunciada.</p>
+                  </div>
+
+                  <div className="grid sm:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Politica de visitas</Label>
+                      <Select
+                        value={editForm.roomDetails.visitsPolicy}
+                        onValueChange={(value) => setEditForm({
+                          ...editForm,
+                          roomDetails: { ...editForm.roomDetails, visitsPolicy: value },
+                        })}
+                        disabled={saving}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecciona una opcion" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {visitsPolicyOptions.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>¿Para quien esta disponible la habitacion?</Label>
+                      <Select
+                        value={editForm.roomDetails.occupancyPolicy}
+                        onValueChange={(value) => setEditForm({
+                          ...editForm,
+                          roomDetails: { ...editForm.roomDetails, occupancyPolicy: value },
+                        })}
+                        disabled={saving}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecciona una opcion" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {occupancyPolicyOptions.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Ambiente del piso</Label>
+                      <Select
+                        value={editForm.roomDetails.homeEnvironment}
+                        onValueChange={(value) => setEditForm({
+                          ...editForm,
+                          roomDetails: { ...editForm.roomDetails, homeEnvironment: value },
+                        })}
+                        disabled={saving}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecciona una opcion" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {homeEnvironmentOptions.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Acepta menores</Label>
+                      <Select
+                        value={editForm.roomDetails.allowsMinors}
+                        onValueChange={(value) => setEditForm({
+                          ...editForm,
+                          roomDetails: { ...editForm.roomDetails, allowsMinors: value as RoomListingDetailsForm['allowsMinors'] },
+                        })}
+                        disabled={saving}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Sin especificar" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="yes">Si</SelectItem>
+                          <SelectItem value="no">No</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Propietario vive en la vivienda</Label>
+                      <Select
+                        value={editForm.roomDetails.ownerLivesHere}
+                        onValueChange={(value) => setEditForm({
+                          ...editForm,
+                          roomDetails: { ...editForm.roomDetails, ownerLivesHere: value as RoomListingDetailsForm['ownerLivesHere'] },
+                        })}
+                        disabled={saving}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Sin especificar" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="yes">Si</SelectItem>
+                          <SelectItem value="no">No</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="listing-household-count">Personas viviendo actualmente</Label>
+                      <Input
+                        id="listing-household-count"
+                        type="number"
+                        min="0"
+                        step="1"
+                        value={editForm.roomDetails.currentHouseholdCount}
+                        onChange={(event) => setEditForm({
+                          ...editForm,
+                          roomDetails: { ...editForm.roomDetails, currentHouseholdCount: event.target.value },
+                        })}
+                        disabled={saving}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div className="space-y-3">
                 <div className="flex items-center justify-between gap-3">

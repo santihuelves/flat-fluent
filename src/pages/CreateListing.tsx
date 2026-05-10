@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/integrations/supabase/client';
+import { buildRoomListingDetailsFromForm, emptyRoomListingDetailsForm, homeEnvironmentOptions, occupancyPolicyOptions, visitsPolicyOptions, type RoomListingDetailsForm } from '@/lib/listingDetails';
 import { toast } from 'sonner';
 import { useSEO } from '@/hooks/useSEO';
 
@@ -45,6 +46,7 @@ type FormData = {
   minStay: string;
   smokingAllowed: boolean;
   petsAllowed: boolean;
+  roomDetails: RoomListingDetailsForm;
 };
 
 type CreateListingResponse = {
@@ -84,6 +86,7 @@ export default function CreateListing() {
     minStay: '6',
     smokingAllowed: false,
     petsAllowed: false,
+    roomDetails: emptyRoomListingDetailsForm(),
   });
 
   const selectedType = listingTypes.find((type) => type.value === formData.type);
@@ -99,7 +102,14 @@ export default function CreateListing() {
   }, [previews]);
 
   const handleTypeSelect = (type: ListingKind) => {
-    setFormData({ ...formData, type });
+    setFormData({
+      ...formData,
+      type,
+      roomDetails: {
+        ...formData.roomDetails,
+        neighborhood: formData.neighborhood,
+      },
+    });
     setStep(2);
   };
 
@@ -181,6 +191,15 @@ export default function CreateListing() {
       }
     }
 
+    const currentHouseholdCount = formData.roomDetails.currentHouseholdCount.trim();
+    if (currentHouseholdCount) {
+      const count = Number(currentHouseholdCount);
+      if (!Number.isInteger(count) || count < 0) {
+        toast.error('Indica un numero valido de personas viviendo actualmente');
+        return false;
+      }
+    }
+
     return true;
   };
 
@@ -221,14 +240,17 @@ export default function CreateListing() {
       }
 
       const photos = await uploadPhotos(user.id);
-      const description = formData.neighborhood.trim()
-        ? `${formData.description.trim()}\n\nBarrio/Zona: ${formData.neighborhood.trim()}`
-        : formData.description.trim();
+      const details = selectedType.rpcType === 'room'
+        ? buildRoomListingDetailsFromForm({
+            ...formData.roomDetails,
+            neighborhood: formData.neighborhood,
+          })
+        : {};
 
       const { data, error } = await supabase.rpc('convinter_create_listing', {
         p_listing_type: selectedType.rpcType,
         p_title: formData.title.trim(),
-        p_description: description,
+        p_description: formData.description.trim(),
         p_city: formData.city,
         p_province_code: null,
         p_price_monthly: formData.price ? Number(formData.price) : null,
@@ -238,6 +260,7 @@ export default function CreateListing() {
         p_smoking_allowed: formData.smokingAllowed,
         p_pets_allowed: formData.petsAllowed,
         p_photos: photos.length > 0 ? photos : null,
+        p_details: details,
       });
 
       if (error) throw error;
@@ -446,6 +469,133 @@ export default function CreateListing() {
                   <Switch checked={formData.petsAllowed} onCheckedChange={(checked) => setFormData({ ...formData, petsAllowed: checked })} />
                 </div>
               </div>
+
+              {!isFlatmateListing && (
+                <div className="space-y-4 rounded-xl border border-border p-4">
+                  <div>
+                    <h2 className="font-semibold">Condiciones de convivencia</h2>
+                    <p className="text-sm text-muted-foreground">Estos detalles describen las normas concretas de esta habitacion.</p>
+                  </div>
+
+                  <div className="grid sm:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Politica de visitas</Label>
+                      <Select
+                        value={formData.roomDetails.visitsPolicy}
+                        onValueChange={(value) => setFormData({
+                          ...formData,
+                          roomDetails: { ...formData.roomDetails, visitsPolicy: value },
+                        })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecciona una opcion" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {visitsPolicyOptions.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>¿Para quien esta disponible la habitacion?</Label>
+                      <Select
+                        value={formData.roomDetails.occupancyPolicy}
+                        onValueChange={(value) => setFormData({
+                          ...formData,
+                          roomDetails: { ...formData.roomDetails, occupancyPolicy: value },
+                        })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecciona una opcion" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {occupancyPolicyOptions.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Ambiente del piso</Label>
+                      <Select
+                        value={formData.roomDetails.homeEnvironment}
+                        onValueChange={(value) => setFormData({
+                          ...formData,
+                          roomDetails: { ...formData.roomDetails, homeEnvironment: value },
+                        })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecciona una opcion" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {homeEnvironmentOptions.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div className="grid sm:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Acepta menores</Label>
+                      <Select
+                        value={formData.roomDetails.allowsMinors}
+                        onValueChange={(value) => setFormData({
+                          ...formData,
+                          roomDetails: { ...formData.roomDetails, allowsMinors: value as RoomListingDetailsForm['allowsMinors'] },
+                        })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Sin especificar" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="yes">Si</SelectItem>
+                          <SelectItem value="no">No</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Propietario vive en la vivienda</Label>
+                      <Select
+                        value={formData.roomDetails.ownerLivesHere}
+                        onValueChange={(value) => setFormData({
+                          ...formData,
+                          roomDetails: { ...formData.roomDetails, ownerLivesHere: value as RoomListingDetailsForm['ownerLivesHere'] },
+                        })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Sin especificar" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="yes">Si</SelectItem>
+                          <SelectItem value="no">No</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="currentHouseholdCount">Personas viviendo actualmente</Label>
+                    <Input
+                      id="currentHouseholdCount"
+                      type="number"
+                      min="0"
+                      step="1"
+                      placeholder="Ej: 2"
+                      value={formData.roomDetails.currentHouseholdCount}
+                      onChange={(event) => setFormData({
+                        ...formData,
+                        roomDetails: { ...formData.roomDetails, currentHouseholdCount: event.target.value },
+                      })}
+                    />
+                  </div>
+                </div>
+              )}
 
               <div className="space-y-3">
                 <Label>Fotos</Label>

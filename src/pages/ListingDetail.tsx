@@ -10,6 +10,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { SafetyActions } from '@/components/SafetyActions';
 import { supabase } from '@/integrations/supabase/client';
+import type { Json } from '@/integrations/supabase/types';
+import { getRoomListingDetailItems, normalizeRoomListingDetails } from '@/lib/listingDetails';
 import { toast } from 'sonner';
 import { useSEO } from '@/hooks/useSEO';
 
@@ -31,6 +33,7 @@ type ListingDetailData = {
   pets_allowed: boolean | null;
   thumbnail_url: string | null;
   photos?: string[] | null;
+  details?: Json | null;
   listing_verified: boolean | null;
   listing_verified_at: string | null;
   listing_verification_level: number | null;
@@ -437,6 +440,11 @@ export default function ListingDetail() {
   const isListingPaused = listing.status !== 'active';
   const ownerAction = getOwnerAction();
   const OwnerActionIcon = ownerAction.icon;
+  const roomDetails = normalizeRoomListingDetails(listing.details);
+  const roomDetailItems = listing.listing_type === 'room'
+    ? getRoomListingDetailItems(roomDetails)
+    : [];
+  const descriptionWithoutLegacyNeighborhood = (listing.description ?? '').replace(/\n*\s*Barrio\/Zona:\s*(.+?)\s*$/i, '').trimEnd();
 
   return (
     <Layout>
@@ -526,6 +534,12 @@ export default function ListingDetail() {
                   <MapPin className="w-4 h-4" />
                   <span>{listing.city || 'Ciudad no indicada'}{listing.province_code ? `, ${listing.province_code}` : ''}</span>
                 </div>
+                {roomDetails.neighborhood && (
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <MapPin className="w-4 h-4" />
+                    <span>Barrio/Zona: {roomDetails.neighborhood}</span>
+                  </div>
+                )}
               </motion.div>
 
               {isOwner && isListingPaused && (
@@ -582,7 +596,7 @@ export default function ListingDetail() {
                 <CardContent className="p-6">
                   <h2 className="text-xl font-semibold mb-4">Descripción</h2>
                   <p className="text-muted-foreground leading-relaxed">
-                    {listing.description || 'Este anuncio todavía no tiene descripción.'}
+                    {descriptionWithoutLegacyNeighborhood || 'Este anuncio todavía no tiene descripción.'}
                   </p>
                 </CardContent>
               </Card>
@@ -602,6 +616,22 @@ export default function ListingDetail() {
                   </div>
                 </CardContent>
               </Card>
+
+              {roomDetailItems.length > 0 && (
+                <Card>
+                  <CardContent className="p-6">
+                    <h2 className="text-xl font-semibold mb-4">Condiciones de convivencia</h2>
+                    <div className="grid sm:grid-cols-2 gap-3">
+                      {roomDetailItems.map((item) => (
+                        <div key={item.label} className="rounded-lg border border-border p-4">
+                          <p className="text-sm text-muted-foreground">{item.label}</p>
+                          <p className="font-medium">{item.value}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
             </div>
 
             <div className="lg:col-span-1">
