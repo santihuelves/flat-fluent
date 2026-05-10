@@ -108,10 +108,10 @@ const getListingPhotos = (listing: ListingDetailData) => {
 };
 
 const getErrorMessage = (code?: string) => {
-  if (code === 'NOT_AUTHENTICATED') return 'Inicia sesión para ver este anuncio.';
+  if (code === 'NOT_AUTHENTICATED') return 'Inicia sesi\u00f3n para ver este anuncio.';
   if (code === 'NOT_FOUND') return 'Este anuncio no existe.';
-  if (code === 'NOT_AVAILABLE') return 'Este anuncio ya no está disponible.';
-  if (code === 'HIDDEN') return 'Este anuncio no está disponible públicamente.';
+  if (code === 'NOT_AVAILABLE') return 'Este anuncio ya no est\u00e1 disponible.';
+  if (code === 'HIDDEN') return 'Este anuncio no est\u00e1 disponible p\u00fablicamente.';
   return 'No se pudo cargar el anuncio.';
 };
 
@@ -503,12 +503,12 @@ export default function ListingDetail() {
                     {listing.listing_type === 'room' ? (
                       <>
                         <Home className="w-3 h-3 mr-1" />
-                        Habitación disponible
+                        Habitaci\u00f3n disponible
                       </>
                     ) : (
                       <>
                         <Users className="w-3 h-3 mr-1" />
-                        Busca compañero/a para alquilar juntos
+                        Busca compa\u00f1ero/a para alquilar juntos
                       </>
                     )}
                   </Badge>
@@ -574,7 +574,7 @@ export default function ListingDetail() {
                   <CardContent className="p-4">
                     <Euro className="w-5 h-5 text-primary mb-2" />
                     <p className="text-sm text-muted-foreground">Precio</p>
-                    <p className="font-semibold">{listing.price_monthly ? `${listing.price_monthly}€/mes` : 'A consultar'}</p>
+                    <p className="font-semibold">{listing.price_monthly ? `${listing.price_monthly}\u20ac/mes` : 'A consultar'}</p>
                   </CardContent>
                 </Card>
                 <Card>
@@ -587,7 +587,7 @@ export default function ListingDetail() {
                 <Card>
                   <CardContent className="p-4">
                     <Clock className="w-5 h-5 text-primary mb-2" />
-                    <p className="text-sm text-muted-foreground">Estancia mínima</p>
+                    <p className="text-sm text-muted-foreground">Estancia m\u00ednima</p>
                     <p className="font-semibold">{listing.min_stay_months ? `${listing.min_stay_months} meses` : 'Flexible'}</p>
                   </CardContent>
                 </Card>
@@ -602,9 +602,9 @@ export default function ListingDetail() {
 
               <Card>
                 <CardContent className="p-6">
-                  <h2 className="text-xl font-semibold mb-4">Descripción</h2>
+                  <h2 className="text-xl font-semibold mb-4">Descripci\u00f3n</h2>
                   <p className="text-muted-foreground leading-relaxed">
-                    {descriptionWithoutLegacyNeighborhood || 'Este anuncio todavía no tiene descripción.'}
+                    {descriptionWithoutLegacyNeighborhood || 'Este anuncio todav\u00eda no tiene descripci\u00f3n.'}
                   </p>
                 </CardContent>
               </Card>

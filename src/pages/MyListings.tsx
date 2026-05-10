@@ -838,7 +838,7 @@ export default function MyListings() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label>¿Para quien esta disponible la habitacion?</Label>
+                      <Label>{'\u00bfPara quien esta disponible la habitacion?'}</Label>
                       <Select
                         value={editForm.roomDetails.occupancyPolicy}
                         onValueChange={(value) => setEditForm({

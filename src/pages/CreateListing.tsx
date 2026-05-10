@@ -17,13 +17,13 @@ import { useSEO } from '@/hooks/useSEO';
 
 const cities = [
   'Madrid', 'Barcelona', 'Valencia', 'Sevilla', 'Bilbao',
-  'Zaragoza', 'Málaga', 'Granada', 'San Sebastián', 'Alicante',
-  'A Coruña', 'Palma de Mallorca'
+  'Zaragoza', 'M\u00e1laga', 'Granada', 'San Sebasti\u00e1n', 'Alicante',
+  'A Coru\u00f1a', 'Palma de Mallorca'
 ];
 
 const listingTypes = [
-  { value: 'offer_room', rpcType: 'room', label: 'Ofrezco habitación', icon: Home, description: 'Tengo una habitación disponible' },
-  { value: 'seek_flatmate', rpcType: 'flatmate', label: 'Busco compañero/a', icon: Users, description: 'Busco compañero/a para alquilar juntos' },
+  { value: 'offer_room', rpcType: 'room', label: 'Ofrezco habitaci\u00f3n', icon: Home, description: 'Tengo una habitaci\u00f3n disponible' },
+  { value: 'seek_flatmate', rpcType: 'flatmate', label: 'Busco compa\u00f1ero/a', icon: Users, description: 'Busco compa\u00f1ero/a para alquilar juntos' },
 ] as const;
 
 type ListingKind = typeof listingTypes[number]['value'];
@@ -56,11 +56,11 @@ type CreateListingResponse = {
 };
 
 const getCreateErrorMessage = (code?: string) => {
-  if (code === 'NOT_AUTHENTICATED') return 'Inicia sesión para publicar anuncios.';
-  if (code === 'TITLE_REQUIRED') return 'El título es obligatorio.';
-  if (code === 'TITLE_TOO_SHORT') return 'El título debe tener al menos 10 caracteres.';
-  if (code === 'DESCRIPTION_TOO_SHORT') return 'La descripción debe tener al menos 20 caracteres.';
-  if (code === 'INVALID_LISTING_TYPE') return 'Tipo de anuncio no válido.';
+  if (code === 'NOT_AUTHENTICATED') return 'Inicia sesi\u00f3n para publicar anuncios.';
+  if (code === 'TITLE_REQUIRED') return 'El t\u00edtulo es obligatorio.';
+  if (code === 'TITLE_TOO_SHORT') return 'El t\u00edtulo debe tener al menos 10 caracteres.';
+  if (code === 'DESCRIPTION_TOO_SHORT') return 'La descripci\u00f3n debe tener al menos 20 caracteres.';
+  if (code === 'INVALID_LISTING_TYPE') return 'Tipo de anuncio no v\u00e1lido.';
   return 'No se pudo crear el anuncio.';
 };
 
@@ -120,7 +120,7 @@ export default function CreateListing() {
     const availableSlots = Math.max(0, 8 - photoFiles.length);
 
     if (validFiles.length !== files.length) {
-      toast.warning('Algunas fotos se han omitido: solo imágenes de hasta 5MB.');
+      toast.warning('Algunas fotos se han omitido: solo im\u00e1genes de hasta 5MB.');
     }
 
     if (validFiles.length > availableSlots) {
@@ -141,19 +141,19 @@ export default function CreateListing() {
     const neighborhood = formData.neighborhood.trim();
 
     if (title.length < TITLE_MIN_LENGTH) {
-      toast.error(`El título debe tener al menos ${TITLE_MIN_LENGTH} caracteres`);
+      toast.error(`El t\u00edtulo debe tener al menos ${TITLE_MIN_LENGTH} caracteres`);
       return false;
     }
     if (title.length > TITLE_MAX_LENGTH) {
-      toast.error(`El título no puede superar ${TITLE_MAX_LENGTH} caracteres`);
+      toast.error(`El t\u00edtulo no puede superar ${TITLE_MAX_LENGTH} caracteres`);
       return false;
     }
     if (description.length < DESCRIPTION_MIN_LENGTH) {
-      toast.error(`La descripción debe tener al menos ${DESCRIPTION_MIN_LENGTH} caracteres`);
+      toast.error(`La descripci\u00f3n debe tener al menos ${DESCRIPTION_MIN_LENGTH} caracteres`);
       return false;
     }
     if (description.length > DESCRIPTION_MAX_LENGTH) {
-      toast.error(`La descripción no puede superar ${DESCRIPTION_MAX_LENGTH} caracteres`);
+      toast.error(`La descripci\u00f3n no puede superar ${DESCRIPTION_MAX_LENGTH} caracteres`);
       return false;
     }
     if (neighborhood.length > NEIGHBORHOOD_MAX_LENGTH) {
@@ -234,7 +234,7 @@ export default function CreateListing() {
       const user = userData.user;
 
       if (!user) {
-        toast.error('Inicia sesión para publicar anuncios');
+        toast.error('Inicia sesi\u00f3n para publicar anuncios');
         navigate('/login');
         return;
       }
@@ -272,7 +272,7 @@ export default function CreateListing() {
       }
 
       toast.success('Anuncio creado correctamente', {
-        description: 'Tu anuncio ya está visible para otros usuarios.',
+        description: 'Tu anuncio ya est\u00e1 visible para otros usuarios.',
       });
       navigate(`/listing/${result.listing_id}`);
     } catch (error) {
@@ -308,7 +308,7 @@ export default function CreateListing() {
         {step === 1 && (
           <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}>
             <h1 className="text-3xl font-bold mb-2">Crear anuncio</h1>
-            <p className="text-muted-foreground mb-8">¿Qué tipo de anuncio quieres publicar?</p>
+            <p className="text-muted-foreground mb-8">{'\u00bfQu\u00e9 tipo de anuncio quieres publicar?'}</p>
 
             <div className="grid gap-4">
               {listingTypes.map((type) => (
@@ -334,15 +334,15 @@ export default function CreateListing() {
 
         {step === 2 && (
           <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}>
-            <h1 className="text-3xl font-bold mb-2">Información básica</h1>
-            <p className="text-muted-foreground mb-8">{isFlatmateListing ? 'Cuéntanos qué tipo de compañero/a buscas para alquilar juntos' : 'Cuéntanos más sobre tu habitación disponible'}</p>
+            <h1 className="text-3xl font-bold mb-2">{'Informaci\u00f3n b\u00e1sica'}</h1>
+            <p className="text-muted-foreground mb-8">{isFlatmateListing ? 'Cu\u00e9ntanos qu\u00e9 tipo de compa\u00f1ero/a buscas para alquilar juntos' : 'Cu\u00e9ntanos m\u00e1s sobre tu habitaci\u00f3n disponible'}</p>
 
             <div className="space-y-6">
               <div className="space-y-2">
-                <Label htmlFor="title">Título del anuncio</Label>
+                <Label htmlFor="title">{'T\u00edtulo del anuncio'}</Label>
                 <Input
                   id="title"
-                  placeholder={isFlatmateListing ? 'Ej: Busco compañero/a tranquilo/a para alquilar juntos en Madrid' : 'Ej: Habitación luminosa en el centro'}
+                  placeholder={isFlatmateListing ? 'Ej: Busco compa\u00f1ero/a tranquilo/a para alquilar juntos en Madrid' : 'Ej: Habitaci\u00f3n luminosa en el centro'}
                   value={formData.title}
                   maxLength={TITLE_MAX_LENGTH}
                   onChange={(event) => setFormData({ ...formData, title: event.target.value })}
@@ -353,10 +353,10 @@ export default function CreateListing() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="description">Descripción</Label>
+                <Label htmlFor="description">{'Descripci\u00f3n'}</Label>
                 <Textarea
                   id="description"
-                  placeholder={isFlatmateListing ? 'Describe qué tipo de convivencia buscas, presupuesto, zonas y tiempos para alquilar juntos...' : 'Describe el espacio, el ambiente del piso y qué buscas en la convivencia...'}
+                  placeholder={isFlatmateListing ? 'Describe qu\u00e9 tipo de convivencia buscas, presupuesto, zonas y tiempos para alquilar juntos...' : 'Describe el espacio, el ambiente del piso y qu\u00e9 buscas en la convivencia...'}
                   rows={5}
                   value={formData.description}
                   maxLength={DESCRIPTION_MAX_LENGTH}
@@ -386,7 +386,7 @@ export default function CreateListing() {
                   <Label htmlFor="neighborhood">Barrio o zona</Label>
                   <Input
                     id="neighborhood"
-                    placeholder="Ej: Malasaña"
+                    placeholder={'Ej: Malasa\u00f1a'}
                     value={formData.neighborhood}
                     maxLength={NEIGHBORHOOD_MAX_LENGTH}
                     onChange={(event) => setFormData({ ...formData, neighborhood: event.target.value })}
@@ -407,12 +407,12 @@ export default function CreateListing() {
         {step === 3 && (
           <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}>
             <h1 className="text-3xl font-bold mb-2">Detalles y fotos</h1>
-            <p className="text-muted-foreground mb-8">Añade los últimos detalles</p>
+            <p className="text-muted-foreground mb-8">{'A\u00f1ade los \u00faltimos detalles'}</p>
 
             <div className="space-y-6">
               <div className="grid sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="price">Precio mensual (€)</Label>
+                  <Label htmlFor="price">{'Precio mensual (\u20ac)'}</Label>
                   <Input
                     id="price"
                     type="number"
@@ -424,7 +424,7 @@ export default function CreateListing() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="minStay">Estancia mínima</Label>
+                  <Label htmlFor="minStay">{'Estancia m\u00ednima'}</Label>
                   <Select value={formData.minStay} onValueChange={(value) => setFormData({ ...formData, minStay: value })}>
                     <SelectTrigger id="minStay">
                       <SelectValue />
@@ -499,7 +499,7 @@ export default function CreateListing() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label>¿Para quien esta disponible la habitacion?</Label>
+                      <Label>{'\u00bfPara quien esta disponible la habitacion?'}</Label>
                       <Select
                         value={formData.roomDetails.occupancyPolicy}
                         onValueChange={(value) => setFormData({
