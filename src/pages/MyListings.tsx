@@ -1,4 +1,4 @@
-import { ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+﻿import { ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
@@ -26,11 +26,11 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
+import { Slider } from '@/components/ui/slider';
 import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/integrations/supabase/client';
 import type { Tables } from '@/integrations/supabase/types';
-import { buildRoomListingDetailsFromForm, roomListingDetailsFormFromDetails, homeEnvironmentOptions, occupancyPolicyOptions, visitsPolicyOptions, type RoomListingDetailsForm } from '@/lib/listingDetails';
+import { buildRoomListingDetailsFromForm, contractAvailableOptions, roomListingDetailsFormFromDetails, homeEnvironmentOptions, noticePeriodOptions, occupancyPolicyOptions, preferredGenderOptions, registrationAllowedOptions, visitsPolicyOptions, type RoomListingDetailsForm } from '@/lib/listingDetails';
 import { toast } from 'sonner';
 import { useSEO } from '@/hooks/useSEO';
 
@@ -68,6 +68,8 @@ const TITLE_MIN_LENGTH = 10;
 const TITLE_MAX_LENGTH = 80;
 const DESCRIPTION_MIN_LENGTH = 20;
 const DESCRIPTION_MAX_LENGTH = 1200;
+const AGE_RANGE_MIN = 18;
+const AGE_RANGE_MAX = 75;
 
 const cities = [
   'Madrid',
@@ -104,7 +106,7 @@ const formatUpdatedAt = (date: string | null) => {
 };
 
 const getListingTypeLabel = (listingType: Listing['listing_type']) => (
-  listingType === 'room' ? 'Habitacion disponible' : 'Busca companero/a para alquilar juntos'
+  listingType === 'room' ? 'Habitación disponible' : 'Busca compañero/a para alquilar juntos'
 );
 
 const getListingImage = (listing: Listing) => {
@@ -116,11 +118,14 @@ const getListingImage = (listing: Listing) => {
 };
 
 const getErrorMessage = (code?: string) => {
-  if (code === 'NOT_AUTHENTICATED') return 'Inicia sesion para gestionar tus anuncios.';
+  if (code === 'NOT_AUTHENTICATED') return 'Inicia sesión para gestionar tus anuncios.';
   if (code === 'LISTING_NOT_FOUND') return 'No se ha encontrado el anuncio.';
   if (code === 'NOT_OWNER') return 'Solo puedes modificar tus propios anuncios.';
   return 'No se pudo actualizar el anuncio.';
 };
+
+const booleanSelectValue = (value: boolean) => (value ? 'yes' : 'no');
+const parseBooleanSelectValue = (value: string) => value === 'yes';
 
 const LEGACY_NEIGHBORHOOD_PATTERN = /\n*\s*Barrio\/Zona:\s*(.+?)\s*$/i;
 
@@ -215,6 +220,12 @@ export default function MyListings() {
     url: URL.createObjectURL(file),
   })), [newPhotoFiles]);
   const isEditingRoomListing = editingListing?.listing_type === 'room';
+  const preferredAgeRange = editForm
+    ? [
+        Number(editForm.roomDetails.preferredAgeMin) || AGE_RANGE_MIN,
+        Number(editForm.roomDetails.preferredAgeMax) || AGE_RANGE_MAX,
+      ]
+    : [AGE_RANGE_MIN, AGE_RANGE_MAX];
 
   useEffect(() => () => {
     photoPreviews.forEach((preview) => URL.revokeObjectURL(preview.url));
@@ -227,7 +238,7 @@ export default function MyListings() {
     const user = userData.user;
 
     if (!user) {
-      toast.error('Inicia sesion para gestionar tus anuncios');
+      toast.error('Inicia sesión para gestionar tus anuncios');
       navigate('/login');
       return;
     }
@@ -276,11 +287,11 @@ export default function MyListings() {
     const totalPhotos = editForm.photos.length + newPhotoFiles.length + validFiles.length;
 
     if (validFiles.length !== files.length) {
-      toast.warning('Algunas fotos se han omitido: solo imagenes de hasta 5MB.');
+      toast.warning('Algunas fotos se han omitido: solo imágenes de hasta 5MB.');
     }
 
     if (totalPhotos > 8) {
-      toast.warning('Puedes tener un maximo de 8 fotos por anuncio.');
+      toast.warning('Puedes tener un máximo de 8 fotos por anuncio.');
     }
 
     const remainingSlots = Math.max(0, 8 - editForm.photos.length - newPhotoFiles.length);
@@ -329,7 +340,7 @@ export default function MyListings() {
     if (editForm.price) {
       const price = Number(editForm.price);
       if (!Number.isFinite(price) || price < 0) {
-        toast.error('Introduce un precio valido');
+        toast.error('Introduce un precio válido');
         return false;
       }
       if (price > 10000) {
@@ -353,7 +364,7 @@ export default function MyListings() {
     if (currentHouseholdCount) {
       const count = Number(currentHouseholdCount);
       if (!Number.isInteger(count) || count < 0) {
-        toast.error('Indica un numero valido de personas viviendo actualmente');
+        toast.error('Indica un número válido de personas viviendo actualmente');
         return false;
       }
     }
@@ -392,7 +403,7 @@ export default function MyListings() {
       const user = userData.user;
 
       if (!user) {
-        toast.error('Inicia sesion para gestionar tus anuncios');
+        toast.error('Inicia sesión para gestionar tus anuncios');
         navigate('/login');
         return;
       }
@@ -561,7 +572,7 @@ export default function MyListings() {
                 <SelectValue placeholder="Ordenar por" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="updated_desc">Mas recientes</SelectItem>
+                <SelectItem value="updated_desc">Más recientes</SelectItem>
                 <SelectItem value="price_asc">Precio menor</SelectItem>
                 <SelectItem value="available_asc">Disponible antes</SelectItem>
               </SelectContent>
@@ -576,7 +587,7 @@ export default function MyListings() {
         ) : listings.length === 0 ? (
           <div className="text-center py-16">
             <Home className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-            <h2 className="text-xl font-semibold mb-2">Todavia no tienes anuncios</h2>
+            <h2 className="text-xl font-semibold mb-2">Todavía no tienes anuncios</h2>
             <p className="text-muted-foreground mb-5">Crea tu primer anuncio para aparecer en el buscador.</p>
             <Button asChild variant="hero">
               <Link to="/create-listing">Crear anuncio</Link>
@@ -586,7 +597,7 @@ export default function MyListings() {
           <div className="text-center py-16">
             <Home className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
             <h2 className="text-xl font-semibold mb-2">No hay anuncios con estos filtros</h2>
-            <p className="text-muted-foreground mb-5">Prueba con otro estado, cambia el orden o limpia la busqueda.</p>
+            <p className="text-muted-foreground mb-5">Prueba con otro estado, cambia el orden o limpia la búsqueda.</p>
             <Button
               variant="outline"
               onClick={() => {
@@ -653,7 +664,7 @@ export default function MyListings() {
                         </div>
                         <div className="flex items-center gap-2">
                           <Home className="h-4 w-4 text-primary" />
-                          <span>{listing.min_stay_months ? `${listing.min_stay_months} meses` : 'Sin minimo'}</span>
+                          <span>{listing.min_stay_months ? `${listing.min_stay_months} meses` : 'Sin mínimo'}</span>
                         </div>
                       </div>
 
@@ -693,7 +704,7 @@ export default function MyListings() {
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Editar anuncio</DialogTitle>
-            <DialogDescription>Actualiza la informacion principal del anuncio.</DialogDescription>
+            <DialogDescription>Actualiza la información principal del anuncio.</DialogDescription>
           </DialogHeader>
 
           {editForm && (
@@ -752,59 +763,297 @@ export default function MyListings() {
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="listing-price">Precio mensual</Label>
-                  <Input
-                    id="listing-price"
-                    type="number"
-                    min="0"
-                    value={editForm.price}
-                    onChange={(event) => setEditForm({ ...editForm, price: event.target.value })}
-                    disabled={saving}
-                  />
-                </div>
               </div>
 
-              <div className="grid sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="listing-available">Disponible desde</Label>
-                  <Input
-                    id="listing-available"
-                    type="date"
-                    value={editForm.availableFrom}
-                    onChange={(event) => setEditForm({ ...editForm, availableFrom: event.target.value })}
-                    disabled={saving}
-                  />
+              {isEditingRoomListing && (
+                <div className="space-y-4 rounded-xl border border-border p-4">
+                  <div>
+                    <h3 className="font-semibold">Buscando</h3>
+                    <p className="text-sm text-muted-foreground">Define qué persona encaja mejor con esta habitación.</p>
+                  </div>
+
+                  <div className="grid sm:grid-cols-2 gap-4">
+                    <div className="space-y-4 sm:col-span-2">
+                      <div className="flex items-center justify-between gap-4">
+                        <Label>Edad preferida</Label>
+                        <span className="text-sm font-medium">
+                          {preferredAgeRange[0]} - {preferredAgeRange[1]} años
+                        </span>
+                      </div>
+                      <Slider
+                        min={AGE_RANGE_MIN}
+                        max={AGE_RANGE_MAX}
+                        step={1}
+                        value={preferredAgeRange}
+                        onValueChange={([min, max]) => setEditForm({
+                          ...editForm,
+                          roomDetails: {
+                            ...editForm.roomDetails,
+                            preferredAgeMin: String(min),
+                            preferredAgeMax: String(max),
+                          },
+                        })}
+                        disabled={saving}
+                      />
+                      <div className="flex justify-between text-xs text-muted-foreground">
+                        <span>{AGE_RANGE_MIN} años</span>
+                        <span>{AGE_RANGE_MAX} años</span>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Género preferido</Label>
+                      <Select
+                        value={editForm.roomDetails.preferredGender}
+                        onValueChange={(value) => setEditForm({
+                          ...editForm,
+                          roomDetails: { ...editForm.roomDetails, preferredGender: value },
+                        })}
+                        disabled={saving}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecciona una opción" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {preferredGenderOptions.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="listing-available">Disponible desde</Label>
+                      <Input
+                        id="listing-available"
+                        type="date"
+                        value={editForm.availableFrom}
+                        onChange={(event) => setEditForm({ ...editForm, availableFrom: event.target.value })}
+                        disabled={saving}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="listing-min-stay">Estancia mínima</Label>
+                      <Select value={editForm.minStay} onValueChange={(value) => setEditForm({ ...editForm, minStay: value })} disabled={saving}>
+                        <SelectTrigger id="listing-min-stay">
+                          <SelectValue placeholder="Sin mínimo" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="1">1 mes</SelectItem>
+                          <SelectItem value="3">3 meses</SelectItem>
+                          <SelectItem value="6">6 meses</SelectItem>
+                          <SelectItem value="12">12 meses</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Disponible para</Label>
+                      <Select
+                        value={editForm.roomDetails.occupancyPolicy}
+                        onValueChange={(value) => setEditForm({
+                          ...editForm,
+                          roomDetails: { ...editForm.roomDetails, occupancyPolicy: value },
+                        })}
+                        disabled={saving}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecciona una opción" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {occupancyPolicyOptions.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Acepta menores</Label>
+                      <Select
+                        value={editForm.roomDetails.allowsMinors}
+                        onValueChange={(value) => setEditForm({
+                          ...editForm,
+                          roomDetails: { ...editForm.roomDetails, allowsMinors: value as RoomListingDetailsForm['allowsMinors'] },
+                        })}
+                        disabled={saving}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Sin especificar" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="yes">Sí</SelectItem>
+                          <SelectItem value="no">No</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-4 rounded-xl border border-border p-4">
+                <div>
+                  <h3 className="font-semibold">Precio y gastos</h3>
+                  <p className="text-sm text-muted-foreground">Define el coste principal del anuncio.</p>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="listing-min-stay">Estancia mínima</Label>
-                  <Select value={editForm.minStay} onValueChange={(value) => setEditForm({ ...editForm, minStay: value })} disabled={saving}>
-                    <SelectTrigger id="listing-min-stay">
-                      <SelectValue placeholder="Sin minimo" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="1">1 mes</SelectItem>
-                      <SelectItem value="3">3 meses</SelectItem>
-                      <SelectItem value="6">6 meses</SelectItem>
-                      <SelectItem value="12">12 meses</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="listing-price">Precio mensual</Label>
+                    <Input
+                      id="listing-price"
+                      type="number"
+                      min="0"
+                      value={editForm.price}
+                      onChange={(event) => setEditForm({ ...editForm, price: event.target.value })}
+                      disabled={saving}
+                    />
+                  </div>
 
-              <div className="grid sm:grid-cols-3 gap-3">
-                <div className="flex items-center justify-between rounded-lg border border-border p-3">
-                  <Label>Gastos incluidos</Label>
-                  <Switch checked={editForm.billsIncluded} onCheckedChange={(checked) => setEditForm({ ...editForm, billsIncluded: checked })} disabled={saving} />
-                </div>
-                <div className="flex items-center justify-between rounded-lg border border-border p-3">
-                  <Label>Permite fumar</Label>
-                  <Switch checked={editForm.smokingAllowed} onCheckedChange={(checked) => setEditForm({ ...editForm, smokingAllowed: checked })} disabled={saving} />
-                </div>
-                <div className="flex items-center justify-between rounded-lg border border-border p-3">
-                  <Label>Permite mascotas</Label>
-                  <Switch checked={editForm.petsAllowed} onCheckedChange={(checked) => setEditForm({ ...editForm, petsAllowed: checked })} disabled={saving} />
+                  <div className="space-y-2">
+                    <Label>Gastos incluidos</Label>
+                    <Select
+                      value={booleanSelectValue(editForm.billsIncluded)}
+                      onValueChange={(value) => setEditForm({ ...editForm, billsIncluded: parseBooleanSelectValue(value) })}
+                      disabled={saving}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="yes">Sí</SelectItem>
+                        <SelectItem value="no">No</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {isEditingRoomListing && (
+                    <>
+                      <div className="space-y-2">
+                        <Label htmlFor="listing-expenses-estimate">Gastos estimados mensuales (€)</Label>
+                        <Input
+                          id="listing-expenses-estimate"
+                          type="number"
+                          min="0"
+                          value={editForm.roomDetails.expensesEstimateMonthly}
+                          onChange={(event) => setEditForm({
+                            ...editForm,
+                            roomDetails: { ...editForm.roomDetails, expensesEstimateMonthly: event.target.value },
+                          })}
+                          disabled={saving}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="listing-deposit-amount">Fianza (€)</Label>
+                        <Input
+                          id="listing-deposit-amount"
+                          type="number"
+                          min="0"
+                          value={editForm.roomDetails.depositAmount}
+                          onChange={(event) => setEditForm({
+                            ...editForm,
+                            roomDetails: { ...editForm.roomDetails, depositAmount: event.target.value },
+                          })}
+                          disabled={saving}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Contrato</Label>
+                        <Select
+                          value={editForm.roomDetails.contractAvailable}
+                          onValueChange={(value) => setEditForm({
+                            ...editForm,
+                            roomDetails: { ...editForm.roomDetails, contractAvailable: value },
+                          })}
+                          disabled={saving}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecciona una opción" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {contractAvailableOptions.map((option) => (
+                              <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Empadronamiento</Label>
+                        <Select
+                          value={editForm.roomDetails.registrationAllowed}
+                          onValueChange={(value) => setEditForm({
+                            ...editForm,
+                            roomDetails: { ...editForm.roomDetails, registrationAllowed: value },
+                          })}
+                          disabled={saving}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecciona una opción" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {registrationAllowedOptions.map((option) => (
+                              <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Preaviso para dejar la habitación</Label>
+                        <Select
+                          value={editForm.roomDetails.noticePeriod}
+                          onValueChange={(value) => setEditForm({
+                            ...editForm,
+                            roomDetails: { ...editForm.roomDetails, noticePeriod: value },
+                          })}
+                          disabled={saving}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecciona una opción" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {noticePeriodOptions.map((option) => (
+                              <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </>
+                  )}
+
+                  {!isEditingRoomListing && (
+                    <>
+                      <div className="space-y-2">
+                        <Label htmlFor="listing-available">Disponible desde</Label>
+                        <Input
+                          id="listing-available"
+                          type="date"
+                          value={editForm.availableFrom}
+                          onChange={(event) => setEditForm({ ...editForm, availableFrom: event.target.value })}
+                          disabled={saving}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="listing-min-stay">Estancia mínima</Label>
+                        <Select value={editForm.minStay} onValueChange={(value) => setEditForm({ ...editForm, minStay: value })} disabled={saving}>
+                          <SelectTrigger id="listing-min-stay">
+                            <SelectValue placeholder="Sin mínimo" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="1">1 mes</SelectItem>
+                            <SelectItem value="3">3 meses</SelectItem>
+                            <SelectItem value="6">6 meses</SelectItem>
+                            <SelectItem value="12">12 meses</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
 
@@ -838,27 +1087,6 @@ export default function MyListings() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label>{'\u00bfPara quién está disponible la habitación?'}</Label>
-                      <Select
-                        value={editForm.roomDetails.occupancyPolicy}
-                        onValueChange={(value) => setEditForm({
-                          ...editForm,
-                          roomDetails: { ...editForm.roomDetails, occupancyPolicy: value },
-                        })}
-                        disabled={saving}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecciona una opción" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {occupancyPolicyOptions.map((option) => (
-                            <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2">
                       <Label>Ambiente del piso</Label>
                       <Select
                         value={editForm.roomDetails.homeEnvironment}
@@ -880,17 +1108,31 @@ export default function MyListings() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label>Acepta menores</Label>
+                      <Label>Permite fumar</Label>
                       <Select
-                        value={editForm.roomDetails.allowsMinors}
-                        onValueChange={(value) => setEditForm({
-                          ...editForm,
-                          roomDetails: { ...editForm.roomDetails, allowsMinors: value as RoomListingDetailsForm['allowsMinors'] },
-                        })}
+                        value={booleanSelectValue(editForm.smokingAllowed)}
+                        onValueChange={(value) => setEditForm({ ...editForm, smokingAllowed: parseBooleanSelectValue(value) })}
                         disabled={saving}
                       >
                         <SelectTrigger>
-                          <SelectValue placeholder="Sin especificar" />
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="yes">Sí</SelectItem>
+                          <SelectItem value="no">No</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Permite mascotas</Label>
+                      <Select
+                        value={booleanSelectValue(editForm.petsAllowed)}
+                        onValueChange={(value) => setEditForm({ ...editForm, petsAllowed: parseBooleanSelectValue(value) })}
+                        disabled={saving}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="yes">Sí</SelectItem>
@@ -942,7 +1184,7 @@ export default function MyListings() {
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <Label>Fotos del anuncio</Label>
-                    <p className="text-xs text-muted-foreground">La primera foto se usara como portada.</p>
+                    <p className="text-xs text-muted-foreground">La primera foto se usará como portada.</p>
                   </div>
                   <Badge variant="outline" className="rounded-full">
                     {editForm.photos.length + newPhotoFiles.length}/8
@@ -1051,3 +1293,4 @@ export default function MyListings() {
     </Layout>
   );
 }
+

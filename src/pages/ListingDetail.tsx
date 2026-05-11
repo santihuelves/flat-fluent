@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+﻿import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { AlertCircle, ArrowLeft, Calendar, CheckCircle, Cigarette, Clock, Edit2, Euro, Home, Loader2, MapPin, MessageCircle, PawPrint, Send, ShieldCheck, UserCheck, Users } from 'lucide-react';
+import { AlertCircle, ArrowLeft, CheckCircle, Edit2, Euro, Home, Loader2, MapPin, MessageCircle, Send, ShieldCheck, UserCheck, Users } from 'lucide-react';
 import { Layout } from '@/components/layout/Layout';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -11,7 +11,7 @@ import { Separator } from '@/components/ui/separator';
 import { SafetyActions } from '@/components/SafetyActions';
 import { supabase } from '@/integrations/supabase/client';
 import type { Json } from '@/integrations/supabase/types';
-import { getRoomListingDetailItems, normalizeRoomListingDetails } from '@/lib/listingDetails';
+import { getRoomListingDetailItems, getRoomListingMoneyItems, normalizeRoomListingDetails, occupancyPolicyOptions, preferredGenderOptions } from '@/lib/listingDetails';
 import { toast } from 'sonner';
 import { useSEO } from '@/hooks/useSEO';
 
@@ -99,6 +99,22 @@ const formatDate = (date: string | null) => {
   return new Intl.DateTimeFormat('es-ES', { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(date));
 };
 
+const formatAvailability = (date: string | null) => {
+  if (!date) return 'Ya disponible';
+  const availableDate = new Date(date);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  return availableDate <= today ? 'Ya disponible' : formatDate(date);
+};
+
+const formatPreferredAge = (min?: number, max?: number) => {
+  if (min && max) return `Alguien entre ${min} y ${max} años`;
+  if (min) return `Alguien desde ${min} años`;
+  if (max) return `Alguien hasta ${max} años`;
+  return null;
+};
+
 const getOwnerName = (owner: ListingOwner) => owner.display_name || owner.handle || 'Usuario';
 
 const getListingPhotos = (listing: ListingDetailData) => {
@@ -108,10 +124,10 @@ const getListingPhotos = (listing: ListingDetailData) => {
 };
 
 const getErrorMessage = (code?: string) => {
-  if (code === 'NOT_AUTHENTICATED') return 'Inicia sesi\u00f3n para ver este anuncio.';
+  if (code === 'NOT_AUTHENTICATED') return 'Inicia sesión para ver este anuncio.';
   if (code === 'NOT_FOUND') return 'Este anuncio no existe.';
-  if (code === 'NOT_AVAILABLE') return 'Este anuncio ya no est\u00e1 disponible.';
-  if (code === 'HIDDEN') return 'Este anuncio no est\u00e1 disponible p\u00fablicamente.';
+  if (code === 'NOT_AVAILABLE') return 'Este anuncio ya no está disponible.';
+  if (code === 'HIDDEN') return 'Este anuncio no está disponible públicamente.';
   return 'No se pudo cargar el anuncio.';
 };
 
@@ -340,11 +356,11 @@ export default function ListingDetail() {
       const result = data as unknown as { ok: boolean; code?: string };
       if (result.ok || result.code === 'ALREADY_REQUESTED') {
         setOwnerConnectionState('outgoing');
-        toast.success(result.code === 'ALREADY_REQUESTED' ? 'Ya habias enviado esta solicitud' : 'Solicitud enviada al propietario');
+        toast.success(result.code === 'ALREADY_REQUESTED' ? 'Ya habías enviado esta solicitud' : 'Solicitud enviada al propietario');
         return;
       }
 
-      toast.error(result.code === 'ALREADY_CONNECTED' ? 'Ya estais conectados' : 'No se pudo enviar la solicitud');
+      toast.error(result.code === 'ALREADY_CONNECTED' ? 'Ya estáis conectados' : 'No se pudo enviar la solicitud');
       if (result.code === 'ALREADY_CONNECTED') {
         setOwnerConnectionState('connected');
       }
@@ -399,7 +415,7 @@ export default function ListingDetail() {
 
     return {
       label: isRequestingConsent ? 'Enviando...' : 'Me interesa',
-      description: 'Solicita compartir compatibilidad para poder iniciar conversacion.',
+      description: 'Solicita compartir compatibilidad para poder iniciar conversación.',
       icon: isRequestingConsent ? Loader2 : Send,
       disabled: isRequestingConsent || ownerConnectionState === 'unknown',
       onClick: handleRequestConsent,
@@ -445,6 +461,33 @@ export default function ListingDetail() {
   const roomDetailItems = listing.listing_type === 'room'
     ? getRoomListingDetailItems(roomDetails)
     : [];
+  const roomMoneyItems = listing.listing_type === 'room'
+    ? getRoomListingMoneyItems(roomDetails)
+    : [];
+  const preferredAgeLabel = formatPreferredAge(roomDetails.preferred_age_min, roomDetails.preferred_age_max);
+  const preferredGenderLabel = roomDetails.preferred_gender
+    ? preferredGenderOptions.find((option) => option.value === roomDetails.preferred_gender)?.label
+    : null;
+  const occupancyLabel = roomDetails.occupancy_policy
+    ? occupancyPolicyOptions.find((option) => option.value === roomDetails.occupancy_policy)?.label
+    : null;
+  const buscandoItems = listing.listing_type === 'room'
+    ? [
+        preferredAgeLabel ? { label: 'Edad', value: preferredAgeLabel } : null,
+        preferredGenderLabel ? { label: 'Género', value: preferredGenderLabel } : null,
+        { label: 'Estancia mínima', value: listing.min_stay_months ? `${listing.min_stay_months} meses` : 'Flexible' },
+        { label: 'Disponible', value: formatAvailability(listing.available_from) },
+        occupancyLabel ? { label: 'Disponible para', value: occupancyLabel } : null,
+        typeof roomDetails.allows_minors === 'boolean'
+          ? { label: 'Menores', value: roomDetails.allows_minors ? 'Se aceptan' : 'No se aceptan' }
+          : null,
+      ].filter((item): item is { label: string; value: string } => Boolean(item))
+    : [];
+  const convivenciaItems = [
+    { label: 'Fumar', value: listing.smoking_allowed ? 'Permite fumar' : 'No permite fumar' },
+    { label: 'Mascotas', value: listing.pets_allowed ? 'Permite mascotas' : 'No permite mascotas' },
+    ...roomDetailItems,
+  ];
   const descriptionWithoutLegacyNeighborhood = (listing.description ?? '').replace(/\n*\s*Barrio\/Zona:\s*(.+?)\s*$/i, '').trimEnd();
 
   return (
@@ -503,12 +546,12 @@ export default function ListingDetail() {
                     {listing.listing_type === 'room' ? (
                       <>
                         <Home className="w-3 h-3 mr-1" />
-                        Habitaci\u00f3n disponible
+                        Habitación disponible
                       </>
                     ) : (
                       <>
                         <Users className="w-3 h-3 mr-1" />
-                        Busca compa\u00f1ero/a para alquilar juntos
+                        Busca compañero/a para alquilar juntos
                       </>
                     )}
                   </Badge>
@@ -569,68 +612,61 @@ export default function ListingDetail() {
                 </Card>
               )}
 
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {buscandoItems.length > 0 && (
                 <Card>
-                  <CardContent className="p-4">
-                    <Euro className="w-5 h-5 text-primary mb-2" />
-                    <p className="text-sm text-muted-foreground">Precio</p>
-                    <p className="font-semibold">{listing.price_monthly ? `${listing.price_monthly}\u20ac/mes` : 'A consultar'}</p>
+                  <CardContent className="p-6">
+                    <h2 className="text-xl font-semibold mb-4">Buscando</h2>
+                    <div className="grid sm:grid-cols-2 gap-3">
+                      {buscandoItems.map((item) => (
+                        <div key={item.label} className="rounded-lg border border-border p-4">
+                          <p className="text-sm text-muted-foreground">{item.label}</p>
+                          <p className="font-medium">{item.value}</p>
+                        </div>
+                      ))}
+                    </div>
                   </CardContent>
                 </Card>
-                <Card>
-                  <CardContent className="p-4">
-                    <Calendar className="w-5 h-5 text-primary mb-2" />
-                    <p className="text-sm text-muted-foreground">Disponible</p>
-                    <p className="font-semibold">{formatDate(listing.available_from)}</p>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="p-4">
-                    <Clock className="w-5 h-5 text-primary mb-2" />
-                    <p className="text-sm text-muted-foreground">Estancia m\u00ednima</p>
-                    <p className="font-semibold">{listing.min_stay_months ? `${listing.min_stay_months} meses` : 'Flexible'}</p>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="p-4">
-                    <CheckCircle className="w-5 h-5 text-primary mb-2" />
-                    <p className="text-sm text-muted-foreground">Gastos</p>
-                    <p className="font-semibold">{listing.bills_included ? 'Incluidos' : 'No incluidos'}</p>
-                  </CardContent>
-                </Card>
-              </div>
+              )}
 
               <Card>
                 <CardContent className="p-6">
-                  <h2 className="text-xl font-semibold mb-4">Descripci\u00f3n</h2>
-                  <p className="text-muted-foreground leading-relaxed">
-                    {descriptionWithoutLegacyNeighborhood || 'Este anuncio todav\u00eda no tiene descripci\u00f3n.'}
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardContent className="p-6">
-                  <h2 className="text-xl font-semibold mb-4">Condiciones</h2>
+                  <h2 className="text-xl font-semibold mb-4">Precio, gastos y contrato</h2>
                   <div className="grid sm:grid-cols-2 gap-3">
-                    <div className="flex items-center gap-2">
-                      <Cigarette className="w-4 h-4 text-muted-foreground" />
-                      <span>{listing.smoking_allowed ? 'Permite fumar' : 'No permite fumar'}</span>
+                    <div className="rounded-lg border border-border p-4">
+                      <Euro className="w-5 h-5 text-primary mb-2" />
+                      <p className="text-sm text-muted-foreground">Precio mensual</p>
+                      <p className="font-semibold">{listing.price_monthly ? `${listing.price_monthly}€/mes` : 'A consultar'}</p>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <PawPrint className="w-4 h-4 text-muted-foreground" />
-                      <span>{listing.pets_allowed ? 'Permite mascotas' : 'No permite mascotas'}</span>
+                    <div className="rounded-lg border border-border p-4">
+                      <CheckCircle className="w-5 h-5 text-primary mb-2" />
+                      <p className="text-sm text-muted-foreground">Gastos</p>
+                      <p className="font-semibold">{listing.bills_included ? 'Incluidos' : 'No incluidos'}</p>
                     </div>
+                    {roomMoneyItems.map((item) => (
+                      <div key={item.label} className="rounded-lg border border-border p-4">
+                        <p className="text-sm text-muted-foreground">{item.label}</p>
+                        <p className="font-medium">{item.value}</p>
+                      </div>
+                    ))}
                   </div>
                 </CardContent>
               </Card>
 
-              {roomDetailItems.length > 0 && (
+              <Card>
+                <CardContent className="p-6">
+                  <h2 className="text-xl font-semibold mb-4">Descripción</h2>
+                  <p className="text-muted-foreground leading-relaxed">
+                    {descriptionWithoutLegacyNeighborhood || 'Este anuncio todavía no tiene descripción.'}
+                  </p>
+                </CardContent>
+              </Card>
+
+              {convivenciaItems.length > 0 && (
                 <Card>
                   <CardContent className="p-6">
                     <h2 className="text-xl font-semibold mb-4">Condiciones de convivencia</h2>
                     <div className="grid sm:grid-cols-2 gap-3">
-                      {roomDetailItems.map((item) => (
+                      {convivenciaItems.map((item) => (
                         <div key={item.label} className="rounded-lg border border-border p-4">
                           <p className="text-sm text-muted-foreground">{item.label}</p>
                           <p className="font-medium">{item.value}</p>
@@ -760,3 +796,5 @@ export default function ListingDetail() {
     </Layout>
   );
 }
+
+

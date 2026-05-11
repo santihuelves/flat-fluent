@@ -8,10 +8,10 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
+import { Slider } from '@/components/ui/slider';
 import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/integrations/supabase/client';
-import { buildRoomListingDetailsFromForm, emptyRoomListingDetailsForm, homeEnvironmentOptions, occupancyPolicyOptions, visitsPolicyOptions, type RoomListingDetailsForm } from '@/lib/listingDetails';
+import { buildRoomListingDetailsFromForm, contractAvailableOptions, emptyRoomListingDetailsForm, homeEnvironmentOptions, noticePeriodOptions, occupancyPolicyOptions, preferredGenderOptions, registrationAllowedOptions, visitsPolicyOptions, type RoomListingDetailsForm } from '@/lib/listingDetails';
 import { toast } from 'sonner';
 import { useSEO } from '@/hooks/useSEO';
 
@@ -33,6 +33,8 @@ const TITLE_MAX_LENGTH = 80;
 const DESCRIPTION_MIN_LENGTH = 20;
 const DESCRIPTION_MAX_LENGTH = 1200;
 const NEIGHBORHOOD_MAX_LENGTH = 80;
+const AGE_RANGE_MIN = 18;
+const AGE_RANGE_MAX = 75;
 
 type FormData = {
   type: ListingKind | '';
@@ -166,6 +168,13 @@ export default function CreateListing() {
     }
     return true;
   };
+
+  const booleanSelectValue = (value: boolean) => (value ? 'yes' : 'no');
+  const parseBooleanSelectValue = (value: string) => value === 'yes';
+  const preferredAgeRange = [
+    Number(formData.roomDetails.preferredAgeMin) || AGE_RANGE_MIN,
+    Number(formData.roomDetails.preferredAgeMax) || AGE_RANGE_MAX,
+  ];
 
   const validateDetails = () => {
     if (formData.price) {
@@ -410,63 +419,286 @@ export default function CreateListing() {
             <p className="text-muted-foreground mb-8">Añade los últimos detalles</p>
 
             <div className="space-y-6">
-              <div className="grid sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="price">Precio mensual (€)</Label>
-                  <Input
-                    id="price"
-                    type="number"
-                    min="0"
-                    placeholder="450"
-                    value={formData.price}
-                    onChange={(event) => setFormData({ ...formData, price: event.target.value })}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="minStay">Estancia mínima</Label>
-                  <Select value={formData.minStay} onValueChange={(value) => setFormData({ ...formData, minStay: value })}>
-                    <SelectTrigger id="minStay">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="1">1 mes</SelectItem>
-                      <SelectItem value="3">3 meses</SelectItem>
-                      <SelectItem value="6">6 meses</SelectItem>
-                      <SelectItem value="12">12 meses</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="grid sm:grid-cols-2 gap-4">
-                <div className="flex items-center justify-between rounded-lg border border-border p-4">
+              {!isFlatmateListing && (
+                <div className="space-y-4 rounded-xl border border-border p-4">
                   <div>
+                    <h2 className="font-semibold">Buscando</h2>
+                    <p className="text-sm text-muted-foreground">Define qué persona encaja mejor con esta habitación.</p>
+                  </div>
+
+                  <div className="grid sm:grid-cols-2 gap-4">
+                    <div className="space-y-4 sm:col-span-2">
+                      <div className="flex items-center justify-between gap-4">
+                        <Label>Edad preferida</Label>
+                        <span className="text-sm font-medium">
+                          {preferredAgeRange[0]} - {preferredAgeRange[1]} años
+                        </span>
+                      </div>
+                      <Slider
+                        min={AGE_RANGE_MIN}
+                        max={AGE_RANGE_MAX}
+                        step={1}
+                        value={preferredAgeRange}
+                        onValueChange={([min, max]) => setFormData({
+                          ...formData,
+                          roomDetails: {
+                            ...formData.roomDetails,
+                            preferredAgeMin: String(min),
+                            preferredAgeMax: String(max),
+                          },
+                        })}
+                      />
+                      <div className="flex justify-between text-xs text-muted-foreground">
+                        <span>{AGE_RANGE_MIN} años</span>
+                        <span>{AGE_RANGE_MAX} años</span>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Género preferido</Label>
+                      <Select
+                        value={formData.roomDetails.preferredGender}
+                        onValueChange={(value) => setFormData({
+                          ...formData,
+                          roomDetails: { ...formData.roomDetails, preferredGender: value },
+                        })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecciona una opción" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {preferredGenderOptions.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="availableDate">Disponible desde</Label>
+                      <Input
+                        id="availableDate"
+                        type="date"
+                        value={formData.availableDate}
+                        onChange={(event) => setFormData({ ...formData, availableDate: event.target.value })}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="minStay">Estancia mínima</Label>
+                      <Select value={formData.minStay} onValueChange={(value) => setFormData({ ...formData, minStay: value })}>
+                        <SelectTrigger id="minStay">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="1">1 mes</SelectItem>
+                          <SelectItem value="3">3 meses</SelectItem>
+                          <SelectItem value="6">6 meses</SelectItem>
+                          <SelectItem value="12">12 meses</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Disponible para</Label>
+                      <Select
+                        value={formData.roomDetails.occupancyPolicy}
+                        onValueChange={(value) => setFormData({
+                          ...formData,
+                          roomDetails: { ...formData.roomDetails, occupancyPolicy: value },
+                        })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecciona una opción" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {occupancyPolicyOptions.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Acepta menores</Label>
+                      <Select
+                        value={formData.roomDetails.allowsMinors}
+                        onValueChange={(value) => setFormData({
+                          ...formData,
+                          roomDetails: { ...formData.roomDetails, allowsMinors: value as RoomListingDetailsForm['allowsMinors'] },
+                        })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Sin especificar" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="yes">Sí</SelectItem>
+                          <SelectItem value="no">No</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-4 rounded-xl border border-border p-4">
+                <div>
+                  <h2 className="font-semibold">Precio y gastos</h2>
+                  <p className="text-sm text-muted-foreground">Define el coste principal del anuncio.</p>
+                </div>
+
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="price">Precio mensual (€)</Label>
+                    <Input
+                      id="price"
+                      type="number"
+                      min="0"
+                      placeholder="450"
+                      value={formData.price}
+                      onChange={(event) => setFormData({ ...formData, price: event.target.value })}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
                     <Label>Gastos incluidos</Label>
+                    <Select
+                      value={booleanSelectValue(formData.expensesIncluded)}
+                      onValueChange={(value) => setFormData({ ...formData, expensesIncluded: parseBooleanSelectValue(value) })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="yes">Sí</SelectItem>
+                        <SelectItem value="no">No</SelectItem>
+                      </SelectContent>
+                    </Select>
                     <p className="text-sm text-muted-foreground">Agua, luz, internet...</p>
                   </div>
-                  <Switch checked={formData.expensesIncluded} onCheckedChange={(checked) => setFormData({ ...formData, expensesIncluded: checked })} />
-                </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="availableDate">Fecha disponible</Label>
-                  <Input
-                    id="availableDate"
-                    type="date"
-                    value={formData.availableDate}
-                    onChange={(event) => setFormData({ ...formData, availableDate: event.target.value })}
-                  />
-                </div>
-              </div>
+                  {!isFlatmateListing && (
+                    <>
+                      <div className="space-y-2">
+                        <Label htmlFor="expensesEstimateMonthly">Gastos estimados mensuales (€)</Label>
+                        <Input
+                          id="expensesEstimateMonthly"
+                          type="number"
+                          min="0"
+                          placeholder="Ej: 50"
+                          value={formData.roomDetails.expensesEstimateMonthly}
+                          onChange={(event) => setFormData({
+                            ...formData,
+                            roomDetails: { ...formData.roomDetails, expensesEstimateMonthly: event.target.value },
+                          })}
+                        />
+                      </div>
 
-              <div className="grid sm:grid-cols-2 gap-4">
-                <div className="flex items-center justify-between rounded-lg border border-border p-4">
-                  <Label>Permite fumar</Label>
-                  <Switch checked={formData.smokingAllowed} onCheckedChange={(checked) => setFormData({ ...formData, smokingAllowed: checked })} />
-                </div>
-                <div className="flex items-center justify-between rounded-lg border border-border p-4">
-                  <Label>Permite mascotas</Label>
-                  <Switch checked={formData.petsAllowed} onCheckedChange={(checked) => setFormData({ ...formData, petsAllowed: checked })} />
+                      <div className="space-y-2">
+                        <Label htmlFor="depositAmount">Fianza (€)</Label>
+                        <Input
+                          id="depositAmount"
+                          type="number"
+                          min="0"
+                          placeholder="Ej: 450"
+                          value={formData.roomDetails.depositAmount}
+                          onChange={(event) => setFormData({
+                            ...formData,
+                            roomDetails: { ...formData.roomDetails, depositAmount: event.target.value },
+                          })}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Contrato</Label>
+                        <Select
+                          value={formData.roomDetails.contractAvailable}
+                          onValueChange={(value) => setFormData({
+                            ...formData,
+                            roomDetails: { ...formData.roomDetails, contractAvailable: value },
+                          })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecciona una opción" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {contractAvailableOptions.map((option) => (
+                              <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Empadronamiento</Label>
+                        <Select
+                          value={formData.roomDetails.registrationAllowed}
+                          onValueChange={(value) => setFormData({
+                            ...formData,
+                            roomDetails: { ...formData.roomDetails, registrationAllowed: value },
+                          })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecciona una opción" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {registrationAllowedOptions.map((option) => (
+                              <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Preaviso para dejar la habitación</Label>
+                        <Select
+                          value={formData.roomDetails.noticePeriod}
+                          onValueChange={(value) => setFormData({
+                            ...formData,
+                            roomDetails: { ...formData.roomDetails, noticePeriod: value },
+                          })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecciona una opción" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {noticePeriodOptions.map((option) => (
+                              <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </>
+                  )}
+
+                  {isFlatmateListing && (
+                    <>
+                      <div className="space-y-2">
+                        <Label htmlFor="availableDate">Disponible desde</Label>
+                        <Input
+                          id="availableDate"
+                          type="date"
+                          value={formData.availableDate}
+                          onChange={(event) => setFormData({ ...formData, availableDate: event.target.value })}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="minStay">Estancia mínima</Label>
+                        <Select value={formData.minStay} onValueChange={(value) => setFormData({ ...formData, minStay: value })}>
+                          <SelectTrigger id="minStay">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="1">1 mes</SelectItem>
+                            <SelectItem value="3">3 meses</SelectItem>
+                            <SelectItem value="6">6 meses</SelectItem>
+                            <SelectItem value="12">12 meses</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
 
@@ -474,7 +706,7 @@ export default function CreateListing() {
                 <div className="space-y-4 rounded-xl border border-border p-4">
                   <div>
                     <h2 className="font-semibold">Condiciones de convivencia</h2>
-                    <p className="text-sm text-muted-foreground">Estos detalles describen las normas concretas de esta habitación.</p>
+                    <p className="text-sm text-muted-foreground">Estos detalles describen las normas concretas de esta habitación anunciada.</p>
                   </div>
 
                   <div className="grid sm:grid-cols-2 gap-4">
@@ -499,21 +731,33 @@ export default function CreateListing() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label>¿Para quién está disponible la habitación?</Label>
+                      <Label>Permite fumar</Label>
                       <Select
-                        value={formData.roomDetails.occupancyPolicy}
-                        onValueChange={(value) => setFormData({
-                          ...formData,
-                          roomDetails: { ...formData.roomDetails, occupancyPolicy: value },
-                        })}
+                        value={booleanSelectValue(formData.smokingAllowed)}
+                        onValueChange={(value) => setFormData({ ...formData, smokingAllowed: parseBooleanSelectValue(value) })}
                       >
                         <SelectTrigger>
-                          <SelectValue placeholder="Selecciona una opción" />
+                          <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          {occupancyPolicyOptions.map((option) => (
-                            <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
-                          ))}
+                          <SelectItem value="yes">Sí</SelectItem>
+                          <SelectItem value="no">No</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Permite mascotas</Label>
+                      <Select
+                        value={booleanSelectValue(formData.petsAllowed)}
+                        onValueChange={(value) => setFormData({ ...formData, petsAllowed: parseBooleanSelectValue(value) })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="yes">Sí</SelectItem>
+                          <SelectItem value="no">No</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -534,27 +778,6 @@ export default function CreateListing() {
                           {homeEnvironmentOptions.map((option) => (
                             <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
                           ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  <div className="grid sm:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Acepta menores</Label>
-                      <Select
-                        value={formData.roomDetails.allowsMinors}
-                        onValueChange={(value) => setFormData({
-                          ...formData,
-                          roomDetails: { ...formData.roomDetails, allowsMinors: value as RoomListingDetailsForm['allowsMinors'] },
-                        })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Sin especificar" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="yes">Sí</SelectItem>
-                          <SelectItem value="no">No</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -597,8 +820,11 @@ export default function CreateListing() {
                 </div>
               )}
 
-              <div className="space-y-3">
-                <Label>Fotos</Label>
+              <div className="space-y-4 rounded-xl border border-border p-4">
+                <div>
+                  <h2 className="font-semibold">Fotos del anuncio</h2>
+                  <p className="text-sm text-muted-foreground">Añade imágenes claras para que otros usuarios entiendan mejor el espacio.</p>
+                </div>
                 <input
                   ref={fileInputRef}
                   type="file"

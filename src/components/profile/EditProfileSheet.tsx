@@ -850,6 +850,13 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
                 />
               </div>
 
+              <div className="space-y-1 pt-2">
+                <p className="text-sm font-medium">Condiciones de convivencia</p>
+                <p className="text-sm text-muted-foreground">
+                  Define las normas y el tipo de convivencia de la vivienda.
+                </p>
+              </div>
+
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
                   <Label>Admite parejas</Label>
