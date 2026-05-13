@@ -574,9 +574,9 @@
     "doTest": "Hacer Test",
     "success": "¡Perfil completado!",
     "step1": {
-      "title": "¿Qué estás buscando?",
-      "subtitle": "Cuéntanos qué tipo de alojamiento necesitas",
-      "multipleHint": "Puedes seleccionar múltiples opciones",
+      "title": "¿Qué necesitas?",
+      "subtitle": "Elige cómo quieres empezar en Convinter",
+      "multipleHint": "Puedes seleccionar varias opciones y marcar una como principal",
       "seekingRoom": "Busco habitación",
       "seekingRoomDesc": "Quiero alquilar una habitación en un piso compartido",
       "offeringRoom": "Ofrezco habitación",

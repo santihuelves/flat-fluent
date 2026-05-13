@@ -574,9 +574,9 @@
     "doTest": "Take Test",
     "success": "Profile completed!",
     "step1": {
-      "title": "What are you looking for?",
-      "subtitle": "Tell us what type of accommodation you need",
-      "multipleHint": "You can select multiple options",
+      "title": "What do you need?",
+      "subtitle": "Choose how you want to start in Convinter",
+      "multipleHint": "You can select several options and mark one as primary",
       "seekingRoom": "Looking for a room",
       "seekingRoomDesc": "I want to rent a room in a shared flat",
       "offeringRoom": "Offering a room",

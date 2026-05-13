@@ -14,6 +14,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Slider } from '@/components/ui/slider';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
+import type { Json } from '@/integrations/supabase/types';
+import { getRoomListingCardHighlights, getRoomListingLocationLabel, normalizeRoomListingDetails, stripLegacyNeighborhoodFromDescription } from '@/lib/listingDetails';
 import { toast } from 'sonner';
 import { useSEO } from '@/hooks/useSEO';
 
@@ -42,6 +44,7 @@ type ListingSummary = {
   listing_verified: boolean | null;
   listing_verification_level: number | null;
   thumbnail_url: string | null;
+  details?: Json | null;
   owner: ListingOwner;
 };
 
@@ -63,6 +66,19 @@ const cityOptions = ['Madrid', 'Barcelona', 'Valencia', 'Sevilla', 'Bilbao', 'Za
 const formatDate = (date: string | null) => {
   if (!date) return 'Disponibilidad flexible';
   return new Intl.DateTimeFormat('es-ES', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(date));
+};
+
+const getMinStayLabel = (months: number | null) => {
+  if (!months) return 'Estancia flexible';
+  return months === 1 ? '1 mes mínimo' : `${months} meses mínimo`;
+};
+
+const getOccupancyLabel = (policy: string | undefined) => {
+  if (policy === 'single_only') return 'Una persona';
+  if (policy === 'couple') return 'Pareja';
+  if (policy === 'two_people') return 'Dos personas';
+  if (policy === 'to_agree') return 'A valorar';
+  return null;
 };
 
 const getOwnerName = (owner: ListingOwner) => owner.display_name || owner.handle || 'Usuario';
@@ -128,7 +144,27 @@ export default function Listings() {
       return;
     }
 
-    setListings(result.items ?? []);
+    const items = result.items ?? [];
+    const listingIds = items.map((listing) => listing.id);
+
+    if (listingIds.length > 0) {
+      const { data: detailRows, error: detailsError } = await supabase
+        .from('convinter_listings')
+        .select('id, details')
+        .in('id', listingIds);
+
+      if (!detailsError && detailRows) {
+        const detailsById = new Map(detailRows.map((row) => [row.id, row.details]));
+        setListings(items.map((listing) => ({
+          ...listing,
+          details: detailsById.get(listing.id) ?? null,
+        })));
+      } else {
+        setListings(items);
+      }
+    } else {
+      setListings(items);
+    }
     setTotal(result.total ?? result.items?.length ?? 0);
     setIsLoading(false);
   }, [billsIncludedOnly, listingType, listingVerifiedOnly, minTrustScore, ownerVerifiedOnly, priceRange, selectedCity]);
@@ -189,6 +225,27 @@ export default function Listings() {
   const ListingCard = ({ listing }: { listing: ListingSummary }) => {
     const ownerName = getOwnerName(listing.owner);
     const image = listing.thumbnail_url || '/placeholder.svg';
+    const roomDetails = normalizeRoomListingDetails(listing.listing_type === 'room' ? listing.details : null);
+    const locationLabel = listing.listing_type === 'room'
+      ? getRoomListingLocationLabel(roomDetails, listing.city)
+      : listing.city || 'Ciudad no indicada';
+    const cleanDescription = stripLegacyNeighborhoodFromDescription(listing.description);
+    const highlights = listing.listing_type === 'room'
+      ? getRoomListingCardHighlights(roomDetails, { billsIncluded: listing.bills_included, maxItems: 5 })
+      : [];
+    const occupancyLabel = listing.listing_type === 'room' ? getOccupancyLabel(roomDetails.occupancy_policy) : null;
+    const quickFacts = listing.listing_type === 'room'
+      ? [
+        { icon: Euro, label: listing.price_monthly ? `${listing.price_monthly}€/mes` : 'Precio a consultar' },
+        { icon: Calendar, label: formatDate(listing.available_from) },
+        { icon: Home, label: getMinStayLabel(listing.min_stay_months) },
+        ...(occupancyLabel ? [{ icon: Users, label: occupancyLabel }] : []),
+        ...(listing.bills_included ? [{ icon: Check, label: 'Gastos incluidos' }] : []),
+      ]
+      : [
+        { icon: MapPin, label: locationLabel },
+        { icon: Calendar, label: formatDate(listing.available_from) },
+      ];
 
     return (
       <motion.div
@@ -220,27 +277,35 @@ export default function Listings() {
             </Link>
             <div className="flex items-center gap-1 text-muted-foreground mt-1">
               <MapPin className="h-4 w-4" />
-              <span className="text-sm">{listing.city || 'Ciudad no indicada'}</span>
+              <span className="text-sm">{locationLabel}</span>
             </div>
+            {roomDetails.address_hint && (
+              <p className="mt-1 text-sm text-muted-foreground line-clamp-1">{roomDetails.address_hint}</p>
+            )}
           </div>
 
-          {listing.description && (
-            <p className="text-sm text-muted-foreground line-clamp-2">{listing.description}</p>
+          {cleanDescription && (
+            <p className="text-sm text-muted-foreground line-clamp-2">{cleanDescription}</p>
           )}
 
-          <div className="grid grid-cols-2 gap-3 text-sm">
-            <div className="flex items-center gap-2">
-              <Euro className="h-4 w-4 text-primary" />
-              <span className="font-medium">
-                {listing.price_monthly ? `${listing.price_monthly}€/mes` : 'Precio a consultar'}
-              </span>
+          {highlights.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {highlights.map((highlight) => (
+                <Badge key={highlight} variant="outline" className="rounded-full bg-background/60">
+                  {highlight}
+                </Badge>
+              ))}
             </div>
-            <div className="flex items-center gap-2">
-              <Calendar className="h-4 w-4 text-primary" />
-              <span>{formatDate(listing.available_from)}</span>
-            </div>
-          </div>
+          )}
 
+          <div className="grid grid-cols-2 gap-2 text-sm">
+            {quickFacts.map(({ icon: Icon, label }) => (
+              <div key={label} className="flex items-center gap-2 rounded-xl bg-muted/40 px-3 py-2">
+                <Icon className="h-4 w-4 shrink-0 text-primary" />
+                <span className="font-medium leading-tight">{label}</span>
+              </div>
+            ))}
+          </div>
           <div className="flex items-center justify-between pt-3 border-t border-border/50">
             <div className="min-w-0">
               <p className="text-sm font-medium truncate">{ownerName}</p>
@@ -471,3 +536,4 @@ export default function Listings() {
     </Layout>
   );
 }
+

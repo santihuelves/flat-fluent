@@ -11,7 +11,7 @@ import { Separator } from '@/components/ui/separator';
 import { SafetyActions } from '@/components/SafetyActions';
 import { supabase } from '@/integrations/supabase/client';
 import type { Json } from '@/integrations/supabase/types';
-import { getRoomListingDetailItems, getRoomListingMoneyItems, normalizeRoomListingDetails, occupancyPolicyOptions, preferredGenderOptions } from '@/lib/listingDetails';
+import { getRoomListingBedroomItems, getRoomListingDetailItems, getRoomListingHousingItems, getRoomListingLocationItems, getRoomListingMoneyItems, normalizeRoomListingDetails, occupancyPolicyOptions, preferredGenderOptions } from '@/lib/listingDetails';
 import { toast } from 'sonner';
 import { useSEO } from '@/hooks/useSEO';
 
@@ -464,6 +464,15 @@ export default function ListingDetail() {
   const roomMoneyItems = listing.listing_type === 'room'
     ? getRoomListingMoneyItems(roomDetails)
     : [];
+  const roomHousingItems = listing.listing_type === 'room'
+    ? getRoomListingHousingItems(roomDetails)
+    : [];
+  const roomBedroomItems = listing.listing_type === 'room'
+    ? getRoomListingBedroomItems(roomDetails)
+    : [];
+  const roomLocationItems = listing.listing_type === 'room'
+    ? getRoomListingLocationItems(roomDetails)
+    : [];
   const preferredAgeLabel = formatPreferredAge(roomDetails.preferred_age_min, roomDetails.preferred_age_max);
   const preferredGenderLabel = roomDetails.preferred_gender
     ? preferredGenderOptions.find((option) => option.value === roomDetails.preferred_gender)?.label
@@ -589,6 +598,12 @@ export default function ListingDetail() {
                     <span>Barrio/Zona: {roomDetails.neighborhood}</span>
                   </div>
                 )}
+                {roomDetails.address_hint && (
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <MapPin className="w-4 h-4" />
+                    <span>Referencia: {roomDetails.address_hint}</span>
+                  </div>
+                )}
               </motion.div>
 
               {isOwner && (isListingPaused || isListingDeleted) && (
@@ -660,6 +675,54 @@ export default function ListingDetail() {
                   </p>
                 </CardContent>
               </Card>
+
+              {roomLocationItems.length > 0 && (
+                <Card>
+                  <CardContent className="p-6">
+                    <h2 className="text-xl font-semibold mb-4">Ubicación y entorno</h2>
+                    <div className="grid sm:grid-cols-2 gap-3">
+                      {roomLocationItems.map((item) => (
+                        <div key={item.label} className="rounded-lg border border-border p-4">
+                          <p className="text-sm text-muted-foreground">{item.label}</p>
+                          <p className="font-medium">{item.value}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {roomHousingItems.length > 0 && (
+                <Card>
+                  <CardContent className="p-6">
+                    <h2 className="text-xl font-semibold mb-4">Características de la vivienda</h2>
+                    <div className="grid sm:grid-cols-2 gap-3">
+                      {roomHousingItems.map((item) => (
+                        <div key={item.label} className="rounded-lg border border-border p-4">
+                          <p className="text-sm text-muted-foreground">{item.label}</p>
+                          <p className="font-medium">{item.value}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {roomBedroomItems.length > 0 && (
+                <Card>
+                  <CardContent className="p-6">
+                    <h2 className="text-xl font-semibold mb-4">Características de la habitación</h2>
+                    <div className="grid sm:grid-cols-2 gap-3">
+                      {roomBedroomItems.map((item) => (
+                        <div key={item.label} className="rounded-lg border border-border p-4">
+                          <p className="text-sm text-muted-foreground">{item.label}</p>
+                          <p className="font-medium">{item.value}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
 
               {convivenciaItems.length > 0 && (
                 <Card>

@@ -109,8 +109,45 @@ const Onboarding = () => {
     urgency: 'flexible',
   });
 
-  const totalSteps = 4;
+  const isOfferRoomFlow = data.primaryIntention === 'offer_room';
+  const isSeekFlatmateFlow = data.primaryIntention === 'seek_flatmate';
+  const totalSteps = isOfferRoomFlow ? 2 : 4;
   const progress = (currentStep / totalSteps) * 100;
+
+  const step2Copy = isOfferRoomFlow
+    ? {
+      title: '¿Dónde está la habitación?',
+      subtitle: 'Indica la ubicación de la vivienda donde está la habitación.',
+      city: 'Ciudad, barrio o zona de la habitación',
+      placeholder: 'Ej: Vallecas, Malasaña, Gràcia...',
+    }
+    : isSeekFlatmateFlow
+      ? {
+        title: '¿Dónde os gustaría alquilar?',
+        subtitle: 'Selecciona la zona donde te gustaría encontrar compañero/a y vivienda.',
+        city: 'Ciudad o barrios preferidos',
+        placeholder: 'Ej: Malasaña, Lavapiés...',
+      }
+      : {
+        title: t('onboarding.step2.title'),
+        subtitle: t('onboarding.step2.subtitle'),
+        city: t('onboarding.step2.city'),
+        placeholder: t('onboarding.step2.cityPlaceholder'),
+      };
+
+  const step3Copy = isOfferRoomFlow
+    ? {
+      title: 'Disponibilidad de la habitación',
+      subtitle: 'Indica cuándo estará disponible y la estancia mínima si ya lo tienes claro.',
+      moveInDate: 'Disponible desde',
+      minStay: 'Estancia mínima',
+    }
+    : {
+      title: t('onboarding.step3.title'),
+      subtitle: t('onboarding.step3.subtitle'),
+      moveInDate: t('onboarding.step3.moveInDate'),
+      minStay: t('onboarding.step3.minStay'),
+    };
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -228,6 +265,10 @@ const Onboarding = () => {
       case 1:
         return data.intentions.length > 0 && data.primaryIntention !== null;
       case 2:
+        if (isOfferRoomFlow) {
+          return true;
+        }
+
         return (
           data.autonomousCommunity !== '' &&
           data.province !== '' &&
@@ -239,6 +280,10 @@ const Onboarding = () => {
           const budgetMin = toPositiveNumber(data.budgetMin);
           const budgetMax = toPositiveNumber(data.budgetMax);
           const dateIsValid = !data.moveInDate || data.moveInDate >= todayIso();
+
+          if (isOfferRoomFlow) {
+            return dateIsValid;
+          }
 
           return (
             Number.isFinite(budgetMin) &&
@@ -269,7 +314,9 @@ const Onboarding = () => {
       case 2:
         return 'Completa comunidad, provincia y ciudad.';
       case 3:
-        return 'Revisa el presupuesto: el minimo no puede superar al maximo y la fecha no puede estar en el pasado.';
+        return isOfferRoomFlow
+          ? 'Revisa la fecha: no puede estar en el pasado.'
+          : 'Revisa el presupuesto: el minimo no puede superar al maximo y la fecha no puede estar en el pasado.';
       case 4:
         return 'Selecciona al menos un idioma, revisa la ocupacion y completa "Sobre ti" con al menos 20 caracteres.';
       default:
@@ -294,7 +341,10 @@ const Onboarding = () => {
     }
   };
 
-  const handleComplete = async (goToTest: boolean) => {
+  const handleComplete = async (
+    goToTest: boolean,
+    offerDestination?: 'discover' | 'create-listing' | 'profile'
+  ) => {
     const invalidStep = Array.from({ length: totalSteps }, (_, index) => index + 1)
       .find(step => !canProceed(step));
 
@@ -391,10 +441,18 @@ const Onboarding = () => {
         }
       }
 
-      console.log('Onboarding data saved successfully');
-
       toast.success(t('onboarding.success'));
-      navigate(goToTest ? '/test' : '/discover');
+      if (data.primaryIntention === 'offer_room') {
+        if (offerDestination === 'profile') {
+          navigate('/profile');
+        } else if (offerDestination === 'create-listing') {
+          navigate('/create-listing');
+        } else {
+          navigate('/discover');
+        }
+      } else {
+        navigate(goToTest ? '/test' : '/discover');
+      }
     } catch (error) {
       console.error('Error completing onboarding:', error);
       toast.error(t('common.error'));
@@ -411,7 +469,7 @@ const Onboarding = () => {
             <div className="text-center mb-8">
               <h2 className="text-2xl font-bold text-foreground mb-2">{t('onboarding.step1.title')}</h2>
               <p className="text-muted-foreground">{t('onboarding.step1.subtitle')}</p>
-              <p className="text-sm text-muted-foreground mt-2">💡 {t('onboarding.step1.multipleHint')}</p>
+              <p className="text-sm text-muted-foreground mt-2">{t('onboarding.step1.multipleHint')}</p>
             </div>
             <div className="grid gap-4">
               {[
@@ -468,16 +526,105 @@ const Onboarding = () => {
                   </button>
                 );
               })}
+
+              <button
+                type="button"
+                onClick={() => navigate('/listings')}
+                className="flex items-start gap-4 p-5 rounded-xl border-2 border-dashed border-border transition-all text-left hover:border-primary/50 hover:bg-muted/50"
+              >
+                <div className="p-3 rounded-full flex-shrink-0 bg-muted">
+                  <MapPin className="h-6 w-6" />
+                </div>
+                <div>
+                  <span className="text-lg font-medium">Solo quiero echar un vistazo</span>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Explora anuncios y conoce la app antes de completar tu perfil.
+                  </p>
+                </div>
+              </button>
             </div>
           </div>
         );
 
       case 2:
+        if (isOfferRoomFlow) {
+          return (
+            <div className="space-y-6">
+              <div className="text-center mb-8">
+                <h2 className="text-2xl font-bold text-foreground mb-2">Perfecto, tienes una habitación para ofrecer</h2>
+                <p className="text-muted-foreground">
+                  Antes de pedirte datos del anuncio, elige cómo quieres empezar.
+                </p>
+              </div>
+
+              <div className="grid gap-4">
+                <button
+                  type="button"
+                  disabled={isLoading}
+                  onClick={() => handleComplete(false, 'discover')}
+                  className="flex items-start gap-4 p-5 rounded-xl border-2 border-border transition-all text-left hover:border-primary/50 hover:bg-muted/50 disabled:opacity-60"
+                >
+                  <div className="p-3 rounded-full flex-shrink-0 bg-muted text-foreground">
+                    <Users className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <span className="text-lg font-medium">Ver personas que buscan habitación</span>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Explora perfiles de tu zona antes de publicar la habitación.
+                    </p>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  disabled={isLoading}
+                  onClick={() => handleComplete(true, 'create-listing')}
+                  className="flex items-start gap-4 p-5 rounded-xl border-2 border-primary bg-primary/10 transition-all text-left hover:bg-primary/15 disabled:opacity-60"
+                >
+                  <div className="p-3 rounded-full flex-shrink-0 bg-primary text-primary-foreground">
+                    <Home className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <span className="text-lg font-medium">Crear mi anuncio</span>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Añade fotos, precio, ubicación y condiciones concretas de la habitación.
+                    </p>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  disabled={isLoading}
+                  onClick={() => handleComplete(false, 'profile')}
+                  className="flex items-start gap-4 p-5 rounded-xl border-2 border-border transition-all text-left hover:border-primary/50 hover:bg-muted/50 disabled:opacity-60"
+                >
+                  <div className="p-3 rounded-full flex-shrink-0 bg-muted text-foreground">
+                    <Camera className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <span className="text-lg font-medium">Completar mi perfil personal</span>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Suma confianza con foto, bio e información básica antes de contactar.
+                    </p>
+                  </div>
+                </button>
+              </div>
+
+              {isLoading && (
+                <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Guardando tu inicio...
+                </div>
+              )}
+            </div>
+          );
+        }
+
         return (
           <div className="space-y-6">
             <div className="text-center mb-8">
-              <h2 className="text-2xl font-bold text-foreground mb-2">{t('onboarding.step2.title')}</h2>
-              <p className="text-muted-foreground">{t('onboarding.step2.subtitle')}</p>
+              <h2 className="text-2xl font-bold text-foreground mb-2">{step2Copy.title}</h2>
+              <p className="text-muted-foreground">{step2Copy.subtitle}</p>
             </div>
             <div className="space-y-4">
               <div>
@@ -520,9 +667,9 @@ const Onboarding = () => {
               )}
 
               <div>
-                <Label className="mb-2 block">{t('onboarding.step2.city')}</Label>
+                <Label className="mb-2 block">{step2Copy.city}</Label>
                 <Input
-                  placeholder={t('onboarding.step2.cityPlaceholder')}
+                  placeholder={step2Copy.placeholder}
                   value={data.city}
                   maxLength={MAX_CITY_LENGTH}
                   onChange={(e) => setData(prev => ({ ...prev, city: e.target.value }))}
@@ -536,42 +683,44 @@ const Onboarding = () => {
         return (
           <div className="space-y-6">
             <div className="text-center mb-8">
-              <h2 className="text-2xl font-bold text-foreground mb-2">{t('onboarding.step3.title')}</h2>
-              <p className="text-muted-foreground">{t('onboarding.step3.subtitle')}</p>
+              <h2 className="text-2xl font-bold text-foreground mb-2">{step3Copy.title}</h2>
+              <p className="text-muted-foreground">{step3Copy.subtitle}</p>
             </div>
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label className="flex items-center gap-2 mb-2">
-                    <Euro className="h-4 w-4" />
-                    {t('onboarding.step3.budgetMin')}
-                  </Label>
-                  <Input
-                    type="number"
-                    min={1}
-                    max={MAX_BUDGET}
-                    placeholder="300"
-                    value={data.budgetMin}
-                    onChange={(e) => setData(prev => ({ ...prev, budgetMin: e.target.value }))}
-                  />
+              {!isOfferRoomFlow && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="flex items-center gap-2 mb-2">
+                      <Euro className="h-4 w-4" />
+                      {t('onboarding.step3.budgetMin')}
+                    </Label>
+                    <Input
+                      type="number"
+                      min={1}
+                      max={MAX_BUDGET}
+                      placeholder="300"
+                      value={data.budgetMin}
+                      onChange={(e) => setData(prev => ({ ...prev, budgetMin: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <Label className="mb-2 block">{t('onboarding.step3.budgetMax')}</Label>
+                    <Input
+                      type="number"
+                      min={1}
+                      max={MAX_BUDGET}
+                      placeholder="600"
+                      value={data.budgetMax}
+                      onChange={(e) => setData(prev => ({ ...prev, budgetMax: e.target.value }))}
+                    />
+                  </div>
                 </div>
-                <div>
-                  <Label className="mb-2 block">{t('onboarding.step3.budgetMax')}</Label>
-                  <Input
-                    type="number"
-                    min={1}
-                    max={MAX_BUDGET}
-                    placeholder="600"
-                    value={data.budgetMax}
-                    onChange={(e) => setData(prev => ({ ...prev, budgetMax: e.target.value }))}
-                  />
-                </div>
-              </div>
+              )}
 
               <div>
                 <Label className="flex items-center gap-2 mb-2">
                   <Calendar className="h-4 w-4" />
-                  {t('onboarding.step3.moveInDate')}
+                  {step3Copy.moveInDate}
                 </Label>
                 <Input
                   type="date"
@@ -582,7 +731,7 @@ const Onboarding = () => {
               </div>
 
               <div>
-                <Label className="mb-2 block">{t('onboarding.step3.minStay')}</Label>
+                <Label className="mb-2 block">{step3Copy.minStay}</Label>
                 <Select
                   value={data.minStayMonths}
                   onValueChange={(value) => setData(prev => ({ ...prev, minStayMonths: value }))}
@@ -774,7 +923,9 @@ const Onboarding = () => {
             </Button>
           )}
           
-          {currentStep < totalSteps ? (
+          {isOfferRoomFlow && currentStep === 2 ? (
+            <div className="flex-1" />
+          ) : currentStep < totalSteps ? (
             <Button onClick={handleNext} disabled={!canProceed()} className="flex-1">
               {t('onboarding.next')}
               <ArrowRight className="h-4 w-4 ml-2" />
@@ -787,14 +938,14 @@ const Onboarding = () => {
                 disabled={!canProceed() || isLoading}
                 className="flex-1"
               >
-                {t('onboarding.skipTest')}
+                {isOfferRoomFlow ? 'Ver personas que buscan' : t('onboarding.skipTest')}
               </Button>
               <Button
                 onClick={() => handleComplete(true)}
                 disabled={!canProceed() || isLoading}
                 className="flex-1"
               >
-                {t('onboarding.doTest')}
+                {isOfferRoomFlow ? 'Crear anuncio ahora' : t('onboarding.doTest')}
               </Button>
             </div>
           )}

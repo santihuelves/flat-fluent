@@ -11,15 +11,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Slider } from '@/components/ui/slider';
 import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/integrations/supabase/client';
-import { buildRoomListingDetailsFromForm, contractAvailableOptions, emptyRoomListingDetailsForm, homeEnvironmentOptions, noticePeriodOptions, occupancyPolicyOptions, preferredGenderOptions, registrationAllowedOptions, visitsPolicyOptions, type RoomListingDetailsForm } from '@/lib/listingDetails';
+import { bathroomUsePolicyOptions, buildRoomListingDetailsFromForm, cleaningPolicyOptions, contractAvailableOptions, depositMonthsOptions, emptyRoomListingDetailsForm, homeEnvironmentOptions, homeFloorOptions, homeOrientationOptions, householdGenderMixOptions, householdOccupationOptions, kitchenEquipmentOptions, kitchenUsePolicyOptions, livingRoomUsePolicyOptions, nearbyServiceOptions, noticePeriodOptions, occupancyPolicyOptions, preferredGenderOptions, quietHoursPolicyOptions, registrationAllowedOptions, remoteWorkPolicyOptions, roomBathroomOptions, roomFurnitureOptions, roomFurnishingStatusOptions, roomLockOptions, roomNaturalLightOptions, roomOrientationOptions, roomWindowOptions, visitsPolicyOptions, type RoomListingDetailsForm } from '@/lib/listingDetails';
+import { AUTONOMOUS_COMMUNITIES, PROVINCES } from '@/lib/profileOptions';
 import { toast } from 'sonner';
 import { useSEO } from '@/hooks/useSEO';
-
-const cities = [
-  'Madrid', 'Barcelona', 'Valencia', 'Sevilla', 'Bilbao',
-  'Zaragoza', 'Málaga', 'Granada', 'San Sebastián', 'Alicante',
-  'A Coruña', 'Palma de Mallorca'
-];
 
 const listingTypes = [
   { value: 'offer_room', rpcType: 'room', label: 'Ofrezco habitación', icon: Home, description: 'Tengo una habitación disponible' },
@@ -33,13 +28,27 @@ const TITLE_MAX_LENGTH = 80;
 const DESCRIPTION_MIN_LENGTH = 20;
 const DESCRIPTION_MAX_LENGTH = 1200;
 const NEIGHBORHOOD_MAX_LENGTH = 80;
+const ADDRESS_HINT_MAX_LENGTH = 140;
 const AGE_RANGE_MIN = 18;
 const AGE_RANGE_MAX = 75;
+const EXPENSES_ESTIMATE_MAX = 1000;
+const HOUSEHOLD_COUNT_MAX = 8;
+const HOME_SIZE_MIN = 20;
+const HOME_SIZE_MAX = 300;
+const BEDROOM_COUNT_MIN = 1;
+const BEDROOM_COUNT_MAX = 8;
+const BATHROOM_COUNT_MIN = 1;
+const BATHROOM_COUNT_MAX = 5;
+const ROOM_SIZE_MIN = 6;
+const ROOM_SIZE_MAX = 40;
+const TRANSPORT_WALK_MINUTES_MAX = 30;
 
 type FormData = {
   type: ListingKind | '';
   title: string;
   description: string;
+  autonomousCommunity: string;
+  province: string;
   city: string;
   neighborhood: string;
   price: string;
@@ -80,6 +89,8 @@ export default function CreateListing() {
     type: '',
     title: '',
     description: '',
+    autonomousCommunity: '',
+    province: '',
     city: '',
     neighborhood: '',
     price: '',
@@ -162,8 +173,20 @@ export default function CreateListing() {
       toast.error(`El barrio o zona no puede superar ${NEIGHBORHOOD_MAX_LENGTH} caracteres`);
       return false;
     }
+    if (formData.roomDetails.addressHint.length > ADDRESS_HINT_MAX_LENGTH) {
+      toast.error(`La dirección aproximada no puede superar ${ADDRESS_HINT_MAX_LENGTH} caracteres`);
+      return false;
+    }
+    if (!formData.autonomousCommunity) {
+      toast.error('Selecciona una comunidad autónoma');
+      return false;
+    }
+    if (!formData.province) {
+      toast.error('Selecciona una provincia');
+      return false;
+    }
     if (!formData.city) {
-      toast.error('Selecciona una ciudad');
+      toast.error('Introduce una ciudad');
       return false;
     }
     return true;
@@ -175,6 +198,17 @@ export default function CreateListing() {
     Number(formData.roomDetails.preferredAgeMin) || AGE_RANGE_MIN,
     Number(formData.roomDetails.preferredAgeMax) || AGE_RANGE_MAX,
   ];
+  const householdAgeRange = [
+    Number(formData.roomDetails.householdAgeMin) || AGE_RANGE_MIN,
+    Number(formData.roomDetails.householdAgeMax) || AGE_RANGE_MAX,
+  ];
+  const expensesEstimateValue = Number(formData.roomDetails.expensesEstimateMonthly) || 0;
+  const householdCountValue = Number(formData.roomDetails.currentHouseholdCount) || 0;
+  const homeSizeValue = Number(formData.roomDetails.homeSizeSqm) || 90;
+  const bedroomCountValue = Number(formData.roomDetails.bedroomCount) || 3;
+  const bathroomCountValue = Number(formData.roomDetails.bathroomCount) || 1;
+  const roomSizeValue = Number(formData.roomDetails.roomSizeSqm) || 12;
+  const transportWalkMinutesValue = Number(formData.roomDetails.transportWalkMinutes) || 0;
 
   const validateDetails = () => {
     if (formData.price) {
@@ -261,7 +295,7 @@ export default function CreateListing() {
         p_title: formData.title.trim(),
         p_description: formData.description.trim(),
         p_city: formData.city,
-        p_province_code: null,
+        p_province_code: formData.province,
         p_price_monthly: formData.price ? Number(formData.price) : null,
         p_bills_included: formData.expensesIncluded,
         p_available_from: formData.availableDate || null,
@@ -347,62 +381,131 @@ export default function CreateListing() {
             <p className="text-muted-foreground mb-8">{isFlatmateListing ? 'Cuéntanos qué tipo de compañero/a buscas para alquilar juntos' : 'Cuéntanos más sobre tu habitación disponible'}</p>
 
             <div className="space-y-6">
-              <div className="space-y-2">
-                <Label htmlFor="title">Título del anuncio</Label>
-                <Input
-                  id="title"
-                  placeholder={isFlatmateListing ? 'Ej: Busco compañero/a tranquilo/a para alquilar juntos en Madrid' : 'Ej: Habitación luminosa en el centro'}
-                  value={formData.title}
-                  maxLength={TITLE_MAX_LENGTH}
-                  onChange={(event) => setFormData({ ...formData, title: event.target.value })}
-                />
-                <p className="text-xs text-muted-foreground text-right">
-                  {formData.title.length}/{TITLE_MAX_LENGTH}
-                </p>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="description">Descripción</Label>
-                <Textarea
-                  id="description"
-                  placeholder={isFlatmateListing ? 'Describe qué tipo de convivencia buscas, presupuesto, zonas y tiempos para alquilar juntos...' : 'Describe el espacio, el ambiente del piso y qué buscas en la convivencia...'}
-                  rows={5}
-                  value={formData.description}
-                  maxLength={DESCRIPTION_MAX_LENGTH}
-                  onChange={(event) => setFormData({ ...formData, description: event.target.value })}
-                />
-                <p className="text-xs text-muted-foreground text-right">
-                  {formData.description.length}/{DESCRIPTION_MAX_LENGTH}
-                </p>
-              </div>
-
-              <div className="grid sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Ciudad</Label>
-                  <Select value={formData.city} onValueChange={(value) => setFormData({ ...formData, city: value })}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecciona ciudad" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {cities.map((city) => (
-                        <SelectItem key={city} value={city}>{city}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+              <div className="space-y-4 rounded-xl border border-border p-4">
+                <div>
+                  <h2 className="font-semibold">Información del anuncio</h2>
+                  <p className="text-sm text-muted-foreground">
+                    Resume la habitación y su ubicación. No hace falta publicar una dirección exacta.
+                  </p>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="neighborhood">Barrio o zona</Label>
+                  <Label htmlFor="title">Título del anuncio</Label>
                   <Input
-                    id="neighborhood"
-                    placeholder="Ej: Malasaña"
-                    value={formData.neighborhood}
-                    maxLength={NEIGHBORHOOD_MAX_LENGTH}
-                    onChange={(event) => setFormData({ ...formData, neighborhood: event.target.value })}
+                    id="title"
+                    placeholder={isFlatmateListing ? 'Ej: Busco compañero/a tranquilo/a para alquilar juntos en Madrid' : 'Ej: Habitación luminosa cerca del metro'}
+                    value={formData.title}
+                    maxLength={TITLE_MAX_LENGTH}
+                    onChange={(event) => setFormData({ ...formData, title: event.target.value })}
                   />
                   <p className="text-xs text-muted-foreground text-right">
-                    {formData.neighborhood.length}/{NEIGHBORHOOD_MAX_LENGTH}
+                    {formData.title.length}/{TITLE_MAX_LENGTH}
                   </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="description">Descripción general</Label>
+                  <Textarea
+                    id="description"
+                    placeholder={isFlatmateListing ? 'Describe qué tipo de convivencia buscas, presupuesto, zonas y tiempos para alquilar juntos...' : 'Cuenta brevemente qué hace especial la habitación, el piso o la convivencia.'}
+                    rows={5}
+                    value={formData.description}
+                    maxLength={DESCRIPTION_MAX_LENGTH}
+                    onChange={(event) => setFormData({ ...formData, description: event.target.value })}
+                  />
+                  <p className="text-xs text-muted-foreground text-right">
+                    {formData.description.length}/{DESCRIPTION_MAX_LENGTH}
+                  </p>
+                </div>
+
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Comunidad autónoma</Label>
+                    <Select
+                      value={formData.autonomousCommunity}
+                      onValueChange={(value) => setFormData({
+                        ...formData,
+                        autonomousCommunity: value,
+                        province: '',
+                        city: '',
+                      })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecciona comunidad" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {AUTONOMOUS_COMMUNITIES.map((community) => (
+                          <SelectItem key={community} value={community}>{community}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Provincia</Label>
+                    <Select
+                      value={formData.province}
+                      onValueChange={(value) => setFormData({ ...formData, province: value, city: '' })}
+                      disabled={!formData.autonomousCommunity}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecciona provincia" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(PROVINCES[formData.autonomousCommunity] ?? []).map((province) => (
+                          <SelectItem key={province} value={province}>{province}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="city">Ciudad o municipio</Label>
+                    <Input
+                      id="city"
+                      placeholder="Ej: Madrid, Barcelona, Las Palmas..."
+                      value={formData.city}
+                      maxLength={80}
+                      onChange={(event) => setFormData({ ...formData, city: event.target.value })}
+                      disabled={!formData.province}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="neighborhood">Barrio o zona</Label>
+                    <Input
+                      id="neighborhood"
+                      placeholder="Ej: Vallecas, Malasaña, Gràcia..."
+                      value={formData.neighborhood}
+                      maxLength={NEIGHBORHOOD_MAX_LENGTH}
+                      onChange={(event) => setFormData({ ...formData, neighborhood: event.target.value })}
+                    />
+                    <p className="text-xs text-muted-foreground text-right">
+                      {formData.neighborhood.length}/{NEIGHBORHOOD_MAX_LENGTH}
+                    </p>
+                  </div>
+
+                  {!isFlatmateListing && (
+                    <div className="space-y-2 sm:col-span-2">
+                      <Label htmlFor="addressHint">Dirección aproximada del inmueble</Label>
+                      <Input
+                        id="addressHint"
+                        placeholder="Ej: cerca del metro Puente de Vallecas, zona avenida de la Albufera"
+                        value={formData.roomDetails.addressHint}
+                        maxLength={ADDRESS_HINT_MAX_LENGTH}
+                        onChange={(event) => setFormData({
+                          ...formData,
+                          roomDetails: { ...formData.roomDetails, addressHint: event.target.value },
+                        })}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Evita portal, piso o datos demasiado exactos. Se mostrará como referencia aproximada.
+                      </p>
+                      <p className="text-xs text-muted-foreground text-right">
+                        {formData.roomDetails.addressHint.length}/{ADDRESS_HINT_MAX_LENGTH}
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -492,9 +595,11 @@ export default function CreateListing() {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="1">1 mes</SelectItem>
+                          <SelectItem value="2">2 meses</SelectItem>
                           <SelectItem value="3">3 meses</SelectItem>
+                          <SelectItem value="4">4 meses</SelectItem>
+                          <SelectItem value="5">5 meses</SelectItem>
                           <SelectItem value="6">6 meses</SelectItem>
-                          <SelectItem value="12">12 meses</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -541,6 +646,103 @@ export default function CreateListing() {
                 </div>
               )}
 
+              {!isFlatmateListing && (
+                <div className="space-y-4 rounded-xl border border-border p-4">
+                  <div>
+                    <h2 className="font-semibold">Ubicación y entorno</h2>
+                    <p className="text-sm text-muted-foreground">Ayuda a entender qué tiene cerca la zona sin publicar una dirección exacta.</p>
+                  </div>
+
+                  <div className="grid sm:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="nearestTransport">Transporte cercano</Label>
+                      <Input
+                        id="nearestTransport"
+                        placeholder="Ej: Metro Puente de Vallecas, líneas 24 y 57"
+                        value={formData.roomDetails.nearestTransport}
+                        onChange={(event) => setFormData({
+                          ...formData,
+                          roomDetails: { ...formData.roomDetails, nearestTransport: event.target.value },
+                        })}
+                      />
+                    </div>
+
+                    <div className="space-y-4 rounded-xl border border-border/70 p-4">
+                      <div className="flex items-center justify-between gap-4">
+                        <Label>Tiempo andando al transporte</Label>
+                        <span className="text-sm font-medium">
+                          {transportWalkMinutesValue === 1 ? '1 minuto' : `${transportWalkMinutesValue} minutos`}
+                        </span>
+                      </div>
+                      <Slider
+                        min={0}
+                        max={TRANSPORT_WALK_MINUTES_MAX}
+                        step={1}
+                        value={[transportWalkMinutesValue]}
+                        onValueChange={([value]) => setFormData({
+                          ...formData,
+                          roomDetails: { ...formData.roomDetails, transportWalkMinutes: String(value) },
+                        })}
+                      />
+                      <div className="flex justify-between text-xs text-muted-foreground">
+                        <span>0 min</span>
+                        <span>{TRANSPORT_WALK_MINUTES_MAX}+ min</span>
+                      </div>
+                    </div>
+
+                    <div className="space-y-3 sm:col-span-2 rounded-xl border border-border/70 p-4">
+                      <div>
+                        <Label>Servicios cercanos</Label>
+                        <p className="text-xs text-muted-foreground">Marca lo que hay cerca caminando.</p>
+                      </div>
+                      <div className="grid sm:grid-cols-2 gap-2">
+                        {nearbyServiceOptions.map((option) => {
+                          const isSelected = formData.roomDetails.nearbyServices.includes(option.value);
+
+                          return (
+                            <button
+                              key={option.value}
+                              type="button"
+                              className={`rounded-lg border px-3 py-2 text-left text-sm transition-colors ${
+                                isSelected
+                                  ? 'border-primary bg-primary/10 text-primary'
+                                  : 'border-border bg-background hover:border-primary/50'
+                              }`}
+                              onClick={() => {
+                                const nearbyServices = isSelected
+                                  ? formData.roomDetails.nearbyServices.filter((item) => item !== option.value)
+                                  : [...formData.roomDetails.nearbyServices, option.value];
+
+                                setFormData({
+                                  ...formData,
+                                  roomDetails: { ...formData.roomDetails, nearbyServices },
+                                });
+                              }}
+                            >
+                              {option.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div className="space-y-2 sm:col-span-2">
+                      <Label htmlFor="locationNotes">Notas de ubicación</Label>
+                      <Textarea
+                        id="locationNotes"
+                        rows={3}
+                        placeholder="Ej: zona tranquila, supermercado a dos calles, buen acceso nocturno..."
+                        value={formData.roomDetails.locationNotes}
+                        onChange={(event) => setFormData({
+                          ...formData,
+                          roomDetails: { ...formData.roomDetails, locationNotes: event.target.value },
+                        })}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div className="space-y-4 rounded-xl border border-border p-4">
                 <div>
                   <h2 className="font-semibold">Precio y gastos</h2>
@@ -580,33 +782,44 @@ export default function CreateListing() {
                   {!isFlatmateListing && (
                     <>
                       <div className="space-y-2">
-                        <Label htmlFor="expensesEstimateMonthly">Gastos estimados mensuales (€)</Label>
-                        <Input
-                          id="expensesEstimateMonthly"
-                          type="number"
-                          min="0"
-                          placeholder="Ej: 50"
-                          value={formData.roomDetails.expensesEstimateMonthly}
-                          onChange={(event) => setFormData({
+                        <div className="flex items-center justify-between gap-4">
+                          <Label>Gastos estimados mensuales</Label>
+                          <span className="text-sm font-medium">{expensesEstimateValue}€/mes</span>
+                        </div>
+                        <Slider
+                          min={0}
+                          max={EXPENSES_ESTIMATE_MAX}
+                          step={5}
+                          value={[expensesEstimateValue]}
+                          onValueChange={([value]) => setFormData({
                             ...formData,
-                            roomDetails: { ...formData.roomDetails, expensesEstimateMonthly: event.target.value },
+                            roomDetails: { ...formData.roomDetails, expensesEstimateMonthly: String(value) },
                           })}
                         />
+                        <div className="flex justify-between text-xs text-muted-foreground">
+                          <span>0€</span>
+                          <span>{EXPENSES_ESTIMATE_MAX}€</span>
+                        </div>
                       </div>
 
                       <div className="space-y-2">
-                        <Label htmlFor="depositAmount">Fianza (€)</Label>
-                        <Input
-                          id="depositAmount"
-                          type="number"
-                          min="0"
-                          placeholder="Ej: 450"
-                          value={formData.roomDetails.depositAmount}
-                          onChange={(event) => setFormData({
+                        <Label>Fianza</Label>
+                        <Select
+                          value={formData.roomDetails.depositMonths}
+                          onValueChange={(value) => setFormData({
                             ...formData,
-                            roomDetails: { ...formData.roomDetails, depositAmount: event.target.value },
+                            roomDetails: { ...formData.roomDetails, depositMonths: value },
                           })}
-                        />
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecciona una opción" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {depositMonthsOptions.map((option) => (
+                              <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
 
                       <div className="space-y-2">
@@ -689,14 +902,16 @@ export default function CreateListing() {
                           <SelectTrigger id="minStay">
                             <SelectValue />
                           </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="1">1 mes</SelectItem>
-                            <SelectItem value="3">3 meses</SelectItem>
-                            <SelectItem value="6">6 meses</SelectItem>
-                            <SelectItem value="12">12 meses</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
+                        <SelectContent>
+                          <SelectItem value="1">1 mes</SelectItem>
+                          <SelectItem value="2">2 meses</SelectItem>
+                          <SelectItem value="3">3 meses</SelectItem>
+                          <SelectItem value="4">4 meses</SelectItem>
+                          <SelectItem value="5">5 meses</SelectItem>
+                          <SelectItem value="6">6 meses</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                     </>
                   )}
                 </div>
@@ -705,25 +920,46 @@ export default function CreateListing() {
               {!isFlatmateListing && (
                 <div className="space-y-4 rounded-xl border border-border p-4">
                   <div>
-                    <h2 className="font-semibold">Condiciones de convivencia</h2>
-                    <p className="text-sm text-muted-foreground">Estos detalles describen las normas concretas de esta habitación anunciada.</p>
+                    <h2 className="font-semibold">Características de la vivienda</h2>
+                    <p className="text-sm text-muted-foreground">Describe el piso donde está la habitación anunciada.</p>
                   </div>
 
                   <div className="grid sm:grid-cols-2 gap-4">
+                    <div className="space-y-4 sm:col-span-2 rounded-xl border border-border/70 p-4">
+                      <div className="flex items-center justify-between gap-4">
+                        <Label>Tamaño de la vivienda</Label>
+                        <span className="text-sm font-medium">{homeSizeValue} m²</span>
+                      </div>
+                      <Slider
+                        min={HOME_SIZE_MIN}
+                        max={HOME_SIZE_MAX}
+                        step={5}
+                        value={[homeSizeValue]}
+                        onValueChange={([value]) => setFormData({
+                          ...formData,
+                          roomDetails: { ...formData.roomDetails, homeSizeSqm: String(value) },
+                        })}
+                      />
+                      <div className="flex justify-between text-xs text-muted-foreground">
+                        <span>{HOME_SIZE_MIN} m²</span>
+                        <span>{HOME_SIZE_MAX} m²</span>
+                      </div>
+                    </div>
+
                     <div className="space-y-2">
-                      <Label>Política de visitas</Label>
+                      <Label>Planta</Label>
                       <Select
-                        value={formData.roomDetails.visitsPolicy}
+                        value={formData.roomDetails.homeFloor}
                         onValueChange={(value) => setFormData({
                           ...formData,
-                          roomDetails: { ...formData.roomDetails, visitsPolicy: value },
+                          roomDetails: { ...formData.roomDetails, homeFloor: value },
                         })}
                       >
                         <SelectTrigger>
                           <SelectValue placeholder="Selecciona una opción" />
                         </SelectTrigger>
                         <SelectContent>
-                          {visitsPolicyOptions.map((option) => (
+                          {homeFloorOptions.map((option) => (
                             <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
                           ))}
                         </SelectContent>
@@ -731,13 +967,36 @@ export default function CreateListing() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label>Permite fumar</Label>
+                      <Label>Exterior o interior</Label>
                       <Select
-                        value={booleanSelectValue(formData.smokingAllowed)}
-                        onValueChange={(value) => setFormData({ ...formData, smokingAllowed: parseBooleanSelectValue(value) })}
+                        value={formData.roomDetails.homeOrientation}
+                        onValueChange={(value) => setFormData({
+                          ...formData,
+                          roomDetails: { ...formData.roomDetails, homeOrientation: value },
+                        })}
                       >
                         <SelectTrigger>
-                          <SelectValue />
+                          <SelectValue placeholder="Selecciona una opción" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {homeOrientationOptions.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Ascensor</Label>
+                      <Select
+                        value={formData.roomDetails.hasElevator}
+                        onValueChange={(value) => setFormData({
+                          ...formData,
+                          roomDetails: { ...formData.roomDetails, hasElevator: value as RoomListingDetailsForm['hasElevator'] },
+                        })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Sin especificar" />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="yes">Sí</SelectItem>
@@ -747,13 +1006,16 @@ export default function CreateListing() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label>Permite mascotas</Label>
+                      <Label>Internet</Label>
                       <Select
-                        value={booleanSelectValue(formData.petsAllowed)}
-                        onValueChange={(value) => setFormData({ ...formData, petsAllowed: parseBooleanSelectValue(value) })}
+                        value={formData.roomDetails.hasInternet}
+                        onValueChange={(value) => setFormData({
+                          ...formData,
+                          roomDetails: { ...formData.roomDetails, hasInternet: value as RoomListingDetailsForm['hasInternet'] },
+                        })}
                       >
                         <SelectTrigger>
-                          <SelectValue />
+                          <SelectValue placeholder="Sin especificar" />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="yes">Sí</SelectItem>
@@ -762,33 +1024,95 @@ export default function CreateListing() {
                       </Select>
                     </div>
 
-                    <div className="space-y-2">
-                      <Label>Ambiente del piso</Label>
-                      <Select
-                        value={formData.roomDetails.homeEnvironment}
-                        onValueChange={(value) => setFormData({
+                    <div className="space-y-4 rounded-xl border border-border/70 p-4">
+                      <div className="flex items-center justify-between gap-4">
+                        <Label>Número de habitaciones</Label>
+                        <span className="text-sm font-medium">
+                          {bedroomCountValue === 1 ? '1 habitación' : `${bedroomCountValue} habitaciones`}
+                        </span>
+                      </div>
+                      <Slider
+                        min={BEDROOM_COUNT_MIN}
+                        max={BEDROOM_COUNT_MAX}
+                        step={1}
+                        value={[bedroomCountValue]}
+                        onValueChange={([value]) => setFormData({
                           ...formData,
-                          roomDetails: { ...formData.roomDetails, homeEnvironment: value },
+                          roomDetails: { ...formData.roomDetails, bedroomCount: String(value) },
                         })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecciona una opción" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {homeEnvironmentOptions.map((option) => (
-                            <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      />
+                      <div className="flex justify-between text-xs text-muted-foreground">
+                        <span>{BEDROOM_COUNT_MIN}</span>
+                        <span>{BEDROOM_COUNT_MAX}+</span>
+                      </div>
+                    </div>
+
+                    <div className="space-y-4 rounded-xl border border-border/70 p-4">
+                      <div className="flex items-center justify-between gap-4">
+                        <Label>Número de baños</Label>
+                        <span className="text-sm font-medium">
+                          {bathroomCountValue === 1 ? '1 baño' : `${bathroomCountValue} baños`}
+                        </span>
+                      </div>
+                      <Slider
+                        min={BATHROOM_COUNT_MIN}
+                        max={BATHROOM_COUNT_MAX}
+                        step={1}
+                        value={[bathroomCountValue]}
+                        onValueChange={([value]) => setFormData({
+                          ...formData,
+                          roomDetails: { ...formData.roomDetails, bathroomCount: String(value) },
+                        })}
+                      />
+                      <div className="flex justify-between text-xs text-muted-foreground">
+                        <span>{BATHROOM_COUNT_MIN}</span>
+                        <span>{BATHROOM_COUNT_MAX}+</span>
+                      </div>
+                    </div>
+
+                    <div className="space-y-3 sm:col-span-2 rounded-xl border border-border/70 p-4">
+                      <div>
+                        <Label>Equipamiento de cocina</Label>
+                        <p className="text-xs text-muted-foreground">Marca lo que tiene la cocina para que quede claro cómo se puede usar.</p>
+                      </div>
+                      <div className="grid sm:grid-cols-2 gap-2">
+                        {kitchenEquipmentOptions.map((option) => {
+                          const isSelected = formData.roomDetails.kitchenEquipment.includes(option.value);
+
+                          return (
+                            <button
+                              key={option.value}
+                              type="button"
+                              className={`rounded-lg border px-3 py-2 text-left text-sm transition-colors ${
+                                isSelected
+                                  ? 'border-primary bg-primary/10 text-primary'
+                                  : 'border-border bg-background hover:border-primary/50'
+                              }`}
+                              onClick={() => {
+                                const kitchenEquipment = isSelected
+                                  ? formData.roomDetails.kitchenEquipment.filter((item) => item !== option.value)
+                                  : [...formData.roomDetails.kitchenEquipment, option.value];
+
+                                setFormData({
+                                  ...formData,
+                                  roomDetails: { ...formData.roomDetails, kitchenEquipment },
+                                });
+                              }}
+                            >
+                              {option.label}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
 
                     <div className="space-y-2">
-                      <Label>Propietario vive en la vivienda</Label>
+                      <Label>Lavadora</Label>
                       <Select
-                        value={formData.roomDetails.ownerLivesHere}
+                        value={formData.roomDetails.washingMachine}
                         onValueChange={(value) => setFormData({
                           ...formData,
-                          roomDetails: { ...formData.roomDetails, ownerLivesHere: value as RoomListingDetailsForm['ownerLivesHere'] },
+                          roomDetails: { ...formData.roomDetails, washingMachine: value as RoomListingDetailsForm['washingMachine'] },
                         })}
                       >
                         <SelectTrigger>
@@ -801,21 +1125,539 @@ export default function CreateListing() {
                       </Select>
                     </div>
                   </div>
+                </div>
+              )}
 
-                  <div className="space-y-2">
-                    <Label htmlFor="currentHouseholdCount">Personas viviendo actualmente</Label>
-                    <Input
-                      id="currentHouseholdCount"
-                      type="number"
-                      min="0"
-                      step="1"
-                      placeholder="Ej: 2"
-                      value={formData.roomDetails.currentHouseholdCount}
-                      onChange={(event) => setFormData({
+              {!isFlatmateListing && (
+                <div className="space-y-4 rounded-xl border border-border p-4">
+                  <div>
+                    <h2 className="font-semibold">Características de la habitación</h2>
+                    <p className="text-sm text-muted-foreground">Describe el espacio privado que se alquila.</p>
+                  </div>
+
+                  <div className="grid sm:grid-cols-2 gap-4">
+                    <div className="space-y-4 sm:col-span-2 rounded-xl border border-border/70 p-4">
+                      <div className="flex items-center justify-between gap-4">
+                        <Label>Tamaño de la habitación</Label>
+                        <span className="text-sm font-medium">{roomSizeValue} m²</span>
+                      </div>
+                      <Slider
+                        min={ROOM_SIZE_MIN}
+                        max={ROOM_SIZE_MAX}
+                        step={1}
+                        value={[roomSizeValue]}
+                        onValueChange={([value]) => setFormData({
+                          ...formData,
+                          roomDetails: { ...formData.roomDetails, roomSizeSqm: String(value) },
+                        })}
+                      />
+                      <div className="flex justify-between text-xs text-muted-foreground">
+                        <span>{ROOM_SIZE_MIN} m²</span>
+                        <span>{ROOM_SIZE_MAX} m²</span>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Ventana, balcón o terraza</Label>
+                      <Select
+                        value={formData.roomDetails.roomWindow}
+                        onValueChange={(value) => setFormData({
+                          ...formData,
+                          roomDetails: { ...formData.roomDetails, roomWindow: value },
+                        })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecciona una opción" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {roomWindowOptions.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Orientación de la habitación</Label>
+                      <Select
+                        value={formData.roomDetails.roomOrientation}
+                        onValueChange={(value) => setFormData({
+                          ...formData,
+                          roomDetails: { ...formData.roomDetails, roomOrientation: value },
+                        })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecciona una opción" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {roomOrientationOptions.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Luz natural</Label>
+                      <Select
+                        value={formData.roomDetails.roomNaturalLight}
+                        onValueChange={(value) => setFormData({
+                          ...formData,
+                          roomDetails: { ...formData.roomDetails, roomNaturalLight: value },
+                        })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecciona una opción" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {roomNaturalLightOptions.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Cerradura</Label>
+                      <Select
+                        value={formData.roomDetails.roomLock}
+                        onValueChange={(value) => setFormData({
+                          ...formData,
+                          roomDetails: { ...formData.roomDetails, roomLock: value },
+                        })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecciona una opción" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {roomLockOptions.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Baño</Label>
+                      <Select
+                        value={formData.roomDetails.roomBathroom}
+                        onValueChange={(value) => setFormData({
+                          ...formData,
+                          roomDetails: { ...formData.roomDetails, roomBathroom: value },
+                        })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecciona una opción" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {roomBathroomOptions.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Estado de la habitación</Label>
+                      <Select
+                        value={formData.roomDetails.roomFurnishingStatus}
+                        onValueChange={(value) => setFormData({
+                          ...formData,
+                          roomDetails: { ...formData.roomDetails, roomFurnishingStatus: value },
+                        })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecciona una opción" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {roomFurnishingStatusOptions.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-3 sm:col-span-2 rounded-xl border border-border/70 p-4">
+                      <div>
+                        <Label>Mobiliario y extras</Label>
+                        <p className="text-xs text-muted-foreground">Marca lo que incluye la habitación.</p>
+                      </div>
+                      <div className="grid sm:grid-cols-2 gap-2">
+                        {roomFurnitureOptions.map((option) => {
+                          const isSelected = formData.roomDetails.roomFurniture.includes(option.value);
+
+                          return (
+                            <button
+                              key={option.value}
+                              type="button"
+                              className={`rounded-lg border px-3 py-2 text-left text-sm transition-colors ${
+                                isSelected
+                                  ? 'border-primary bg-primary/10 text-primary'
+                                  : 'border-border bg-background hover:border-primary/50'
+                              }`}
+                              onClick={() => {
+                                const roomFurniture = isSelected
+                                  ? formData.roomDetails.roomFurniture.filter((item) => item !== option.value)
+                                  : [...formData.roomDetails.roomFurniture, option.value];
+
+                                setFormData({
+                                  ...formData,
+                                  roomDetails: { ...formData.roomDetails, roomFurniture },
+                                });
+                              }}
+                            >
+                              {option.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {!isFlatmateListing && (
+                <div className="space-y-4 rounded-xl border border-border p-4">
+                  <div>
+                    <h2 className="font-semibold">Condiciones de convivencia</h2>
+                    <p className="text-sm text-muted-foreground">Aclara cómo es la convivencia diaria y qué normas debe conocer quien entre a vivir.</p>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div>
+                      <h3 className="text-sm font-medium">Tus compañeros/as</h3>
+                      <p className="text-xs text-muted-foreground">Ayuda a entender con quién se va a convivir y cómo es el ambiente de la casa.</p>
+                    </div>
+
+                    <div className="grid sm:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Género de tus compañeros/as</Label>
+                        <Select
+                          value={formData.roomDetails.householdGenderMix}
+                          onValueChange={(value) => setFormData({
+                            ...formData,
+                            roomDetails: { ...formData.roomDetails, householdGenderMix: value },
+                          })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecciona una opción" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {householdGenderMixOptions.map((option) => (
+                              <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Ocupación principal</Label>
+                        <Select
+                          value={formData.roomDetails.householdOccupation}
+                          onValueChange={(value) => setFormData({
+                            ...formData,
+                            roomDetails: { ...formData.roomDetails, householdOccupation: value },
+                          })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecciona una opción" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {householdOccupationOptions.map((option) => (
+                              <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-4 sm:col-span-2 rounded-xl border border-border/70 p-4">
+                        <div className="flex items-center justify-between gap-4">
+                          <Label>Edad aproximada de tus compañeros/as</Label>
+                          <span className="text-sm font-medium">
+                            {householdAgeRange[0]} - {householdAgeRange[1]} años
+                          </span>
+                        </div>
+                        <Slider
+                          min={AGE_RANGE_MIN}
+                          max={AGE_RANGE_MAX}
+                          step={1}
+                          value={householdAgeRange}
+                          onValueChange={([min, max]) => setFormData({
+                            ...formData,
+                            roomDetails: {
+                              ...formData.roomDetails,
+                              householdAgeMin: String(min),
+                              householdAgeMax: String(max),
+                            },
+                          })}
+                        />
+                        <div className="flex justify-between text-xs text-muted-foreground">
+                          <span>{AGE_RANGE_MIN} años</span>
+                          <span>{AGE_RANGE_MAX} años</span>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Ambiente del piso</Label>
+                        <Select
+                          value={formData.roomDetails.homeEnvironment}
+                          onValueChange={(value) => setFormData({
+                            ...formData,
+                            roomDetails: { ...formData.roomDetails, homeEnvironment: value },
+                          })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecciona una opción" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {homeEnvironmentOptions.map((option) => (
+                              <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Propietario vive en la vivienda</Label>
+                        <Select
+                          value={formData.roomDetails.ownerLivesHere}
+                          onValueChange={(value) => setFormData({
+                            ...formData,
+                            roomDetails: { ...formData.roomDetails, ownerLivesHere: value as RoomListingDetailsForm['ownerLivesHere'] },
+                          })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Sin especificar" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="yes">Sí</SelectItem>
+                            <SelectItem value="no">No</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2 rounded-xl border border-border/70 p-4">
+                    <div className="flex items-center justify-between gap-4">
+                      <Label>Personas viviendo actualmente</Label>
+                      <span className="text-sm font-medium">
+                        {householdCountValue === 1 ? '1 persona' : `${householdCountValue} personas`}
+                      </span>
+                    </div>
+                    <Slider
+                      min={0}
+                      max={HOUSEHOLD_COUNT_MAX}
+                      step={1}
+                      value={[householdCountValue]}
+                      onValueChange={([value]) => setFormData({
                         ...formData,
-                        roomDetails: { ...formData.roomDetails, currentHouseholdCount: event.target.value },
+                        roomDetails: { ...formData.roomDetails, currentHouseholdCount: String(value) },
                       })}
                     />
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>0</span>
+                      <span>{HOUSEHOLD_COUNT_MAX}+</span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div>
+                      <h3 className="text-sm font-medium">Normas de convivencia</h3>
+                      <p className="text-xs text-muted-foreground">Deja claras las reglas principales antes de que alguien contacte.</p>
+                    </div>
+
+                    <div className="grid sm:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Política de visitas</Label>
+                        <Select
+                          value={formData.roomDetails.visitsPolicy}
+                          onValueChange={(value) => setFormData({
+                            ...formData,
+                            roomDetails: { ...formData.roomDetails, visitsPolicy: value },
+                          })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecciona una opción" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {visitsPolicyOptions.map((option) => (
+                              <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Permite fumar</Label>
+                        <Select
+                          value={booleanSelectValue(formData.smokingAllowed)}
+                          onValueChange={(value) => setFormData({ ...formData, smokingAllowed: parseBooleanSelectValue(value) })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="yes">Sí</SelectItem>
+                            <SelectItem value="no">No</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Permite mascotas</Label>
+                        <Select
+                          value={booleanSelectValue(formData.petsAllowed)}
+                          onValueChange={(value) => setFormData({ ...formData, petsAllowed: parseBooleanSelectValue(value) })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="yes">Sí</SelectItem>
+                            <SelectItem value="no">No</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div>
+                      <h3 className="text-sm font-medium">Uso de zonas comunes</h3>
+                      <p className="text-xs text-muted-foreground">Aclara cómo se usan cocina, salón y baño en el día a día.</p>
+                    </div>
+
+                    <div className="grid sm:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Uso de cocina</Label>
+                        <Select
+                          value={formData.roomDetails.kitchenUsePolicy}
+                          onValueChange={(value) => setFormData({
+                            ...formData,
+                            roomDetails: { ...formData.roomDetails, kitchenUsePolicy: value },
+                          })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecciona una opción" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {kitchenUsePolicyOptions.map((option) => (
+                              <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Uso de salón</Label>
+                        <Select
+                          value={formData.roomDetails.livingRoomUsePolicy}
+                          onValueChange={(value) => setFormData({
+                            ...formData,
+                            roomDetails: { ...formData.roomDetails, livingRoomUsePolicy: value },
+                          })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecciona una opción" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {livingRoomUsePolicyOptions.map((option) => (
+                              <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Uso de baño</Label>
+                        <Select
+                          value={formData.roomDetails.bathroomUsePolicy}
+                          onValueChange={(value) => setFormData({
+                            ...formData,
+                            roomDetails: { ...formData.roomDetails, bathroomUsePolicy: value },
+                          })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecciona una opción" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {bathroomUsePolicyOptions.map((option) => (
+                              <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div>
+                      <h3 className="text-sm font-medium">Perfil de convivencia</h3>
+                      <p className="text-xs text-muted-foreground">Cuenta cómo se organizan la limpieza, el descanso y el uso diario de la casa.</p>
+                    </div>
+
+                    <div className="grid sm:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Limpieza</Label>
+                        <Select
+                          value={formData.roomDetails.cleaningPolicy}
+                          onValueChange={(value) => setFormData({
+                            ...formData,
+                            roomDetails: { ...formData.roomDetails, cleaningPolicy: value },
+                          })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecciona una opción" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {cleaningPolicyOptions.map((option) => (
+                              <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Descanso y ruido</Label>
+                        <Select
+                          value={formData.roomDetails.quietHoursPolicy}
+                          onValueChange={(value) => setFormData({
+                            ...formData,
+                            roomDetails: { ...formData.roomDetails, quietHoursPolicy: value },
+                          })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecciona una opción" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {quietHoursPolicyOptions.map((option) => (
+                              <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Teletrabajo</Label>
+                        <Select
+                          value={formData.roomDetails.remoteWorkPolicy}
+                          onValueChange={(value) => setFormData({
+                            ...formData,
+                            roomDetails: { ...formData.roomDetails, remoteWorkPolicy: value },
+                          })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecciona una opción" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {remoteWorkPolicyOptions.map((option) => (
+                              <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}
