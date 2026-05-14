@@ -7,6 +7,12 @@ export const visitsPolicyOptions = [
   { value: 'to_agree', label: 'A acordar' },
 ] as const;
 
+export const partyPolicyOptions = [
+  { value: 'no_parties', label: 'No fiestas' },
+  { value: 'occasional_with_notice', label: 'Ocasionalmente y con aviso' },
+  { value: 'to_agree', label: 'A acordar' },
+] as const;
+
 export const homeEnvironmentOptions = [
   { value: 'quiet', label: 'Tranquilo' },
   { value: 'family', label: 'Familiar' },
@@ -216,6 +222,7 @@ export const nearbyServiceOptions = [
 
 const booleanOptions = new Set(['yes', 'no']);
 const visitsPolicyValues = new Set(visitsPolicyOptions.map((option) => option.value));
+const partyPolicyValues = new Set(partyPolicyOptions.map((option) => option.value));
 const homeEnvironmentValues = new Set(homeEnvironmentOptions.map((option) => option.value));
 const occupancyPolicyValues = new Set(occupancyPolicyOptions.map((option) => option.value));
 const preferredGenderValues = new Set(preferredGenderOptions.map((option) => option.value));
@@ -256,6 +263,7 @@ export type RoomListingDetails = {
   registration_allowed?: 'yes' | 'no' | 'to_agree';
   notice_period?: '15_days' | '1_month' | '2_months' | 'to_agree';
   visits_policy?: 'no' | 'occasional' | 'with_notice' | 'to_agree';
+  party_policy?: 'no_parties' | 'occasional_with_notice' | 'to_agree';
   occupancy_policy?: 'single_only' | 'couple' | 'two_people' | 'to_agree';
   allows_couples?: boolean;
   allows_two_people?: boolean;
@@ -309,6 +317,7 @@ export type RoomListingDetailsForm = {
   registrationAllowed: string;
   noticePeriod: string;
   visitsPolicy: string;
+  partyPolicy: string;
   occupancyPolicy: string;
   allowsMinors: '' | 'yes' | 'no';
   currentHouseholdCount: string;
@@ -360,6 +369,7 @@ export const emptyRoomListingDetailsForm = (): RoomListingDetailsForm => ({
   registrationAllowed: '',
   noticePeriod: '',
   visitsPolicy: '',
+  partyPolicy: '',
   occupancyPolicy: '',
   allowsMinors: '',
   currentHouseholdCount: '',
@@ -464,6 +474,10 @@ export const normalizeRoomListingDetails = (value: Json | null | undefined): Roo
 
   if (typeof value.visits_policy === 'string' && visitsPolicyValues.has(value.visits_policy)) {
     details.visits_policy = value.visits_policy as RoomListingDetails['visits_policy'];
+  }
+
+  if (typeof value.party_policy === 'string' && partyPolicyValues.has(value.party_policy)) {
+    details.party_policy = value.party_policy as RoomListingDetails['party_policy'];
   }
 
   if (typeof value.allows_couples === 'boolean') {
@@ -664,6 +678,7 @@ export const roomListingDetailsFormFromDetails = (value: Json | null | undefined
     registrationAllowed: details.registration_allowed ?? '',
     noticePeriod: details.notice_period ?? '',
     visitsPolicy: details.visits_policy ?? '',
+    partyPolicy: details.party_policy ?? '',
     occupancyPolicy: details.occupancy_policy ?? '',
     allowsMinors: getBooleanFormValue(details.allows_minors),
     currentHouseholdCount: details.current_household_count?.toString() ?? '',
@@ -759,6 +774,10 @@ export const buildRoomListingDetailsFromForm = (form: RoomListingDetailsForm): R
 
   if (visitsPolicyValues.has(form.visitsPolicy)) {
     details.visits_policy = form.visitsPolicy as RoomListingDetails['visits_policy'];
+  }
+
+  if (partyPolicyValues.has(form.partyPolicy)) {
+    details.party_policy = form.partyPolicy as RoomListingDetails['party_policy'];
   }
 
   if (occupancyPolicyValues.has(form.occupancyPolicy)) {
@@ -943,6 +962,13 @@ export const getRoomListingDetailItems = (details: RoomListingDetails) => {
     const label = visitsPolicyOptions.find((option) => option.value === details.visits_policy)?.label;
   if (label) {
       items.push({ label: 'Visitas', value: label });
+    }
+  }
+
+  if (details.party_policy) {
+    const label = partyPolicyOptions.find((option) => option.value === details.party_policy)?.label;
+    if (label) {
+      items.push({ label: 'Fiestas', value: label });
     }
   }
 

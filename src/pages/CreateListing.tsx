@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Slider } from '@/components/ui/slider';
 import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/integrations/supabase/client';
-import { bathroomUsePolicyOptions, buildRoomListingDetailsFromForm, cleaningPolicyOptions, contractAvailableOptions, depositMonthsOptions, emptyRoomListingDetailsForm, homeEnvironmentOptions, homeFloorOptions, homeOrientationOptions, householdGenderMixOptions, householdOccupationOptions, kitchenEquipmentOptions, kitchenUsePolicyOptions, livingRoomUsePolicyOptions, nearbyServiceOptions, noticePeriodOptions, occupancyPolicyOptions, preferredGenderOptions, quietHoursPolicyOptions, registrationAllowedOptions, remoteWorkPolicyOptions, roomBathroomOptions, roomFurnitureOptions, roomFurnishingStatusOptions, roomLockOptions, roomNaturalLightOptions, roomOrientationOptions, roomWindowOptions, visitsPolicyOptions, type RoomListingDetailsForm } from '@/lib/listingDetails';
+import { bathroomUsePolicyOptions, buildRoomListingDetailsFromForm, cleaningPolicyOptions, contractAvailableOptions, depositMonthsOptions, emptyRoomListingDetailsForm, homeEnvironmentOptions, homeFloorOptions, homeOrientationOptions, householdGenderMixOptions, householdOccupationOptions, kitchenEquipmentOptions, kitchenUsePolicyOptions, livingRoomUsePolicyOptions, nearbyServiceOptions, noticePeriodOptions, occupancyPolicyOptions, partyPolicyOptions, preferredGenderOptions, quietHoursPolicyOptions, registrationAllowedOptions, remoteWorkPolicyOptions, roomBathroomOptions, roomFurnitureOptions, roomFurnishingStatusOptions, roomLockOptions, roomNaturalLightOptions, roomOrientationOptions, roomWindowOptions, visitsPolicyOptions, type RoomListingDetailsForm } from '@/lib/listingDetails';
 import { AUTONOMOUS_COMMUNITIES, PROVINCES } from '@/lib/profileOptions';
 import { toast } from 'sonner';
 import { useSEO } from '@/hooks/useSEO';
@@ -1482,6 +1482,26 @@ export default function CreateListing() {
                           </SelectTrigger>
                           <SelectContent>
                             {visitsPolicyOptions.map((option) => (
+                              <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Fiestas</Label>
+                        <Select
+                          value={formData.roomDetails.partyPolicy}
+                          onValueChange={(value) => setFormData({
+                            ...formData,
+                            roomDetails: { ...formData.roomDetails, partyPolicy: value },
+                          })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecciona una opción" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {partyPolicyOptions.map((option) => (
                               <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
                             ))}
                           </SelectContent>

@@ -44,6 +44,9 @@ type ListingSummary = {
   listing_verified: boolean | null;
   listing_verification_level: number | null;
   thumbnail_url: string | null;
+  photos?: string[] | null;
+  created_at?: string | null;
+  updated_at?: string | null;
   details?: Json | null;
   owner: ListingOwner;
 };
@@ -55,7 +58,7 @@ type SearchListingsResponse = {
   items?: ListingSummary[];
 };
 
-type SortMode = 'recommended' | 'price_asc' | 'price_desc' | 'available_asc' | 'trust_desc';
+type SortMode = 'recommended' | 'newest' | 'updated_desc' | 'price_asc' | 'price_desc' | 'available_asc' | 'trust_desc';
 
 const MIN_PRICE = 200;
 const MAX_PRICE = 1200;
@@ -96,6 +99,17 @@ export default function Listings() {
   const [billsIncludedOnly, setBillsIncludedOnly] = useState(false);
   const [listingVerifiedOnly, setListingVerifiedOnly] = useState(false);
   const [ownerVerifiedOnly, setOwnerVerifiedOnly] = useState(false);
+  const [withPhotosOnly, setWithPhotosOnly] = useState(false);
+  const [availableNowOnly, setAvailableNowOnly] = useState(false);
+  const [contractOnly, setContractOnly] = useState(false);
+  const [registrationOnly, setRegistrationOnly] = useState(false);
+  const [petsAllowedOnly, setPetsAllowedOnly] = useState(false);
+  const [couplesAllowedOnly, setCouplesAllowedOnly] = useState(false);
+  const [noSmokingOnly, setNoSmokingOnly] = useState(false);
+  const [noPartiesOnly, setNoPartiesOnly] = useState(false);
+  const [furnishedOnly, setFurnishedOnly] = useState(false);
+  const [privateBathroomOnly, setPrivateBathroomOnly] = useState(false);
+  const [transportNearOnly, setTransportNearOnly] = useState(false);
   const [minTrustScore, setMinTrustScore] = useState(0);
   const [sortMode, setSortMode] = useState<SortMode>('recommended');
   const [listings, setListings] = useState<ListingSummary[]>([]);
@@ -109,11 +123,13 @@ export default function Listings() {
     setIsLoading(true);
     setError(null);
 
+    const hasCustomPriceRange = priceRange[0] !== MIN_PRICE || priceRange[1] !== MAX_PRICE;
+
     const { data, error: rpcError } = await supabase.rpc('convinter_search_listings', {
       p_city: selectedCity,
       p_listing_type: listingType,
-      p_price_min: priceRange[0],
-      p_price_max: priceRange[1],
+      p_price_min: hasCustomPriceRange ? priceRange[0] : null,
+      p_price_max: hasCustomPriceRange ? priceRange[1] : null,
       p_bills_included: billsIncludedOnly ? true : null,
       p_listing_verified_only: listingVerifiedOnly,
       p_verified_only: ownerVerifiedOnly,
@@ -150,14 +166,17 @@ export default function Listings() {
     if (listingIds.length > 0) {
       const { data: detailRows, error: detailsError } = await supabase
         .from('convinter_listings')
-        .select('id, details')
+        .select('id, details, photos, created_at, updated_at')
         .in('id', listingIds);
 
       if (!detailsError && detailRows) {
-        const detailsById = new Map(detailRows.map((row) => [row.id, row.details]));
+        const metaById = new Map(detailRows.map((row) => [row.id, row]));
         setListings(items.map((listing) => ({
           ...listing,
-          details: detailsById.get(listing.id) ?? null,
+          details: metaById.get(listing.id)?.details ?? null,
+          photos: metaById.get(listing.id)?.photos ?? null,
+          created_at: metaById.get(listing.id)?.created_at ?? null,
+          updated_at: metaById.get(listing.id)?.updated_at ?? null,
         })));
       } else {
         setListings(items);
@@ -186,7 +205,48 @@ export default function Listings() {
       })
       : listings;
 
-    return [...searchedListings].sort((a, b) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const advancedFilteredListings = searchedListings.filter((listing) => {
+      const roomDetails = normalizeRoomListingDetails(listing.listing_type === 'room' ? listing.details : null);
+      const isRoomListing = listing.listing_type === 'room';
+      const hasPhotos = Boolean(listing.thumbnail_url) || Boolean(listing.photos?.length);
+      const availableFrom = listing.available_from ? new Date(`${listing.available_from}T00:00:00`) : null;
+      const isAvailableNow = !availableFrom || availableFrom <= today;
+      const allowsCouples = roomDetails.occupancy_policy === 'couple'
+        || roomDetails.occupancy_policy === 'two_people'
+        || roomDetails.allows_couples === true
+        || roomDetails.allows_two_people === true;
+      const isFurnished = ['furnished', 'partly_furnished', 'ready_to_move'].includes(roomDetails.room_furnishing_status ?? '');
+      const hasPrivateBathroom = roomDetails.room_bathroom === 'private' || roomDetails.room_bathroom === 'preferred_use';
+      const hasTransportNear = Boolean(roomDetails.nearest_transport)
+        || Boolean(roomDetails.nearby_services?.some((service) => ['metro', 'bus', 'train'].includes(service)));
+
+      if (withPhotosOnly && !hasPhotos) return false;
+      if (availableNowOnly && !isAvailableNow) return false;
+      if (contractOnly && (!isRoomListing || roomDetails.contract_available !== 'yes')) return false;
+      if (registrationOnly && (!isRoomListing || roomDetails.registration_allowed !== 'yes')) return false;
+      if (petsAllowedOnly && listing.pets_allowed !== true) return false;
+      if (couplesAllowedOnly && (!isRoomListing || !allowsCouples)) return false;
+      if (noSmokingOnly && listing.smoking_allowed !== false) return false;
+      if (noPartiesOnly && (!isRoomListing || roomDetails.party_policy !== 'no_parties')) return false;
+      if (furnishedOnly && (!isRoomListing || !isFurnished)) return false;
+      if (privateBathroomOnly && (!isRoomListing || !hasPrivateBathroom)) return false;
+      if (transportNearOnly && (!isRoomListing || !hasTransportNear)) return false;
+
+      return true;
+    });
+
+    return [...advancedFilteredListings].sort((a, b) => {
+      if (sortMode === 'newest') {
+        return new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime();
+      }
+
+      if (sortMode === 'updated_desc') {
+        return new Date(b.updated_at ?? b.created_at ?? 0).getTime() - new Date(a.updated_at ?? a.created_at ?? 0).getTime();
+      }
+
       if (sortMode === 'price_asc') {
         return (a.price_monthly ?? Number.MAX_SAFE_INTEGER) - (b.price_monthly ?? Number.MAX_SAFE_INTEGER);
       }
@@ -205,9 +265,26 @@ export default function Listings() {
 
       return 0;
     });
-  }, [listings, searchTerm, sortMode]);
+  }, [availableNowOnly, contractOnly, couplesAllowedOnly, furnishedOnly, listings, noPartiesOnly, noSmokingOnly, petsAllowedOnly, privateBathroomOnly, registrationOnly, searchTerm, sortMode, transportNearOnly, withPhotosOnly]);
 
-  const hasAdvancedFilters = billsIncludedOnly || listingVerifiedOnly || ownerVerifiedOnly || minTrustScore > 0;
+  const advancedFilterCount = [
+    billsIncludedOnly,
+    listingVerifiedOnly,
+    ownerVerifiedOnly,
+    withPhotosOnly,
+    availableNowOnly,
+    contractOnly,
+    registrationOnly,
+    petsAllowedOnly,
+    couplesAllowedOnly,
+    noSmokingOnly,
+    noPartiesOnly,
+    furnishedOnly,
+    privateBathroomOnly,
+    transportNearOnly,
+    minTrustScore > 0,
+  ].filter(Boolean).length;
+  const hasAdvancedFilters = advancedFilterCount > 0;
   const hasActiveFilters = searchTerm || selectedCity || priceRange[0] !== MIN_PRICE || priceRange[1] !== MAX_PRICE || activeTab !== 'all' || hasAdvancedFilters || sortMode !== 'recommended';
 
   const clearFilters = () => {
@@ -218,6 +295,17 @@ export default function Listings() {
     setBillsIncludedOnly(false);
     setListingVerifiedOnly(false);
     setOwnerVerifiedOnly(false);
+    setWithPhotosOnly(false);
+    setAvailableNowOnly(false);
+    setContractOnly(false);
+    setRegistrationOnly(false);
+    setPetsAllowedOnly(false);
+    setCouplesAllowedOnly(false);
+    setNoSmokingOnly(false);
+    setNoPartiesOnly(false);
+    setFurnishedOnly(false);
+    setPrivateBathroomOnly(false);
+    setTransportNearOnly(false);
     setMinTrustScore(0);
     setSortMode('recommended');
   };
@@ -411,45 +499,145 @@ export default function Listings() {
                 Filtros
                 {hasAdvancedFilters && (
                   <Badge variant="secondary" className="ml-1 rounded-full px-1.5">
-                    {[billsIncludedOnly, listingVerifiedOnly, ownerVerifiedOnly, minTrustScore > 0].filter(Boolean).length}
+                    {advancedFilterCount}
                   </Badge>
                 )}
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-[300px] bg-popover" align="start">
+            <PopoverContent className="max-h-[75vh] w-[340px] overflow-y-auto bg-popover" align="start">
               <div className="space-y-5">
                 <div>
                   <h3 className="text-sm font-semibold">Filtros avanzados</h3>
                   <p className="text-xs text-muted-foreground">Refina resultados sin salir de anuncios.</p>
                 </div>
 
-                <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-border p-3">
-                  <Checkbox
-                    checked={listingVerifiedOnly}
-                    onCheckedChange={(checked) => setListingVerifiedOnly(Boolean(checked))}
-                  />
-                  <span className="text-sm">Solo anuncios verificados</span>
-                </label>
+                <div className="space-y-3">
+                  <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Confianza</h4>
+                  <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-border p-3">
+                    <Checkbox
+                      checked={listingVerifiedOnly}
+                      onCheckedChange={(checked) => setListingVerifiedOnly(Boolean(checked))}
+                    />
+                    <span className="text-sm">Solo anuncios verificados</span>
+                  </label>
 
-                <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-border p-3">
-                  <Checkbox
-                    checked={ownerVerifiedOnly}
-                    onCheckedChange={(checked) => setOwnerVerifiedOnly(Boolean(checked))}
-                  />
-                  <span className="text-sm">Solo propietarios verificados</span>
-                </label>
+                  <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-border p-3">
+                    <Checkbox
+                      checked={ownerVerifiedOnly}
+                      onCheckedChange={(checked) => setOwnerVerifiedOnly(Boolean(checked))}
+                    />
+                    <span className="text-sm">Solo propietarios verificados</span>
+                  </label>
+                </div>
 
-                <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-border p-3">
-                  <Checkbox
-                    checked={billsIncludedOnly}
-                    onCheckedChange={(checked) => setBillsIncludedOnly(Boolean(checked))}
-                  />
-                  <span className="text-sm">Gastos incluidos</span>
-                </label>
+                <div className="space-y-3">
+                  <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Disponibilidad y coste</h4>
+                  <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-border p-3">
+                    <Checkbox
+                      checked={availableNowOnly}
+                      onCheckedChange={(checked) => setAvailableNowOnly(Boolean(checked))}
+                    />
+                    <span className="text-sm">Disponible ya</span>
+                  </label>
+
+                  <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-border p-3">
+                    <Checkbox
+                      checked={billsIncludedOnly}
+                      onCheckedChange={(checked) => setBillsIncludedOnly(Boolean(checked))}
+                    />
+                    <span className="text-sm">Gastos incluidos</span>
+                  </label>
+
+                  <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-border p-3">
+                    <Checkbox
+                      checked={contractOnly}
+                      onCheckedChange={(checked) => setContractOnly(Boolean(checked))}
+                    />
+                    <span className="text-sm">Contrato escrito</span>
+                  </label>
+
+                  <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-border p-3">
+                    <Checkbox
+                      checked={registrationOnly}
+                      onCheckedChange={(checked) => setRegistrationOnly(Boolean(checked))}
+                    />
+                    <span className="text-sm">Permite empadronamiento</span>
+                  </label>
+                </div>
+
+                <div className="space-y-3">
+                  <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Habitación y zona</h4>
+                  <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-border p-3">
+                    <Checkbox
+                      checked={withPhotosOnly}
+                      onCheckedChange={(checked) => setWithPhotosOnly(Boolean(checked))}
+                    />
+                    <span className="text-sm">Con fotos</span>
+                  </label>
+
+                  <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-border p-3">
+                    <Checkbox
+                      checked={furnishedOnly}
+                      onCheckedChange={(checked) => setFurnishedOnly(Boolean(checked))}
+                    />
+                    <span className="text-sm">Amueblada o lista para entrar</span>
+                  </label>
+
+                  <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-border p-3">
+                    <Checkbox
+                      checked={privateBathroomOnly}
+                      onCheckedChange={(checked) => setPrivateBathroomOnly(Boolean(checked))}
+                    />
+                    <span className="text-sm">Baño privado o preferente</span>
+                  </label>
+
+                  <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-border p-3">
+                    <Checkbox
+                      checked={transportNearOnly}
+                      onCheckedChange={(checked) => setTransportNearOnly(Boolean(checked))}
+                    />
+                    <span className="text-sm">Transporte cerca</span>
+                  </label>
+                </div>
+
+                <div className="space-y-3">
+                  <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Convivencia</h4>
+                  <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-border p-3">
+                    <Checkbox
+                      checked={couplesAllowedOnly}
+                      onCheckedChange={(checked) => setCouplesAllowedOnly(Boolean(checked))}
+                    />
+                    <span className="text-sm">Acepta parejas</span>
+                  </label>
+
+                  <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-border p-3">
+                    <Checkbox
+                      checked={petsAllowedOnly}
+                      onCheckedChange={(checked) => setPetsAllowedOnly(Boolean(checked))}
+                    />
+                    <span className="text-sm">Acepta mascotas</span>
+                  </label>
+
+                  <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-border p-3">
+                    <Checkbox
+                      checked={noSmokingOnly}
+                      onCheckedChange={(checked) => setNoSmokingOnly(Boolean(checked))}
+                    />
+                    <span className="text-sm">No fumadores</span>
+                  </label>
+
+                  <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-border p-3">
+                    <Checkbox
+                      checked={noPartiesOnly}
+                      onCheckedChange={(checked) => setNoPartiesOnly(Boolean(checked))}
+                    />
+                    <span className="text-sm">No fiestas</span>
+                  </label>
+                </div>
 
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <Label className="text-sm">Confianza minima</Label>
+                    <Label className="text-sm">Confianza mínima</Label>
                     <span className="text-sm text-muted-foreground">{minTrustScore || 'Todos'}</span>
                   </div>
                   <Slider
@@ -470,10 +658,12 @@ export default function Listings() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="recommended">Recomendados</SelectItem>
+              <SelectItem value="newest">Últimos publicados</SelectItem>
+              <SelectItem value="updated_desc">Actualizados recientemente</SelectItem>
               <SelectItem value="available_asc">Disponibles antes</SelectItem>
               <SelectItem value="price_asc">Precio bajo</SelectItem>
               <SelectItem value="price_desc">Precio alto</SelectItem>
-              <SelectItem value="trust_desc">Mas confianza</SelectItem>
+              <SelectItem value="trust_desc">Más confianza</SelectItem>
             </SelectContent>
           </Select>
 

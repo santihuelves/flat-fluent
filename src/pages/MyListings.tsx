@@ -30,7 +30,7 @@ import { Slider } from '@/components/ui/slider';
 import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/integrations/supabase/client';
 import type { Tables } from '@/integrations/supabase/types';
-import { bathroomUsePolicyOptions, buildRoomListingDetailsFromForm, cleaningPolicyOptions, contractAvailableOptions, depositMonthsOptions, getRoomListingCardHighlights, getRoomListingLocationLabel, roomListingDetailsFormFromDetails, homeEnvironmentOptions, homeFloorOptions, homeOrientationOptions, householdGenderMixOptions, householdOccupationOptions, kitchenEquipmentOptions, kitchenUsePolicyOptions, livingRoomUsePolicyOptions, nearbyServiceOptions, normalizeRoomListingDetails, noticePeriodOptions, occupancyPolicyOptions, preferredGenderOptions, quietHoursPolicyOptions, registrationAllowedOptions, remoteWorkPolicyOptions, roomBathroomOptions, roomFurnitureOptions, roomFurnishingStatusOptions, roomLockOptions, roomNaturalLightOptions, roomOrientationOptions, roomWindowOptions, stripLegacyNeighborhoodFromDescription, visitsPolicyOptions, type RoomListingDetailsForm } from '@/lib/listingDetails';
+import { bathroomUsePolicyOptions, buildRoomListingDetailsFromForm, cleaningPolicyOptions, contractAvailableOptions, depositMonthsOptions, getRoomListingCardHighlights, getRoomListingLocationLabel, roomListingDetailsFormFromDetails, homeEnvironmentOptions, homeFloorOptions, homeOrientationOptions, householdGenderMixOptions, householdOccupationOptions, kitchenEquipmentOptions, kitchenUsePolicyOptions, livingRoomUsePolicyOptions, nearbyServiceOptions, normalizeRoomListingDetails, noticePeriodOptions, occupancyPolicyOptions, partyPolicyOptions, preferredGenderOptions, quietHoursPolicyOptions, registrationAllowedOptions, remoteWorkPolicyOptions, roomBathroomOptions, roomFurnitureOptions, roomFurnishingStatusOptions, roomLockOptions, roomNaturalLightOptions, roomOrientationOptions, roomWindowOptions, stripLegacyNeighborhoodFromDescription, visitsPolicyOptions, type RoomListingDetailsForm } from '@/lib/listingDetails';
 import { toast } from 'sonner';
 import { useSEO } from '@/hooks/useSEO';
 
@@ -1846,6 +1846,27 @@ export default function MyListings() {
                           </SelectTrigger>
                           <SelectContent>
                             {visitsPolicyOptions.map((option) => (
+                              <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Fiestas</Label>
+                        <Select
+                          value={editForm.roomDetails.partyPolicy}
+                          onValueChange={(value) => setEditForm({
+                            ...editForm,
+                            roomDetails: { ...editForm.roomDetails, partyPolicy: value },
+                          })}
+                          disabled={saving}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecciona una opción" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {partyPolicyOptions.map((option) => (
                               <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
                             ))}
                           </SelectContent>
