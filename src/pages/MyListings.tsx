@@ -1797,6 +1797,29 @@ export default function MyListings() {
                           </SelectContent>
                         </Select>
                       </div>
+
+                      <div className="space-y-2">
+                        <Label>Espacio LGTBIQ+ friendly</Label>
+                        <Select
+                          value={editForm.roomDetails.lgtbiqFriendly}
+                          onValueChange={(value) => setEditForm({
+                            ...editForm,
+                            roomDetails: { ...editForm.roomDetails, lgtbiqFriendly: value as RoomListingDetailsForm['lgtbiqFriendly'] },
+                          })}
+                          disabled={saving}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Sin especificar" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="yes">Sí</SelectItem>
+                            <SelectItem value="no">No</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <p className="text-xs text-muted-foreground">
+                          Márcalo solo si las personas de la vivienda están alineadas con una convivencia respetuosa e inclusiva.
+                        </p>
+                      </div>
                     </div>
                   </div>
 

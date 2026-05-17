@@ -352,6 +352,9 @@ export default function CreateListing() {
           <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}>
             <h1 className="text-3xl font-bold mb-2">Crear anuncio</h1>
             <p className="text-muted-foreground mb-8">¿Qué tipo de anuncio quieres publicar?</p>
+            <p className="mb-4 rounded-xl border border-border bg-muted/30 p-4 text-sm text-muted-foreground">
+              Tu perfil puede tener varias intenciones, pero cada anuncio debe tener un objetivo claro para que los filtros y las búsquedas funcionen bien.
+            </p>
 
             <div className="grid gap-4">
               {listingTypes.map((type) => (
@@ -1434,6 +1437,28 @@ export default function CreateListing() {
                             <SelectItem value="no">No</SelectItem>
                           </SelectContent>
                         </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Espacio LGTBIQ+ friendly</Label>
+                        <Select
+                          value={formData.roomDetails.lgtbiqFriendly}
+                          onValueChange={(value) => setFormData({
+                            ...formData,
+                            roomDetails: { ...formData.roomDetails, lgtbiqFriendly: value as RoomListingDetailsForm['lgtbiqFriendly'] },
+                          })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Sin especificar" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="yes">Sí</SelectItem>
+                            <SelectItem value="no">No</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <p className="text-xs text-muted-foreground">
+                          Márcalo solo si las personas de la vivienda están alineadas con una convivencia respetuosa e inclusiva.
+                        </p>
                       </div>
                     </div>
                   </div>

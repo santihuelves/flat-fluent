@@ -5,9 +5,11 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Camera, Loader2, X } from 'lucide-react';
+import { Camera, HeartHandshake, Loader2, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import type { Json } from '@/integrations/supabase/types';
 import { useToast } from '@/hooks/use-toast';
 import { useTranslation } from 'react-i18next';
 import { ImageCropperDialog } from './ImageCropperDialog';
@@ -41,6 +43,8 @@ import {
 } from '@/lib/profileTraits';
 
 const PROFILE_PRIMARY_PHOTO_LIMIT = 1;
+const INCLUSIVE_PROFILE_TAG = 'inclusive_lgtbiq_friendly';
+const PRONOUNS_PREFIX = 'pronouns_';
 
 type ProfileIntention = {
   intention_type: 'seek_room' | 'offer_room' | 'seek_flatmate';
@@ -97,6 +101,7 @@ type FormState = {
   move_in_date: string;
   min_stay_months: string;
   occupation: string;
+  inclusive_profile: boolean;
   languages: string[];
   photos: string[];
   is_smoker: '' | 'yes' | 'no';
@@ -125,13 +130,27 @@ const getIntention = (
   intentionType: ProfileIntention['intention_type']
 ) => intentions?.find((intention) => intention.intention_type === intentionType) ?? null;
 
+const encodeInclusiveProfileTags = (
+  existingTags: string[],
+  inclusiveProfile: boolean
+) => {
+  const preservedTags = existingTags.filter((tag) => {
+    return !tag.startsWith(PRONOUNS_PREFIX) && tag !== INCLUSIVE_PROFILE_TAG;
+  });
+
+  return [
+    ...preservedTags,
+    inclusiveProfile ? INCLUSIVE_PROFILE_TAG : null,
+  ].filter((tag): tag is string => Boolean(tag));
+};
+
 const buildInitialFormData = (profile: ProfileData): FormState => {
+  const livingTraits = decodeLivingTraits(profile.lifestyle_tags);
   const seekRoomDetails = decodeSeekRoomDetails(getIntention(profile.intentions, 'seek_room')?.details);
   const seekFlatmateDetails = decodeSeekFlatmateDetails(getIntention(profile.intentions, 'seek_flatmate')?.details);
   const offerDetails = decodeOfferDetails(getIntention(profile.intentions, 'offer_room')?.details);
 
   return {
-    ...decodeLivingTraits(profile.lifestyle_tags),
     display_name: profile.display_name || '',
     bio: profile.bio || '',
     autonomous_community: profile.autonomous_community || '',
@@ -142,12 +161,17 @@ const buildInitialFormData = (profile: ProfileData): FormState => {
     move_in_date: profile.move_in_date || '',
     min_stay_months: profile.min_stay_months?.toString() || '',
     occupation: profile.occupation || '',
+    inclusive_profile: Boolean(profile.lifestyle_tags?.includes(INCLUSIVE_PROFILE_TAG)),
     languages: (profile.languages || []).map(normalizeLanguage),
     photos: (() => {
       const firstValidPhoto = profile.photos?.find((photo): photo is string => typeof photo === 'string' && photo.length > 0);
       const primaryPhoto = firstValidPhoto || profile.photo_url || null;
       return primaryPhoto ? [primaryPhoto] : [];
     })(),
+    is_smoker: livingTraits.isSmoker,
+    has_pet: livingTraits.hasPet,
+    household_size: livingTraits.householdSize,
+    includes_minor: livingTraits.includesMinor,
     seek_room_goal: seekRoomDetails.seekerGoal,
     seek_room_accepts_smoking_home: seekRoomDetails.acceptsSmokingHome,
     seek_room_accepts_pets_home: seekRoomDetails.acceptsPetsHome,
@@ -156,7 +180,13 @@ const buildInitialFormData = (profile: ProfileData): FormState => {
     seek_flatmate_accepts_smoking_home: seekFlatmateDetails.acceptsSmokingHome,
     seek_flatmate_accepts_pets_home: seekFlatmateDetails.acceptsPetsHome,
     seek_flatmate_accepts_couples_home: seekFlatmateDetails.acceptsCouplesHome,
-    ...offerDetails,
+    property_context: offerDetails.propertyContext,
+    current_household_count: offerDetails.currentHouseholdCount,
+    allows_couples: offerDetails.allowsCouples,
+    allows_two_people: offerDetails.allowsTwoPeople,
+    allows_minors: offerDetails.allowsMinors,
+    allows_pets: offerDetails.allowsPets,
+    allows_smoking: offerDetails.allowsSmoking,
   };
 };
 
@@ -267,8 +297,10 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
     const city = formData.city.trim();
     const province = formData.province_code.trim();
     const occupation = formData.occupation.trim();
-    const budgetMin = Number(formData.budget_min);
-    const budgetMax = Number(formData.budget_max);
+    const hasBudgetMin = formData.budget_min.trim() !== '';
+    const hasBudgetMax = formData.budget_max.trim() !== '';
+    const budgetMin = hasBudgetMin ? Number(formData.budget_min) : null;
+    const budgetMax = hasBudgetMax ? Number(formData.budget_max) : null;
     const dateIsValid = !formData.move_in_date || formData.move_in_date >= todayIso();
 
     if (displayName.length < 2) {
@@ -295,12 +327,18 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
       return 'La provincia debe tener entre 2 y 80 caracteres.';
     }
 
-    if (!Number.isFinite(budgetMin) || !Number.isFinite(budgetMax) || budgetMin <= 0 || budgetMax <= 0) {
-      return 'Completa un presupuesto mínimo y máximo válidos.';
+    if (hasBudgetMin !== hasBudgetMax) {
+      return 'Completa ambos importes o deja el presupuesto vacío.';
     }
 
-    if (budgetMin > budgetMax || budgetMax > MAX_BUDGET) {
-      return 'Revisa el presupuesto: el mínimo no puede superar al máximo.';
+    if (budgetMin !== null && budgetMax !== null) {
+      if (!Number.isFinite(budgetMin) || !Number.isFinite(budgetMax) || budgetMin <= 0 || budgetMax <= 0) {
+        return 'Completa un presupuesto mínimo y máximo válidos.';
+      }
+
+      if (budgetMin > budgetMax || budgetMax > MAX_BUDGET) {
+        return 'Revisa el presupuesto: el mínimo no puede superar al máximo.';
+      }
     }
 
     if (!dateIsValid) {
@@ -341,12 +379,18 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
     const cleanLanguages = formData.languages.map(normalizeLanguage);
     const cleanPrimaryPhoto = formData.photos.find((photo) => typeof photo === 'string' && photo.length > 0) || null;
     const cleanPhotos = cleanPrimaryPhoto ? [cleanPrimaryPhoto] : [];
-    const encodedLifestyleTags = encodeLivingTraits(profile.lifestyle_tags, {
+    const cleanBudgetMin = formData.budget_min.trim() ? Number(formData.budget_min) : null;
+    const cleanBudgetMax = formData.budget_max.trim() ? Number(formData.budget_max) : null;
+    const encodedLivingTags = encodeLivingTraits(profile.lifestyle_tags, {
       isSmoker: formData.is_smoker,
       hasPet: formData.has_pet,
       householdSize: formData.household_size,
       includesMinor: formData.includes_minor,
     });
+    const encodedLifestyleTags = encodeInclusiveProfileTags(
+      encodedLivingTags,
+      formData.inclusive_profile
+    );
 
     setSaving(true);
     try {
@@ -372,8 +416,8 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
           autonomous_community: formData.autonomous_community,
           province: cleanProvince,
           city: cleanCity,
-          budget_min: Number(formData.budget_min),
-          budget_max: Number(formData.budget_max),
+          budget_min: cleanBudgetMin,
+          budget_max: cleanBudgetMax,
           lifestyle_tags: encodedLifestyleTags,
           move_in_date: formData.move_in_date || null,
           min_stay_months: Number(formData.min_stay_months),
@@ -386,7 +430,7 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
       if (profilesError) throw profilesError;
 
       for (const intention of profile.intentions ?? []) {
-        let detailsPayload = intention.details ?? {};
+        let detailsPayload: Json = (intention.details ?? {}) as Json;
 
         if (intention.intention_type === 'offer_room') {
           detailsPayload = encodeOfferDetails(intention.details, {
@@ -425,7 +469,7 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
 
         const parsedResult = intentionResult as unknown as { ok?: boolean } | null;
         if (intentionError || parsedResult?.ok === false) {
-          throw intentionError ?? new Error(`No se pudo actualizar la intencion ${intention.intention_type}`);
+          throw intentionError ?? new Error(`No se pudo actualizar la intención ${intention.intention_type}`);
         }
       }
 
@@ -486,6 +530,7 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
                   <input
                     type="file"
                     accept="image/*"
+                    capture="user"
                     className="hidden"
                     onChange={handleFileSelect}
                     disabled={uploading}
@@ -495,7 +540,7 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
                   ) : (
                     <Camera className="mb-2 h-5 w-5 text-muted-foreground" />
                   )}
-                  <span className="text-sm text-muted-foreground">Añadir foto</span>
+                  <span className="text-sm text-muted-foreground">Hacer selfie o subir foto</span>
                 </label>
               )}
             </div>
@@ -510,6 +555,32 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
               onChange={(e) => setFormData((prev) => ({ ...prev, display_name: e.target.value }))}
               placeholder={t('profile.namePlaceholder')}
             />
+          </div>
+
+          <div className="space-y-3 rounded-xl border border-border/60 p-4">
+            <div>
+              <Label className="flex items-center gap-2">
+                <HeartHandshake className="h-4 w-4" />
+                Perfil inclusivo
+              </Label>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Opcional. Se mostrará solo si decides hacerlo visible en tu perfil.
+              </p>
+            </div>
+
+            <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-border p-3">
+              <Checkbox
+                checked={formData.inclusive_profile}
+                onCheckedChange={(checked) => setFormData((prev) => ({ ...prev, inclusive_profile: Boolean(checked) }))}
+                className="mt-0.5"
+              />
+              <span>
+                <span className="block text-sm font-medium">Mostrar LGTBIQ+ friendly</span>
+                <span className="mt-1 block text-sm text-muted-foreground">
+                  Indica que valoras una convivencia respetuosa e inclusiva.
+                </span>
+              </span>
+            </label>
           </div>
 
           <div className="space-y-3">

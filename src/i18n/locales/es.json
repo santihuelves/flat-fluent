@@ -406,8 +406,7 @@
         "question": "¿Fumas?",
         "options": {
           "outdoor": "Solo fuera",
-          "indoor": "También dentro",
-          "cannabis": "Cannabis ocasional"
+          "indoor": "También dentro"
         }
       },
       "lifestyle_pets": {

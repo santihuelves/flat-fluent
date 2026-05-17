@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { motion } from 'framer-motion';
-import { User, Camera, MapPin, FileText, Edit2, CheckCircle, AlertCircle, Loader2, Home, Briefcase, Calendar, Wallet, Clock3, ShieldCheck } from 'lucide-react';
+import { User, Camera, MapPin, FileText, Edit2, CheckCircle, AlertCircle, Loader2, Home, Briefcase, Calendar, Wallet, Clock3, ShieldCheck, HeartHandshake } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useTranslation } from 'react-i18next';
@@ -188,6 +188,8 @@ export default function Profile() {
   }
 
   const displayName = profile.display_name || profile.handle || authFallbackName || t('profile.noName');
+  const lifestyleTags = profile.lifestyle_tags ?? [];
+  const showInclusiveBadge = lifestyleTags.includes('inclusive_lgtbiq_friendly');
   const primaryProfilePhoto =
     profile.photos?.find((photo): photo is string => typeof photo === 'string' && photo.length > 0) ||
     profile.photo_url ||
@@ -343,6 +345,12 @@ export default function Profile() {
                       {profile.trust_badge === 'gold' && `🏆 ${t('profile.trustBadges.gold')}`}
                       {profile.trust_badge === 'silver' && `🥈 ${t('profile.trustBadges.silver')}`}
                       {profile.trust_badge === 'bronze' && `🥉 ${t('profile.trustBadges.bronze')}`}
+                    </Badge>
+                  )}
+                  {showInclusiveBadge && (
+                    <Badge variant="outline" className="rounded-full">
+                      <HeartHandshake className="mr-1 h-3 w-3" />
+                      LGTBIQ+ friendly
                     </Badge>
                   )}
                 </div>

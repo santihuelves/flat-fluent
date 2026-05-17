@@ -39,6 +39,8 @@ type ListingSummary = {
   province_code: string | null;
   price_monthly: number | null;
   bills_included: boolean | null;
+  pets_allowed: boolean | null;
+  smoking_allowed: boolean | null;
   available_from: string | null;
   min_stay_months: number | null;
   listing_verified: boolean | null;
@@ -105,6 +107,7 @@ export default function Listings() {
   const [registrationOnly, setRegistrationOnly] = useState(false);
   const [petsAllowedOnly, setPetsAllowedOnly] = useState(false);
   const [couplesAllowedOnly, setCouplesAllowedOnly] = useState(false);
+  const [lgtbiqFriendlyOnly, setLgtbiqFriendlyOnly] = useState(false);
   const [noSmokingOnly, setNoSmokingOnly] = useState(false);
   const [noPartiesOnly, setNoPartiesOnly] = useState(false);
   const [furnishedOnly, setFurnishedOnly] = useState(false);
@@ -229,6 +232,7 @@ export default function Listings() {
       if (registrationOnly && (!isRoomListing || roomDetails.registration_allowed !== 'yes')) return false;
       if (petsAllowedOnly && listing.pets_allowed !== true) return false;
       if (couplesAllowedOnly && (!isRoomListing || !allowsCouples)) return false;
+      if (lgtbiqFriendlyOnly && (!isRoomListing || roomDetails.lgtbiq_friendly !== true)) return false;
       if (noSmokingOnly && listing.smoking_allowed !== false) return false;
       if (noPartiesOnly && (!isRoomListing || roomDetails.party_policy !== 'no_parties')) return false;
       if (furnishedOnly && (!isRoomListing || !isFurnished)) return false;
@@ -265,7 +269,7 @@ export default function Listings() {
 
       return 0;
     });
-  }, [availableNowOnly, contractOnly, couplesAllowedOnly, furnishedOnly, listings, noPartiesOnly, noSmokingOnly, petsAllowedOnly, privateBathroomOnly, registrationOnly, searchTerm, sortMode, transportNearOnly, withPhotosOnly]);
+  }, [availableNowOnly, contractOnly, couplesAllowedOnly, furnishedOnly, lgtbiqFriendlyOnly, listings, noPartiesOnly, noSmokingOnly, petsAllowedOnly, privateBathroomOnly, registrationOnly, searchTerm, sortMode, transportNearOnly, withPhotosOnly]);
 
   const advancedFilterCount = [
     billsIncludedOnly,
@@ -277,6 +281,7 @@ export default function Listings() {
     registrationOnly,
     petsAllowedOnly,
     couplesAllowedOnly,
+    lgtbiqFriendlyOnly,
     noSmokingOnly,
     noPartiesOnly,
     furnishedOnly,
@@ -301,6 +306,7 @@ export default function Listings() {
     setRegistrationOnly(false);
     setPetsAllowedOnly(false);
     setCouplesAllowedOnly(false);
+    setLgtbiqFriendlyOnly(false);
     setNoSmokingOnly(false);
     setNoPartiesOnly(false);
     setFurnishedOnly(false);
@@ -608,6 +614,14 @@ export default function Listings() {
                       onCheckedChange={(checked) => setCouplesAllowedOnly(Boolean(checked))}
                     />
                     <span className="text-sm">Acepta parejas</span>
+                  </label>
+
+                  <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-border p-3">
+                    <Checkbox
+                      checked={lgtbiqFriendlyOnly}
+                      onCheckedChange={(checked) => setLgtbiqFriendlyOnly(Boolean(checked))}
+                    />
+                    <span className="text-sm">LGTBIQ+ friendly</span>
                   </label>
 
                   <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-border p-3">

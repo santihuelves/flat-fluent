@@ -406,8 +406,7 @@
         "question": "Do you smoke?",
         "options": {
           "outdoor": "Only outside",
-          "indoor": "Also indoors",
-          "cannabis": "Cannabis occasionally"
+          "indoor": "Also indoors"
         }
       },
       "lifestyle_pets": {

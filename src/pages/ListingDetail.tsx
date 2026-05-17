@@ -570,6 +570,11 @@ export default function ListingDetail() {
                       Anuncio verificado
                     </Badge>
                   )}
+                  {roomDetails.lgtbiq_friendly === true && (
+                    <Badge variant="outline" className="rounded-full">
+                      LGTBIQ+ friendly
+                    </Badge>
+                  )}
                   {isListingPaused && (
                     <Badge variant="secondary" className="rounded-full">
                       Pausado

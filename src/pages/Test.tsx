@@ -1,6 +1,6 @@
 import { Layout } from '@/components/layout/Layout';
 import { motion } from 'framer-motion';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
@@ -384,7 +384,6 @@ const allQuestions: Question[] = [
       { value: 'no', labelKey: 'common.binary.no' },
       { value: 'outdoor', labelKey: 'lifestyle_smoking.options.outdoor' },
       { value: 'indoor', labelKey: 'lifestyle_smoking.options.indoor' },
-      { value: 'cannabis', labelKey: 'lifestyle_smoking.options.cannabis' },
     ],
   },
   {
@@ -472,6 +471,8 @@ export default function Test() {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [selectedDealbreakers, setSelectedDealbreakers] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const testContentRef = useRef<HTMLDivElement | null>(null);
+  const hasMountedRef = useRef(false);
 
   const questions = useMemo(() => {
     if (mode === 'quick') {
@@ -485,6 +486,15 @@ export default function Test() {
 
   const isDealbreakerStep = currentStep === questions.length;
   const currentQuestion = !isDealbreakerStep ? questions[currentStep] : null;
+
+  useEffect(() => {
+    if (!hasMountedRef.current) {
+      hasMountedRef.current = true;
+      return;
+    }
+
+    testContentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [currentStep, mode]);
 
   const handleAnswer = (questionId: string, value: string) => {
     setAnswers((prev) => ({ ...prev, [questionId]: value }));
@@ -554,17 +564,24 @@ export default function Test() {
   };
 
   const handleNext = () => {
+    if (!canProceed() || isSubmitting) return;
+
     if (currentStep < totalSteps - 1) {
-      setCurrentStep((prev) => prev + 1);
+      setCurrentStep((prev) => Math.min(prev + 1, totalSteps - 1));
     } else {
       handleComplete();
     }
   };
 
   const handlePrev = () => {
-    if (currentStep > 0) {
-      setCurrentStep((prev) => prev - 1);
+    if (isSubmitting) return;
+
+    if (currentStep === 0) {
+      navigate(-1);
+      return;
     }
+
+    setCurrentStep((prev) => Math.max(prev - 1, 0));
   };
 
   return (
@@ -620,6 +637,7 @@ export default function Test() {
 
         {/* Content */}
         <motion.div
+          ref={testContentRef}
           key={currentStep}
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
@@ -695,11 +713,11 @@ export default function Test() {
           <Button
             variant="outline"
             onClick={handlePrev}
-            disabled={currentStep === 0 || isSubmitting}
+            disabled={isSubmitting}
             className="gap-2"
           >
             <ArrowLeft className="h-4 w-4" />
-            {t('test.prev')}
+            {currentStep === 0 ? 'Volver' : t('test.prev')}
           </Button>
           <Button
             variant="hero"

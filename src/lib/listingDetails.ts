@@ -220,35 +220,35 @@ export const nearbyServiceOptions = [
   { value: 'shops', label: 'Comercios de barrio' },
 ] as const;
 
-const booleanOptions = new Set(['yes', 'no']);
-const visitsPolicyValues = new Set(visitsPolicyOptions.map((option) => option.value));
-const partyPolicyValues = new Set(partyPolicyOptions.map((option) => option.value));
-const homeEnvironmentValues = new Set(homeEnvironmentOptions.map((option) => option.value));
-const occupancyPolicyValues = new Set(occupancyPolicyOptions.map((option) => option.value));
-const preferredGenderValues = new Set(preferredGenderOptions.map((option) => option.value));
-const contractAvailableValues = new Set(contractAvailableOptions.map((option) => option.value));
-const registrationAllowedValues = new Set(registrationAllowedOptions.map((option) => option.value));
-const noticePeriodValues = new Set(noticePeriodOptions.map((option) => option.value));
-const depositMonthsValues = new Set(depositMonthsOptions.map((option) => option.value));
-const cleaningPolicyValues = new Set(cleaningPolicyOptions.map((option) => option.value));
-const quietHoursPolicyValues = new Set(quietHoursPolicyOptions.map((option) => option.value));
-const remoteWorkPolicyValues = new Set(remoteWorkPolicyOptions.map((option) => option.value));
-const kitchenUsePolicyValues = new Set(kitchenUsePolicyOptions.map((option) => option.value));
-const livingRoomUsePolicyValues = new Set(livingRoomUsePolicyOptions.map((option) => option.value));
-const bathroomUsePolicyValues = new Set(bathroomUsePolicyOptions.map((option) => option.value));
-const householdGenderMixValues = new Set(householdGenderMixOptions.map((option) => option.value));
-const householdOccupationValues = new Set(householdOccupationOptions.map((option) => option.value));
-const homeFloorValues = new Set(homeFloorOptions.map((option) => option.value));
-const homeOrientationValues = new Set(homeOrientationOptions.map((option) => option.value));
-const kitchenEquipmentValues = new Set(kitchenEquipmentOptions.map((option) => option.value));
-const roomWindowValues = new Set(roomWindowOptions.map((option) => option.value));
-const roomOrientationValues = new Set(roomOrientationOptions.map((option) => option.value));
-const roomNaturalLightValues = new Set(roomNaturalLightOptions.map((option) => option.value));
-const roomFurnitureValues = new Set(roomFurnitureOptions.map((option) => option.value));
-const roomLockValues = new Set(roomLockOptions.map((option) => option.value));
-const roomBathroomValues = new Set(roomBathroomOptions.map((option) => option.value));
-const roomFurnishingStatusValues = new Set(roomFurnishingStatusOptions.map((option) => option.value));
-const nearbyServiceValues = new Set(nearbyServiceOptions.map((option) => option.value));
+const booleanOptions = new Set<string>(['yes', 'no']);
+const visitsPolicyValues = new Set<string>(visitsPolicyOptions.map((option) => option.value));
+const partyPolicyValues = new Set<string>(partyPolicyOptions.map((option) => option.value));
+const homeEnvironmentValues = new Set<string>(homeEnvironmentOptions.map((option) => option.value));
+const occupancyPolicyValues = new Set<string>(occupancyPolicyOptions.map((option) => option.value));
+const preferredGenderValues = new Set<string>(preferredGenderOptions.map((option) => option.value));
+const contractAvailableValues = new Set<string>(contractAvailableOptions.map((option) => option.value));
+const registrationAllowedValues = new Set<string>(registrationAllowedOptions.map((option) => option.value));
+const noticePeriodValues = new Set<string>(noticePeriodOptions.map((option) => option.value));
+const depositMonthsValues = new Set<string>(depositMonthsOptions.map((option) => option.value));
+const cleaningPolicyValues = new Set<string>(cleaningPolicyOptions.map((option) => option.value));
+const quietHoursPolicyValues = new Set<string>(quietHoursPolicyOptions.map((option) => option.value));
+const remoteWorkPolicyValues = new Set<string>(remoteWorkPolicyOptions.map((option) => option.value));
+const kitchenUsePolicyValues = new Set<string>(kitchenUsePolicyOptions.map((option) => option.value));
+const livingRoomUsePolicyValues = new Set<string>(livingRoomUsePolicyOptions.map((option) => option.value));
+const bathroomUsePolicyValues = new Set<string>(bathroomUsePolicyOptions.map((option) => option.value));
+const householdGenderMixValues = new Set<string>(householdGenderMixOptions.map((option) => option.value));
+const householdOccupationValues = new Set<string>(householdOccupationOptions.map((option) => option.value));
+const homeFloorValues = new Set<string>(homeFloorOptions.map((option) => option.value));
+const homeOrientationValues = new Set<string>(homeOrientationOptions.map((option) => option.value));
+const kitchenEquipmentValues = new Set<string>(kitchenEquipmentOptions.map((option) => option.value));
+const roomWindowValues = new Set<string>(roomWindowOptions.map((option) => option.value));
+const roomOrientationValues = new Set<string>(roomOrientationOptions.map((option) => option.value));
+const roomNaturalLightValues = new Set<string>(roomNaturalLightOptions.map((option) => option.value));
+const roomFurnitureValues = new Set<string>(roomFurnitureOptions.map((option) => option.value));
+const roomLockValues = new Set<string>(roomLockOptions.map((option) => option.value));
+const roomBathroomValues = new Set<string>(roomBathroomOptions.map((option) => option.value));
+const roomFurnishingStatusValues = new Set<string>(roomFurnishingStatusOptions.map((option) => option.value));
+const nearbyServiceValues = new Set<string>(nearbyServiceOptions.map((option) => option.value));
 
 export type RoomListingDetails = {
   neighborhood?: string;
@@ -270,6 +270,7 @@ export type RoomListingDetails = {
   allows_minors?: boolean;
   current_household_count?: number;
   owner_lives_here?: boolean;
+  lgtbiq_friendly?: boolean;
   home_environment?: 'quiet' | 'family' | 'students' | 'workers' | 'mixed';
   cleaning_policy?: 'shared' | 'schedule' | 'included' | 'to_agree';
   quiet_hours_policy?: 'strict' | 'reasonable' | 'flexible' | 'to_agree';
@@ -322,6 +323,7 @@ export type RoomListingDetailsForm = {
   allowsMinors: '' | 'yes' | 'no';
   currentHouseholdCount: string;
   ownerLivesHere: '' | 'yes' | 'no';
+  lgtbiqFriendly: '' | 'yes' | 'no';
   homeEnvironment: string;
   cleaningPolicy: string;
   quietHoursPolicy: string;
@@ -374,6 +376,7 @@ export const emptyRoomListingDetailsForm = (): RoomListingDetailsForm => ({
   allowsMinors: '',
   currentHouseholdCount: '',
   ownerLivesHere: '',
+  lgtbiqFriendly: '',
   homeEnvironment: '',
   cleaningPolicy: '',
   quietHoursPolicy: '',
@@ -508,6 +511,10 @@ export const normalizeRoomListingDetails = (value: Json | null | undefined): Roo
 
   if (typeof value.owner_lives_here === 'boolean') {
     details.owner_lives_here = value.owner_lives_here;
+  }
+
+  if (typeof value.lgtbiq_friendly === 'boolean') {
+    details.lgtbiq_friendly = value.lgtbiq_friendly;
   }
 
   if (typeof value.home_environment === 'string' && homeEnvironmentValues.has(value.home_environment)) {
@@ -683,6 +690,7 @@ export const roomListingDetailsFormFromDetails = (value: Json | null | undefined
     allowsMinors: getBooleanFormValue(details.allows_minors),
     currentHouseholdCount: details.current_household_count?.toString() ?? '',
     ownerLivesHere: getBooleanFormValue(details.owner_lives_here),
+    lgtbiqFriendly: getBooleanFormValue(details.lgtbiq_friendly),
     homeEnvironment: details.home_environment ?? '',
     cleaningPolicy: details.cleaning_policy ?? '',
     quietHoursPolicy: details.quiet_hours_policy ?? '',
@@ -792,6 +800,11 @@ export const buildRoomListingDetailsFromForm = (form: RoomListingDetailsForm): R
   const ownerLivesHere = parseBooleanField(form.ownerLivesHere);
   if (typeof ownerLivesHere === 'boolean') {
     details.owner_lives_here = ownerLivesHere;
+  }
+
+  const lgtbiqFriendly = parseBooleanField(form.lgtbiqFriendly);
+  if (typeof lgtbiqFriendly === 'boolean') {
+    details.lgtbiq_friendly = lgtbiqFriendly;
   }
 
   const currentHouseholdCount = form.currentHouseholdCount.trim();
@@ -983,6 +996,10 @@ export const getRoomListingDetailItems = (details: RoomListingDetails) => {
     items.push({ label: 'Propietario vive en la vivienda', value: details.owner_lives_here ? 'Sí' : 'No' });
   }
 
+  if (details.lgtbiq_friendly === true) {
+    items.push({ label: 'Convivencia inclusiva', value: 'Espacio LGTBIQ+ friendly' });
+  }
+
   if (details.household_gender_mix) {
     const label = householdGenderMixOptions.find((option) => option.value === details.household_gender_mix)?.label;
     if (label) {
@@ -1098,7 +1115,7 @@ export const getRoomListingHousingItems = (details: RoomListingDetails) => {
 
   if (details.kitchen_equipment && details.kitchen_equipment.length > 0) {
     const labels = details.kitchen_equipment
-      .map((item) => kitchenEquipmentOptions.find((option) => option.value === item)?.label)
+      .map((item): string | undefined => kitchenEquipmentOptions.find((option) => option.value === item)?.label)
       .filter((label): label is string => Boolean(label));
 
     if (labels.length > 0) {
@@ -1145,7 +1162,7 @@ export const getRoomListingBedroomItems = (details: RoomListingDetails) => {
 
   if (details.room_furniture && details.room_furniture.length > 0) {
     const labels = details.room_furniture
-      .map((item) => roomFurnitureOptions.find((option) => option.value === item)?.label)
+      .map((item): string | undefined => roomFurnitureOptions.find((option) => option.value === item)?.label)
       .filter((label): label is string => Boolean(label));
 
     if (labels.length > 0) {
@@ -1193,7 +1210,7 @@ export const getRoomListingLocationItems = (details: RoomListingDetails) => {
 
   if (details.nearby_services && details.nearby_services.length > 0) {
     const labels = details.nearby_services
-      .map((item) => nearbyServiceOptions.find((option) => option.value === item)?.label)
+      .map((item): string | undefined => nearbyServiceOptions.find((option) => option.value === item)?.label)
       .filter((label): label is string => Boolean(label));
 
     if (labels.length > 0) {
@@ -1248,6 +1265,10 @@ export const getRoomListingCardHighlights = (
 
   if (options.billsIncluded) {
     add('Gastos incluidos');
+  }
+
+  if (details.lgtbiq_friendly === true) {
+    add('LGTBIQ+ friendly');
   }
 
   if (details.contract_available === 'yes') {

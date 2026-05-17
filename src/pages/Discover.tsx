@@ -37,6 +37,13 @@ interface ProfileData {
   }>;
 }
 
+interface ProfileIntentionRow {
+  profile_id: string;
+  intention_type: IntentionType;
+  is_primary: boolean;
+  urgency: string;
+}
+
 interface CompatibilityData {
   score: number;
   breakdown: {
@@ -95,6 +102,8 @@ export default function Discover() {
   const [excludedProfileIds, setExcludedProfileIds] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingCompatibility, setIsLoadingCompatibility] = useState(false);
+  const [profileNeedsSetup, setProfileNeedsSetup] = useState(false);
+  const [showSetupBanner, setShowSetupBanner] = useState(true);
   
   // Filter states
   const [searchTerm, setSearchTerm] = useState('');
@@ -119,7 +128,42 @@ export default function Discover() {
 
       const result = data as unknown as { ok: boolean; items: ProfileData[] };
       if (result.ok && result.items) {
-        setProfiles(result.items);
+        const profileIds = result.items.map((profile) => profile.user_id);
+
+        if (profileIds.length === 0) {
+          setProfiles([]);
+          setCurrentIndex(0);
+          return;
+        }
+
+        const { data: intentionRows, error: intentionsError } = await supabase
+          .from('convinter_profile_intentions')
+          .select('profile_id, intention_type, is_primary, urgency')
+          .eq('active', true)
+          .in('profile_id', profileIds);
+
+        if (intentionsError) {
+          console.warn('Error loading profile intentions:', intentionsError);
+          setProfiles(result.items);
+          setCurrentIndex(0);
+          return;
+        }
+
+        const intentionsByProfile = new Map<string, ProfileData['intentions']>();
+        (intentionRows as ProfileIntentionRow[] | null)?.forEach((intention) => {
+          const currentIntentions = intentionsByProfile.get(intention.profile_id) ?? [];
+          currentIntentions.push({
+            intention_type: intention.intention_type,
+            is_primary: intention.is_primary,
+            urgency: intention.urgency,
+          });
+          intentionsByProfile.set(intention.profile_id, currentIntentions);
+        });
+
+        setProfiles(result.items.map((profile) => ({
+          ...profile,
+          intentions: intentionsByProfile.get(profile.user_id) ?? [],
+        })));
         setCurrentIndex(0);
       }
     } catch (error) {
@@ -134,6 +178,37 @@ export default function Discover() {
   useEffect(() => {
     loadProfiles();
   }, [loadProfiles]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadProfileSetupState = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('onboarding_completed')
+        .eq('id', user.id)
+        .maybeSingle();
+
+      if (!isMounted) return;
+
+      if (error) {
+        console.warn('Error loading onboarding state:', error);
+        setProfileNeedsSetup(true);
+        return;
+      }
+
+      setProfileNeedsSetup(data?.onboarding_completed !== true);
+    };
+
+    loadProfileSetupState();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const loadConnectionOverview = useCallback(async () => {
     try {
@@ -389,6 +464,27 @@ export default function Discover() {
   return (
     <Layout>
       <div className="container py-6">
+        {profileNeedsSetup && showSetupBanner && (
+          <div className="mb-5 rounded-2xl border border-primary/20 bg-primary/5 p-4 shadow-sm">
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              <div>
+                <h2 className="text-base font-semibold">Completa tu perfil para mejorar tus coincidencias</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Puedes explorar primero, pero tus preferencias, ubicación e intenciones ayudan a que Convinter filtre mejor por ti.
+                </p>
+              </div>
+              <div className="flex shrink-0 gap-2">
+                <Button variant="outline" onClick={() => setShowSetupBanner(false)}>
+                  Ahora no
+                </Button>
+                <Button onClick={() => navigate('/onboarding')}>
+                  Completar perfil
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Search Bar */}
         <div className="flex flex-col md:flex-row gap-4 mb-4">
           <div className="relative flex-1">

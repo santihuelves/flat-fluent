@@ -214,7 +214,7 @@ export default function Connections() {
 
       const result = data as ConnectionsResponse;
       if (!result.ok) {
-        setError(result.code === 'NOT_AUTHENTICATED' ? 'Inicia sesion para ver tus conexiones.' : 'No se pudieron cargar tus conexiones.');
+        setError(result.code === 'NOT_AUTHENTICATED' ? 'Inicia sesión para ver tus conexiones.' : 'No se pudieron cargar tus conexiones.');
         setIsLoading(false);
         return;
       }

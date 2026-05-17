@@ -2,14 +2,16 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { Component, lazy, Suspense, type ErrorInfo, type ReactNode } from "react";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { Component, lazy, Suspense, useEffect, useState, type ErrorInfo, type ReactNode } from "react";
 import { Loader2, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
 
 const Landing = lazy(() => import("./pages/Landing"));
 const Login = lazy(() => import("./pages/Login"));
 const Signup = lazy(() => import("./pages/Signup"));
+const Welcome = lazy(() => import("./pages/Welcome"));
 const Onboarding = lazy(() => import("./pages/Onboarding"));
 const Discover = lazy(() => import("./pages/Discover"));
 const Listings = lazy(() => import("./pages/Listings"));
@@ -44,6 +46,80 @@ const PageLoader = () => (
     </div>
   </div>
 );
+
+const protectedRouteMessages: Record<string, string> = {
+  '/onboarding': 'Crea tu cuenta o inicia sesión para completar tu perfil.',
+  '/welcome': 'Crea tu cuenta o inicia sesión para empezar en Convinter.',
+  '/discover': 'Inicia sesión para descubrir personas compatibles.',
+  '/listings': 'Inicia sesión para ver anuncios y contactar con personas compatibles.',
+  '/my-listings': 'Inicia sesión para gestionar tus anuncios.',
+  '/matches': 'Inicia sesión para ver tus mensajes y conexiones.',
+  '/connections': 'Inicia sesión para ver tus conexiones.',
+  '/notifications': 'Inicia sesión para ver tus notificaciones.',
+  '/profile': 'Inicia sesión para ver y editar tu perfil.',
+  '/settings': 'Inicia sesión para configurar tu cuenta.',
+  '/create-listing': 'Inicia sesión para publicar un anuncio.',
+  '/test': 'Crea tu cuenta o inicia sesión para hacer el test y guardar tus resultados.',
+};
+
+const getProtectedRouteMessage = (pathname: string) => {
+  if (pathname.startsWith('/listing/')) {
+    return 'Inicia sesión para ver el anuncio completo y contactar.';
+  }
+
+  if (pathname.startsWith('/u/')) {
+    return 'Inicia sesión para ver perfiles completos y contactar.';
+  }
+
+  if (pathname.startsWith('/chat/')) {
+    return 'Inicia sesión para continuar la conversación.';
+  }
+
+  return protectedRouteMessages[pathname] ?? 'Inicia sesión para continuar.';
+};
+
+const ProtectedRoute = ({ children }: { children: ReactNode }) => {
+  const location = useLocation();
+  const [isCheckingSession, setIsCheckingSession] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!isMounted) return;
+      setIsAuthenticated(Boolean(session));
+      setIsCheckingSession(false);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
+      if (!isMounted) return;
+      setIsAuthenticated(Boolean(session));
+      setIsCheckingSession(false);
+    });
+
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  if (isCheckingSession) {
+    return <PageLoader />;
+  }
+
+  if (!isAuthenticated) {
+    const redirect = `${location.pathname}${location.search}${location.hash}`;
+    const searchParams = new URLSearchParams({
+      redirect,
+      reason: getProtectedRouteMessage(location.pathname),
+    });
+
+    return <Navigate to={`/login?${searchParams.toString()}`} replace />;
+  }
+
+  return children;
+};
 
 const isStaleChunkError = (error: unknown) => {
   const message = error instanceof Error ? error.message : String(error);
@@ -141,26 +217,27 @@ const App = () => (
               <Route path="/" element={<Landing />} />
               <Route path="/login" element={<Login />} />
               <Route path="/signup" element={<Signup />} />
-              <Route path="/onboarding" element={<Onboarding />} />
-              <Route path="/discover" element={<Discover />} />
-              <Route path="/listings" element={<Listings />} />
-              <Route path="/listing/:id" element={<ListingDetail />} />
-              <Route path="/my-listings" element={<MyListings />} />
-              <Route path="/matches" element={<Matches />} />
-              <Route path="/connections" element={<Connections />} />
-              <Route path="/chat/:matchId" element={<Chat />} />
-              <Route path="/notifications" element={<Notifications />} />
-              <Route path="/profile" element={<Profile />} />
-              <Route path="/u/:id" element={<PublicProfile />} />
-              <Route path="/settings" element={<Settings />} />
-              <Route path="/create-listing" element={<CreateListing />} />
+              <Route path="/welcome" element={<ProtectedRoute><Welcome /></ProtectedRoute>} />
+              <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
+              <Route path="/discover" element={<ProtectedRoute><Discover /></ProtectedRoute>} />
+              <Route path="/listings" element={<ProtectedRoute><Listings /></ProtectedRoute>} />
+              <Route path="/listing/:id" element={<ProtectedRoute><ListingDetail /></ProtectedRoute>} />
+              <Route path="/my-listings" element={<ProtectedRoute><MyListings /></ProtectedRoute>} />
+              <Route path="/matches" element={<ProtectedRoute><Matches /></ProtectedRoute>} />
+              <Route path="/connections" element={<ProtectedRoute><Connections /></ProtectedRoute>} />
+              <Route path="/chat/:matchId" element={<ProtectedRoute><Chat /></ProtectedRoute>} />
+              <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
+              <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+              <Route path="/u/:id" element={<ProtectedRoute><PublicProfile /></ProtectedRoute>} />
+              <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+              <Route path="/create-listing" element={<ProtectedRoute><CreateListing /></ProtectedRoute>} />
               <Route path="/admin" element={import.meta.env.DEV ? <Admin /> : <Navigate to="/" replace />} />
               <Route path="/faq" element={<FAQ />} />
               <Route path="/contact" element={<Contact />} />
               <Route path="/privacy" element={<Privacy />} />
               <Route path="/terms" element={<Terms />} />
               <Route path="/cookies" element={<Cookies />} />
-              <Route path="/test" element={<Test />} />
+              <Route path="/test" element={<ProtectedRoute><Test /></ProtectedRoute>} />
               <Route path="/debug" element={import.meta.env.DEV ? <Debug /> : <Navigate to="/" replace />} />
               <Route path="/github" element={import.meta.env.DEV ? <GitHubConnection /> : <Navigate to="/" replace />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

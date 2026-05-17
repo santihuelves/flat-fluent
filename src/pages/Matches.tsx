@@ -82,7 +82,7 @@ export default function Matches() {
 
     const result = data as unknown as MatchesResponse;
     if (!result.ok) {
-      setError(result.code === 'NOT_AUTHENTICATED' ? 'Inicia sesion para ver tus mensajes.' : 'No se pudieron cargar tus mensajes.');
+      setError(result.code === 'NOT_AUTHENTICATED' ? 'Inicia sesión para ver tus mensajes.' : 'No se pudieron cargar tus mensajes.');
       setIsLoading(false);
       return;
     }

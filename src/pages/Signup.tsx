@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,12 +11,25 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useSEO } from '@/hooks/useSEO';
 
+const getSafeRedirect = (redirect: string | null) => {
+  if (!redirect || !redirect.startsWith('/') || redirect.startsWith('//')) {
+    return '/discover';
+  }
+
+  return redirect;
+};
+
 export default function Signup() {
   useSEO({ page: 'signup' });
 
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { toast } = useToast();
+  const redirectTo = getSafeRedirect(searchParams.get('redirect'));
+  const welcomeTarget = `/welcome?${new URLSearchParams({ next: redirectTo }).toString()}`;
+  const reason = searchParams.get('reason');
+  const loginTarget = `/login?${new URLSearchParams({ redirect: redirectTo, ...(reason ? { reason } : {}) }).toString()}`;
   
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -49,7 +62,7 @@ export default function Signup() {
     setLoading(true);
 
     try {
-      const redirectUrl = `${window.location.origin}/`;
+      const redirectUrl = `${window.location.origin}${welcomeTarget}`;
       
       const { error } = await supabase.auth.signUp({
         email,
@@ -69,7 +82,7 @@ export default function Signup() {
         description: 'Te hemos enviado un email de confirmación.',
       });
       
-      navigate('/onboarding');
+      navigate(welcomeTarget);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : '';
       let message = 'No se pudo crear la cuenta';
@@ -103,6 +116,12 @@ export default function Signup() {
               <h1 className="text-2xl font-bold">{t('auth.signup.title')}</h1>
               <p className="text-muted-foreground mt-2">{t('auth.signup.subtitle')}</p>
             </div>
+
+            {reason && (
+              <div className="mb-5 rounded-xl border border-primary/25 bg-primary/5 p-4 text-sm text-muted-foreground">
+                {reason}
+              </div>
+            )}
 
             {/* Form */}
             <form onSubmit={handleSubmit} className="space-y-5">
@@ -193,7 +212,7 @@ export default function Signup() {
             {/* Footer */}
             <p className="text-center text-sm text-muted-foreground mt-6">
               {t('auth.signup.hasAccount')}{' '}
-              <Link to="/login" className="text-primary font-medium hover:underline">
+              <Link to={loginTarget} className="text-primary font-medium hover:underline">
                 {t('auth.signup.loginLink')}
               </Link>
             </p>

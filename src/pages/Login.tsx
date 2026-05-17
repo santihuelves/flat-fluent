@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,12 +11,24 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useSEO } from '@/hooks/useSEO';
 
+const getSafeRedirect = (redirect: string | null) => {
+  if (!redirect || !redirect.startsWith('/') || redirect.startsWith('//')) {
+    return '/discover';
+  }
+
+  return redirect;
+};
+
 export default function Login() {
   useSEO({ page: 'login', noIndex: true });
 
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { toast } = useToast();
+  const redirectTo = getSafeRedirect(searchParams.get('redirect'));
+  const reason = searchParams.get('reason');
+  const signupTarget = `/signup?${new URLSearchParams({ redirect: redirectTo, ...(reason ? { reason } : {}) }).toString()}`;
   
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -40,7 +52,7 @@ export default function Login() {
         description: 'Has iniciado sesión correctamente.',
       });
       
-      navigate('/discover');
+      navigate(redirectTo);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'No se pudo iniciar sesión';
       toast({
@@ -70,6 +82,12 @@ export default function Login() {
               <h1 className="text-2xl font-bold">{t('auth.login.title')}</h1>
               <p className="text-muted-foreground mt-2">{t('auth.login.subtitle')}</p>
             </div>
+
+            {reason && (
+              <div className="mb-5 rounded-xl border border-primary/25 bg-primary/5 p-4 text-sm text-muted-foreground">
+                {reason}
+              </div>
+            )}
 
             {/* Form */}
             <form onSubmit={handleSubmit} className="space-y-5">
@@ -126,7 +144,7 @@ export default function Login() {
             {/* Footer */}
             <p className="text-center text-sm text-muted-foreground mt-6">
               {t('auth.login.noAccount')}{' '}
-              <Link to="/signup" className="text-primary font-medium hover:underline">
+              <Link to={signupTarget} className="text-primary font-medium hover:underline">
                 {t('auth.login.signupLink')}
               </Link>
             </p>

@@ -118,7 +118,7 @@ export function SafetyActions({
 
     const result = data as unknown as { ok?: boolean; code?: string } | null;
     if (result?.ok === false) {
-      toast.error(result.code === 'NOT_AUTHENTICATED' ? 'Inicia sesion para reportar.' : 'No se pudo enviar el reporte.');
+      toast.error(result.code === 'NOT_AUTHENTICATED' ? 'Inicia sesión para reportar.' : 'No se pudo enviar el reporte.');
       return;
     }
 

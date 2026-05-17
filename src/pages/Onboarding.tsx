@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Home, Key, Users, MapPin, Euro, Calendar, Languages, Briefcase, ArrowLeft, ArrowRight, Check, Camera, X, Loader2 } from 'lucide-react';
+import { Home, Key, Users, MapPin, Calendar, Languages, Briefcase, ArrowLeft, ArrowRight, Check, Camera, X, Loader2, Sparkles, HeartHandshake } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -16,6 +16,7 @@ import { useSEO } from '@/hooks/useSEO';
 import { ImageCropperDialog } from '@/components/profile/ImageCropperDialog';
 
 type IntentionType = 'seek_room' | 'offer_room' | 'seek_flatmate';
+type MoveInPreference = 'asap' | 'weeks' | 'month' | 'specific' | 'flexible' | '';
 
 interface OnboardingData {
   intentions: IntentionType[];
@@ -23,15 +24,15 @@ interface OnboardingData {
   autonomousCommunity: string;
   province: string;
   city: string;
-  budgetMin: string;
-  budgetMax: string;
   moveInDate: string;
-  minStayMonths: string;
+  moveInPreference: MoveInPreference;
   languages: string[];
   occupation: string;
+  inclusiveProfile: boolean;
   bio: string;
   photos: string[];
   urgency: 'urgent' | 'soon' | 'flexible' | 'exploring';
+  homeVibe: string;
 }
 
 const AUTONOMOUS_COMMUNITIES = [
@@ -77,10 +78,23 @@ const MAX_CITY_LENGTH = 80;
 const MAX_OCCUPATION_LENGTH = 100;
 const MIN_BIO_LENGTH = 20;
 const MAX_BIO_LENGTH = 500;
-const MAX_BUDGET = 10000;
-const PROFILE_PHOTO_LIMIT = 2;
+const PROFILE_PHOTO_LIMIT = 1;
 const todayIso = () => new Date().toISOString().split('T')[0];
-const toPositiveNumber = (value: string) => Number(value);
+
+const homeVibeOptions = [
+  { value: 'quiet', label: 'Tranquilo/a', description: 'Valoro descanso, calma y rutinas claras.' },
+  { value: 'social', label: 'Sociable', description: 'Me gusta conversar y hacer algo de vida común.' },
+  { value: 'independent', label: 'Independiente', description: 'Comparto casa, pero necesito mi espacio.' },
+  { value: 'mixed', label: 'Equilibrado/a', description: 'Depende del día: puedo socializar o ir a mi aire.' },
+];
+
+const moveInPreferenceOptions = [
+  { value: 'asap', label: 'Quiero avanzar cuanto antes' },
+  { value: 'weeks', label: 'En las próximas semanas' },
+  { value: 'month', label: 'Durante este mes' },
+  { value: 'specific', label: 'Tengo una fecha aproximada' },
+  { value: 'flexible', label: 'Estoy explorando / flexible' },
+] as const;
 
 const Onboarding = () => {
   useSEO({ page: 'signup', noIndex: true });
@@ -98,56 +112,23 @@ const Onboarding = () => {
     autonomousCommunity: '',
     province: '',
     city: '',
-    budgetMin: '',
-    budgetMax: '',
     moveInDate: '',
-    minStayMonths: '',
+    moveInPreference: '',
     languages: [],
     occupation: '',
+    inclusiveProfile: false,
     bio: '',
     photos: [],
     urgency: 'flexible',
+    homeVibe: '',
   });
 
+  const hasOfferRoomIntention = data.intentions.includes('offer_room');
+  const hasSeekerIntention = data.intentions.some((intention) => intention !== 'offer_room');
   const isOfferRoomFlow = data.primaryIntention === 'offer_room';
-  const isSeekFlatmateFlow = data.primaryIntention === 'seek_flatmate';
-  const totalSteps = isOfferRoomFlow ? 2 : 4;
+  const isOfferRoomOnlyFlow = isOfferRoomFlow && !hasSeekerIntention;
+  const totalSteps = 4;
   const progress = (currentStep / totalSteps) * 100;
-
-  const step2Copy = isOfferRoomFlow
-    ? {
-      title: '¿Dónde está la habitación?',
-      subtitle: 'Indica la ubicación de la vivienda donde está la habitación.',
-      city: 'Ciudad, barrio o zona de la habitación',
-      placeholder: 'Ej: Vallecas, Malasaña, Gràcia...',
-    }
-    : isSeekFlatmateFlow
-      ? {
-        title: '¿Dónde os gustaría alquilar?',
-        subtitle: 'Selecciona la zona donde te gustaría encontrar compañero/a y vivienda.',
-        city: 'Ciudad o barrios preferidos',
-        placeholder: 'Ej: Malasaña, Lavapiés...',
-      }
-      : {
-        title: t('onboarding.step2.title'),
-        subtitle: t('onboarding.step2.subtitle'),
-        city: t('onboarding.step2.city'),
-        placeholder: t('onboarding.step2.cityPlaceholder'),
-      };
-
-  const step3Copy = isOfferRoomFlow
-    ? {
-      title: 'Disponibilidad de la habitación',
-      subtitle: 'Indica cuándo estará disponible y la estancia mínima si ya lo tienes claro.',
-      moveInDate: 'Disponible desde',
-      minStay: 'Estancia mínima',
-    }
-    : {
-      title: t('onboarding.step3.title'),
-      subtitle: t('onboarding.step3.subtitle'),
-      moveInDate: t('onboarding.step3.moveInDate'),
-      minStay: t('onboarding.step3.minStay'),
-    };
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -202,7 +183,7 @@ const Onboarding = () => {
     if (!file) return;
 
     if (data.photos.length >= PROFILE_PHOTO_LIMIT) {
-      toast.error(`Puedes subir un maximo de ${PROFILE_PHOTO_LIMIT} fotos.`);
+      toast.error('Solo puedes tener una foto de perfil.');
       e.target.value = '';
       return;
     }
@@ -237,10 +218,10 @@ const Onboarding = () => {
 
       setData((prev) => ({
         ...prev,
-        photos: [...prev.photos, publicUrl].slice(0, PROFILE_PHOTO_LIMIT),
+        photos: [publicUrl],
       }));
 
-      toast.success('Foto anadida al perfil.');
+      toast.success('Foto añadida al perfil.');
     } catch (error) {
       console.error('Error uploading photo:', error);
       toast.error('No se pudo subir la foto del perfil.');
@@ -263,45 +244,27 @@ const Onboarding = () => {
   const canProceed = (step = currentStep) => {
     switch (step) {
       case 1:
-        return data.intentions.length > 0 && data.primaryIntention !== null;
-      case 2:
-        if (isOfferRoomFlow) {
-          return true;
-        }
-
-        return (
-          data.autonomousCommunity !== '' &&
-          data.province !== '' &&
-          data.city.trim().length >= 2 &&
-          data.city.trim().length <= MAX_CITY_LENGTH
-        );
-      case 3:
-        {
-          const budgetMin = toPositiveNumber(data.budgetMin);
-          const budgetMax = toPositiveNumber(data.budgetMax);
-          const dateIsValid = !data.moveInDate || data.moveInDate >= todayIso();
-
-          if (isOfferRoomFlow) {
-            return dateIsValid;
-          }
-
-          return (
-            Number.isFinite(budgetMin) &&
-            Number.isFinite(budgetMax) &&
-            budgetMin > 0 &&
-            budgetMax > 0 &&
-            budgetMin <= budgetMax &&
-            budgetMax <= MAX_BUDGET &&
-            dateIsValid
-          );
-        }
-      case 4:
         return (
           data.languages.length > 0 &&
           data.occupation.trim().length <= MAX_OCCUPATION_LENGTH &&
           data.bio.trim().length >= MIN_BIO_LENGTH &&
           data.bio.trim().length <= MAX_BIO_LENGTH
         );
+      case 2:
+        return Boolean(data.homeVibe);
+      case 3:
+        {
+          const dateIsValid = data.moveInPreference !== 'specific' || Boolean(data.moveInDate && data.moveInDate >= todayIso());
+
+          return data.autonomousCommunity !== '' &&
+            data.province !== '' &&
+            data.city.trim().length >= 2 &&
+            data.city.trim().length <= MAX_CITY_LENGTH &&
+            data.moveInPreference !== '' &&
+            dateIsValid;
+        }
+      case 4:
+        return data.intentions.length > 0 && data.primaryIntention !== null;
       default:
         return true;
     }
@@ -310,15 +273,13 @@ const Onboarding = () => {
   const getStepValidationMessage = (step = currentStep) => {
     switch (step) {
       case 1:
-        return 'Selecciona al menos una intencion principal.';
+        return 'Selecciona al menos un idioma, revisa la ocupación y completa "Sobre ti" con al menos 20 caracteres.';
       case 2:
-        return 'Completa comunidad, provincia y ciudad.';
+        return 'Elige la energía que mejor describe cómo eres en casa.';
       case 3:
-        return isOfferRoomFlow
-          ? 'Revisa la fecha: no puede estar en el pasado.'
-          : 'Revisa el presupuesto: el minimo no puede superar al maximo y la fecha no puede estar en el pasado.';
+        return 'Completa ubicación, zonas de interés y momento actual.';
       case 4:
-        return 'Selecciona al menos un idioma, revisa la ocupacion y completa "Sobre ti" con al menos 20 caracteres.';
+        return 'Selecciona al menos una intención y marca una como principal.';
       default:
         return 'Revisa los datos antes de continuar.';
     }
@@ -340,6 +301,11 @@ const Onboarding = () => {
       setCurrentStep(prev => prev - 1);
     }
   };
+
+  const lifestyleTags = [
+    data.homeVibe ? `onboarding_home_${data.homeVibe}` : null,
+    data.inclusiveProfile ? 'inclusive_lgtbiq_friendly' : null,
+  ].filter((tag): tag is string => Boolean(tag));
 
   const handleComplete = async (
     goToTest: boolean,
@@ -397,13 +363,11 @@ const Onboarding = () => {
           autonomous_community: data.autonomousCommunity || null,
           province: data.province || null,
           city: data.city || null,
-          budget_min: data.budgetMin ? parseInt(data.budgetMin) : null,
-          budget_max: data.budgetMax ? parseInt(data.budgetMax) : null,
           move_in_date: data.moveInDate || null,
-          min_stay_months: data.minStayMonths ? parseInt(data.minStayMonths) : null,
           occupation: data.occupation || null,
           languages: data.languages,
           photos: data.photos,
+          lifestyle_tags: lifestyleTags,
           // Mapear intención primaria a user_type
           user_type: data.primaryIntention === 'seek_room' ? 'seeking_room' 
             : data.primaryIntention === 'offer_room' ? 'offering_room'
@@ -424,12 +388,12 @@ const Onboarding = () => {
           p_is_primary: data.primaryIntention === intention,
           p_urgency: data.urgency,
           p_details: {
-            budget_min: data.budgetMin ? parseInt(data.budgetMin) : null,
-            budget_max: data.budgetMax ? parseInt(data.budgetMax) : null,
             move_in_date: data.moveInDate || null,
-            min_stay_months: data.minStayMonths ? parseInt(data.minStayMonths) : null,
+            move_in_preference: data.moveInPreference || null,
             city: data.city || null,
             province: data.province || null,
+            home_vibe: data.homeVibe || null,
+            inclusive_profile: data.inclusiveProfile,
             priority: index + 1,
           },
         });
@@ -442,7 +406,7 @@ const Onboarding = () => {
       }
 
       toast.success(t('onboarding.success'));
-      if (data.primaryIntention === 'offer_room') {
+      if (isOfferRoomOnlyFlow) {
         if (offerDestination === 'profile') {
           navigate('/profile');
         } else if (offerDestination === 'create-listing') {
@@ -467,303 +431,14 @@ const Onboarding = () => {
         return (
           <div className="space-y-6">
             <div className="text-center mb-8">
-              <h2 className="text-2xl font-bold text-foreground mb-2">{t('onboarding.step1.title')}</h2>
-              <p className="text-muted-foreground">{t('onboarding.step1.subtitle')}</p>
-              <p className="text-sm text-muted-foreground mt-2">{t('onboarding.step1.multipleHint')}</p>
-            </div>
-            <div className="grid gap-4">
-              {[
-                { type: 'seek_room' as IntentionType, icon: Home, label: t('onboarding.step1.seekingRoom'), desc: t('onboarding.step1.seekingRoomDesc') },
-                { type: 'offer_room' as IntentionType, icon: Key, label: t('onboarding.step1.offeringRoom'), desc: t('onboarding.step1.offeringRoomDesc') },
-                { type: 'seek_flatmate' as IntentionType, icon: Users, label: t('onboarding.step1.seekingRoommate'), desc: t('onboarding.step1.seekingRoommateDesc') },
-              ].map(({ type, icon: Icon, label, desc }) => {
-                const isSelected = data.intentions.includes(type);
-                const isPrimary = data.primaryIntention === type;
-                
-                return (
-                  <button
-                    key={type}
-                    onClick={() => handleIntentionToggle(type)}
-                    className={`flex flex-col gap-3 p-5 rounded-xl border-2 transition-all text-left relative ${
-                      isSelected
-                        ? 'border-primary bg-primary/10 shadow-md'
-                        : 'border-border hover:border-primary/50 hover:bg-muted/50'
-                    }`}
-                  >
-                    <div className="flex items-start gap-4">
-                      <div className={`p-3 rounded-full flex-shrink-0 ${isSelected ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
-                        <Icon className="h-6 w-6" />
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="text-lg font-medium">{label}</span>
-                          {isSelected && (
-                            <Check className="h-5 w-5 text-primary" />
-                          )}
-                          {isPrimary && (
-                            <span className="px-2 py-0.5 text-xs font-medium bg-primary text-primary-foreground rounded-full">
-                              {t('common.primary')}
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-sm text-muted-foreground mt-1">{desc}</p>
-                      </div>
-                    </div>
-                    
-                    {/* Botón para marcar como primaria */}
-                    {isSelected && !isPrimary && data.intentions.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handlePrimaryIntentionSelect(type);
-                        }}
-                        className="text-xs text-primary hover:underline self-start ml-16"
-                      >
-                        {t('onboarding.step1.makePrimary')}
-                      </button>
-                    )}
-                  </button>
-                );
-              })}
-
-              <button
-                type="button"
-                onClick={() => navigate('/listings')}
-                className="flex items-start gap-4 p-5 rounded-xl border-2 border-dashed border-border transition-all text-left hover:border-primary/50 hover:bg-muted/50"
-              >
-                <div className="p-3 rounded-full flex-shrink-0 bg-muted">
-                  <MapPin className="h-6 w-6" />
-                </div>
-                <div>
-                  <span className="text-lg font-medium">Solo quiero echar un vistazo</span>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Explora anuncios y conoce la app antes de completar tu perfil.
-                  </p>
-                </div>
-              </button>
-            </div>
-          </div>
-        );
-
-      case 2:
-        if (isOfferRoomFlow) {
-          return (
-            <div className="space-y-6">
-              <div className="text-center mb-8">
-                <h2 className="text-2xl font-bold text-foreground mb-2">Perfecto, tienes una habitación para ofrecer</h2>
-                <p className="text-muted-foreground">
-                  Antes de pedirte datos del anuncio, elige cómo quieres empezar.
-                </p>
-              </div>
-
-              <div className="grid gap-4">
-                <button
-                  type="button"
-                  disabled={isLoading}
-                  onClick={() => handleComplete(false, 'discover')}
-                  className="flex items-start gap-4 p-5 rounded-xl border-2 border-border transition-all text-left hover:border-primary/50 hover:bg-muted/50 disabled:opacity-60"
-                >
-                  <div className="p-3 rounded-full flex-shrink-0 bg-muted text-foreground">
-                    <Users className="h-6 w-6" />
-                  </div>
-                  <div>
-                    <span className="text-lg font-medium">Ver personas que buscan habitación</span>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      Explora perfiles de tu zona antes de publicar la habitación.
-                    </p>
-                  </div>
-                </button>
-
-                <button
-                  type="button"
-                  disabled={isLoading}
-                  onClick={() => handleComplete(true, 'create-listing')}
-                  className="flex items-start gap-4 p-5 rounded-xl border-2 border-primary bg-primary/10 transition-all text-left hover:bg-primary/15 disabled:opacity-60"
-                >
-                  <div className="p-3 rounded-full flex-shrink-0 bg-primary text-primary-foreground">
-                    <Home className="h-6 w-6" />
-                  </div>
-                  <div>
-                    <span className="text-lg font-medium">Crear mi anuncio</span>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      Añade fotos, precio, ubicación y condiciones concretas de la habitación.
-                    </p>
-                  </div>
-                </button>
-
-                <button
-                  type="button"
-                  disabled={isLoading}
-                  onClick={() => handleComplete(false, 'profile')}
-                  className="flex items-start gap-4 p-5 rounded-xl border-2 border-border transition-all text-left hover:border-primary/50 hover:bg-muted/50 disabled:opacity-60"
-                >
-                  <div className="p-3 rounded-full flex-shrink-0 bg-muted text-foreground">
-                    <Camera className="h-6 w-6" />
-                  </div>
-                  <div>
-                    <span className="text-lg font-medium">Completar mi perfil personal</span>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      Suma confianza con foto, bio e información básica antes de contactar.
-                    </p>
-                  </div>
-                </button>
-              </div>
-
-              {isLoading && (
-                <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Guardando tu inicio...
-                </div>
-              )}
-            </div>
-          );
-        }
-
-        return (
-          <div className="space-y-6">
-            <div className="text-center mb-8">
-              <h2 className="text-2xl font-bold text-foreground mb-2">{step2Copy.title}</h2>
-              <p className="text-muted-foreground">{step2Copy.subtitle}</p>
-            </div>
-            <div className="space-y-4">
-              <div>
-                <Label className="flex items-center gap-2 mb-2">
-                  <MapPin className="h-4 w-4" />
-                  {t('onboarding.step2.community')}
-                </Label>
-                <Select
-                  value={data.autonomousCommunity}
-                  onValueChange={(value) => setData(prev => ({ ...prev, autonomousCommunity: value, province: '' }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder={t('onboarding.step2.selectCommunity')} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {AUTONOMOUS_COMMUNITIES.map(community => (
-                      <SelectItem key={community} value={community}>{community}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {data.autonomousCommunity && (
-                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-                  <Label className="mb-2 block">{t('onboarding.step2.province')}</Label>
-                  <Select
-                    value={data.province}
-                    onValueChange={(value) => setData(prev => ({ ...prev, province: value }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder={t('onboarding.step2.selectProvince')} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {PROVINCES[data.autonomousCommunity]?.map(province => (
-                        <SelectItem key={province} value={province}>{province}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </motion.div>
-              )}
-
-              <div>
-                <Label className="mb-2 block">{step2Copy.city}</Label>
-                <Input
-                  placeholder={step2Copy.placeholder}
-                  value={data.city}
-                  maxLength={MAX_CITY_LENGTH}
-                  onChange={(e) => setData(prev => ({ ...prev, city: e.target.value }))}
-                />
-              </div>
-            </div>
-          </div>
-        );
-
-      case 3:
-        return (
-          <div className="space-y-6">
-            <div className="text-center mb-8">
-              <h2 className="text-2xl font-bold text-foreground mb-2">{step3Copy.title}</h2>
-              <p className="text-muted-foreground">{step3Copy.subtitle}</p>
-            </div>
-            <div className="space-y-4">
-              {!isOfferRoomFlow && (
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label className="flex items-center gap-2 mb-2">
-                      <Euro className="h-4 w-4" />
-                      {t('onboarding.step3.budgetMin')}
-                    </Label>
-                    <Input
-                      type="number"
-                      min={1}
-                      max={MAX_BUDGET}
-                      placeholder="300"
-                      value={data.budgetMin}
-                      onChange={(e) => setData(prev => ({ ...prev, budgetMin: e.target.value }))}
-                    />
-                  </div>
-                  <div>
-                    <Label className="mb-2 block">{t('onboarding.step3.budgetMax')}</Label>
-                    <Input
-                      type="number"
-                      min={1}
-                      max={MAX_BUDGET}
-                      placeholder="600"
-                      value={data.budgetMax}
-                      onChange={(e) => setData(prev => ({ ...prev, budgetMax: e.target.value }))}
-                    />
-                  </div>
-                </div>
-              )}
-
-              <div>
-                <Label className="flex items-center gap-2 mb-2">
-                  <Calendar className="h-4 w-4" />
-                  {step3Copy.moveInDate}
-                </Label>
-                <Input
-                  type="date"
-                  min={todayIso()}
-                  value={data.moveInDate}
-                  onChange={(e) => setData(prev => ({ ...prev, moveInDate: e.target.value }))}
-                />
-              </div>
-
-              <div>
-                <Label className="mb-2 block">{step3Copy.minStay}</Label>
-                <Select
-                  value={data.minStayMonths}
-                  onValueChange={(value) => setData(prev => ({ ...prev, minStayMonths: value }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder={t('onboarding.step3.selectMinStay')} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {[1, 2, 3, 6, 9, 12].map(months => (
-                      <SelectItem key={months} value={months.toString()}>
-                        {months} {months === 1 ? t('onboarding.step3.month') : t('onboarding.step3.months')}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </div>
-        );
-
-      case 4:
-        return (
-          <div className="space-y-6">
-            <div className="text-center mb-8">
-              <h2 className="text-2xl font-bold text-foreground mb-2">{t('onboarding.step4.title')}</h2>
-              <p className="text-muted-foreground">{t('onboarding.step4.subtitle')}</p>
+              <h2 className="text-2xl font-bold text-foreground mb-2">Crea tu perfil personal</h2>
+              <p className="text-muted-foreground">Empieza por quién eres. La confianza llega antes que el anuncio.</p>
             </div>
             <div className="space-y-4">
               <div>
                 <Label className="flex items-center gap-2 mb-3">
                   <Languages className="h-4 w-4" />
-                  {t('onboarding.step4.languages')}
+                  Idiomas que hablas
                 </Label>
                 <div className="grid grid-cols-2 gap-3">
                   {LANGUAGES.map(lang => (
@@ -788,14 +463,37 @@ const Onboarding = () => {
               <div>
                 <Label className="flex items-center gap-2 mb-2">
                   <Briefcase className="h-4 w-4" />
-                  {t('onboarding.step4.occupation')}
+                  Ocupación o situación
                 </Label>
                 <Input
-                  placeholder={t('onboarding.step4.occupationPlaceholder')}
+                  placeholder="Ej: Estudiante, Diseñadora UX, Enfermero..."
                   value={data.occupation}
                   maxLength={MAX_OCCUPATION_LENGTH}
                   onChange={(e) => setData(prev => ({ ...prev, occupation: e.target.value }))}
                 />
+              </div>
+
+              <div>
+                <label
+                  className={`flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition-all ${
+                    data.inclusiveProfile ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/50'
+                  }`}
+                >
+                  <Checkbox
+                    checked={data.inclusiveProfile}
+                    onCheckedChange={(checked) => setData(prev => ({ ...prev, inclusiveProfile: Boolean(checked) }))}
+                    className="mt-0.5"
+                  />
+                  <span>
+                    <span className="flex items-center gap-2 font-medium">
+                      <HeartHandshake className="h-4 w-4" />
+                      LGTBIQ+ friendly
+                    </span>
+                    <span className="mt-1 block text-sm text-muted-foreground">
+                      Mostrar en mi perfil que valoro un entorno respetuoso e inclusivo.
+                    </span>
+                  </span>
+                </label>
               </div>
 
               <div className="space-y-3">
@@ -834,6 +532,7 @@ const Onboarding = () => {
                       <input
                         type="file"
                         accept="image/*"
+                        capture="user"
                         className="hidden"
                         onChange={handlePhotoSelect}
                         disabled={uploadingPhoto}
@@ -843,13 +542,13 @@ const Onboarding = () => {
                       ) : (
                         <Camera className="mb-2 h-5 w-5 text-muted-foreground" />
                       )}
-                      <span className="text-sm text-muted-foreground">Anadir foto</span>
+                      <span className="text-sm text-muted-foreground">Hacer selfie o subir foto</span>
                     </label>
                   )}
                 </div>
 
                 <p className="text-xs text-muted-foreground">
-                  Puedes subir hasta {PROFILE_PHOTO_LIMIT} fotos. La primera sera la portada del perfil.
+                  Una foto clara es suficiente para generar confianza. En móvil podrás hacer una selfie.
                 </p>
               </div>
 
@@ -864,14 +563,220 @@ const Onboarding = () => {
                   id="bio"
                   rows={5}
                   maxLength={MAX_BIO_LENGTH}
-                  placeholder="Cuentanos un poco sobre ti, tu forma de convivir y lo que valoras en casa."
+                  placeholder="Cuenta brevemente cómo eres conviviendo, qué valoras en casa y qué te ayuda a sentirte cómodo/a."
                   value={data.bio}
                   onChange={(e) => setData(prev => ({ ...prev, bio: e.target.value }))}
                 />
                 <p className="mt-2 text-xs text-muted-foreground">
-                  Minimo {MIN_BIO_LENGTH} caracteres.
+                  Mínimo {MIN_BIO_LENGTH} caracteres.
                 </p>
               </div>
+            </div>
+          </div>
+        );
+
+      case 2:
+        return (
+          <div className="space-y-6">
+            <div className="text-center mb-8">
+              <h2 className="text-2xl font-bold text-foreground mb-2">Cómo convives</h2>
+              <p className="text-muted-foreground">Unas señales rápidas ayudan más que una ficha fría.</p>
+            </div>
+            <div className="space-y-5">
+              <div className="space-y-3">
+                <Label className="flex items-center gap-2">
+                  <Sparkles className="h-4 w-4" />
+                  ¿Qué energía tienes en casa?
+                </Label>
+                <div className="grid gap-3">
+                  {homeVibeOptions.map((option) => (
+                    <button
+                      type="button"
+                      key={option.value}
+                      onClick={() => setData(prev => ({ ...prev, homeVibe: option.value }))}
+                      className={`rounded-xl border p-4 text-left transition-all ${
+                        data.homeVibe === option.value ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/50'
+                      }`}
+                    >
+                      <span className="font-medium">{option.label}</span>
+                      <p className="mt-1 text-sm text-muted-foreground">{option.description}</p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-border/70 bg-muted/30 p-4">
+                <p className="text-sm font-medium text-foreground">El test se encarga del detalle.</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Limpieza, horarios, visitas, ruido y tabaco se preguntan en el test para calcular compatibilidad sin repetirte preguntas en el perfil.
+                </p>
+              </div>
+            </div>
+          </div>
+        );
+
+      case 3:
+        return (
+          <div className="space-y-6">
+            <div className="text-center mb-8">
+              <h2 className="text-2xl font-bold text-foreground mb-2">Zona y momento</h2>
+              <p className="text-muted-foreground">Dinos qué zona te interesa y en qué momento estás. Puedes ajustarlo después.</p>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <Label className="flex items-center gap-2 mb-2">
+                  <MapPin className="h-4 w-4" />
+                  Comunidad autónoma
+                </Label>
+                <Select
+                  value={data.autonomousCommunity}
+                  onValueChange={(value) => setData(prev => ({ ...prev, autonomousCommunity: value, province: '' }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecciona una comunidad" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {AUTONOMOUS_COMMUNITIES.map(community => (
+                      <SelectItem key={community} value={community}>{community}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {data.autonomousCommunity && (
+                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+                  <Label className="mb-2 block">Provincia</Label>
+                  <Select
+                    value={data.province}
+                    onValueChange={(value) => setData(prev => ({ ...prev, province: value }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecciona una provincia" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PROVINCES[data.autonomousCommunity]?.map(province => (
+                        <SelectItem key={province} value={province}>{province}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </motion.div>
+              )}
+
+              <div>
+                <Label className="mb-2 block">Ciudad o zonas preferidas</Label>
+                <Input
+                  placeholder="Ej: Malasaña, Chamberí, Lavapiés..."
+                  value={data.city}
+                  maxLength={MAX_CITY_LENGTH}
+                  onChange={(e) => setData(prev => ({ ...prev, city: e.target.value }))}
+                />
+              </div>
+
+              <div>
+                <Label className="flex items-center gap-2 mb-2">
+                  <Calendar className="h-4 w-4" />
+                  Momento actual
+                </Label>
+                <Select
+                  value={data.moveInPreference}
+                  onValueChange={(value) => setData(prev => ({
+                    ...prev,
+                    moveInPreference: value as MoveInPreference,
+                    moveInDate: value === 'specific' ? prev.moveInDate : '',
+                  }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecciona una opción" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {moveInPreferenceOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {data.moveInPreference === 'specific' && (
+                <Input
+                  type="date"
+                  min={todayIso()}
+                  value={data.moveInDate}
+                  onChange={(e) => setData(prev => ({ ...prev, moveInDate: e.target.value }))}
+                />
+              )}
+
+            </div>
+          </div>
+        );
+
+      case 4:
+        return (
+          <div className="space-y-6">
+            <div className="text-center mb-8">
+              <h2 className="text-2xl font-bold text-foreground mb-2">¿Qué quieres hacer ahora?</h2>
+              <p className="text-muted-foreground">Puedes seleccionar varias opciones y marcar una como principal.</p>
+            </div>
+            <div className="grid gap-4">
+              {[
+                { type: 'seek_room' as IntentionType, icon: Home, label: t('onboarding.step1.seekingRoom'), desc: t('onboarding.step1.seekingRoomDesc') },
+                { type: 'offer_room' as IntentionType, icon: Key, label: t('onboarding.step1.offeringRoom'), desc: t('onboarding.step1.offeringRoomDesc') },
+                { type: 'seek_flatmate' as IntentionType, icon: Users, label: t('onboarding.step1.seekingRoommate'), desc: t('onboarding.step1.seekingRoommateDesc') },
+              ].map(({ type, icon: Icon, label, desc }) => {
+                const isSelected = data.intentions.includes(type);
+                const isPrimary = data.primaryIntention === type;
+
+                return (
+                  <button
+                    key={type}
+                    onClick={() => handleIntentionToggle(type)}
+                    className={`flex flex-col gap-3 p-5 rounded-xl border-2 transition-all text-left relative ${
+                      isSelected
+                        ? 'border-primary bg-primary/10 shadow-md'
+                        : 'border-border hover:border-primary/50 hover:bg-muted/50'
+                    }`}
+                  >
+                    <div className="flex items-start gap-4">
+                      <div className={`p-3 rounded-full flex-shrink-0 ${isSelected ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
+                        <Icon className="h-6 w-6" />
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-lg font-medium">{label}</span>
+                          {isSelected && <Check className="h-5 w-5 text-primary" />}
+                          {isPrimary && (
+                            <span className="px-2 py-0.5 text-xs font-medium bg-primary text-primary-foreground rounded-full">
+                              {t('common.primary')}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-sm text-muted-foreground mt-1">{desc}</p>
+                      </div>
+                    </div>
+
+                    {isSelected && !isPrimary && data.intentions.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handlePrimaryIntentionSelect(type);
+                        }}
+                        className="text-xs text-primary hover:underline self-start ml-16"
+                      >
+                        {t('onboarding.step1.makePrimary')}
+                      </button>
+                    )}
+                  </button>
+                );
+              })}
+
+              {hasOfferRoomIntention && hasSeekerIntention && (
+                <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 text-sm text-muted-foreground">
+                  <p className="font-medium text-foreground">Puedes combinar estas opciones.</p>
+                  <p className="mt-1">
+                    Guardaremos todas tus intenciones en el perfil, pero cada anuncio se publicará por separado: una habitación disponible o una búsqueda para alquilar juntos.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         );
@@ -923,9 +828,7 @@ const Onboarding = () => {
             </Button>
           )}
           
-          {isOfferRoomFlow && currentStep === 2 ? (
-            <div className="flex-1" />
-          ) : currentStep < totalSteps ? (
+          {currentStep < totalSteps ? (
             <Button onClick={handleNext} disabled={!canProceed()} className="flex-1">
               {t('onboarding.next')}
               <ArrowRight className="h-4 w-4 ml-2" />
@@ -934,18 +837,18 @@ const Onboarding = () => {
             <div className="flex-1 flex gap-2">
               <Button
                 variant="outline"
-                onClick={() => handleComplete(false)}
+                onClick={() => handleComplete(false, isOfferRoomOnlyFlow ? 'discover' : undefined)}
                 disabled={!canProceed() || isLoading}
                 className="flex-1"
               >
-                {isOfferRoomFlow ? 'Ver personas que buscan' : t('onboarding.skipTest')}
+                  {isOfferRoomOnlyFlow ? 'Ver personas' : t('onboarding.skipTest')}
               </Button>
               <Button
-                onClick={() => handleComplete(true)}
+                onClick={() => handleComplete(true, isOfferRoomOnlyFlow ? 'create-listing' : undefined)}
                 disabled={!canProceed() || isLoading}
                 className="flex-1"
               >
-                {isOfferRoomFlow ? 'Crear anuncio ahora' : t('onboarding.doTest')}
+                {isOfferRoomOnlyFlow ? 'Crear anuncio ahora' : t('onboarding.doTest')}
               </Button>
             </div>
           )}
