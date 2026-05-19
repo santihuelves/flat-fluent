@@ -184,12 +184,12 @@ const styleQuestions = [
     options: [
       { value: 'no', label: 'No fumo' },
       { value: 'outside', label: 'Solo fuera' },
-      { value: 'inside', label: 'Me da igual' },
+      { value: 'inside', label: 'Fumo en casa' },
     ],
   },
   {
     key: 'cooking',
-    title: 'Cocina',
+    title: 'Uso cocina',
     options: [
       { value: 'light', label: 'Poco' },
       { value: 'normal', label: 'Normal' },
@@ -198,11 +198,11 @@ const styleQuestions = [
   },
   {
     key: 'social',
-    title: 'Vida social',
+    title: 'Relación en casa',
     options: [
-      { value: 'independent', label: 'Independiente' },
-      { value: 'balanced', label: 'Equilibrada' },
-      { value: 'social', label: 'Sociable' },
+      { value: 'independent', label: 'A mi aire' },
+      { value: 'balanced', label: 'Algo de vida común' },
+      { value: 'social', label: 'Casa sociable' },
     ],
   },
   {

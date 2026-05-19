@@ -27,7 +27,7 @@ const scenarioQuestions: ScenarioQuestion[] = [
   {
     id: 'scenario_late_call',
     category: 'Horarios y ruido',
-    scenario: 'Son las 00:30 y tu compañero sigue hablando por videollamada en el salón. ¿Qué haces?',
+    scenario: 'Son las 00:30 y tu compañero/a sigue hablando por videollamada en el salón. ¿Qué haces?',
     options: [
       { value: 'ask_lower_volume', label: 'Le pido que baje el volumen.' },
       { value: 'let_pass_if_rare', label: 'Me molesta, pero lo dejo pasar si no es habitual.' },
@@ -38,7 +38,7 @@ const scenarioQuestions: ScenarioQuestion[] = [
   {
     id: 'scenario_unplanned_visit',
     category: 'Visitas',
-    scenario: 'Llegas a casa cansado/a y hay dos amigos de tu compañero cenando sin avisar. ¿Cómo reaccionas?',
+    scenario: 'Llegas a casa cansado/a y hay dos amistades de tu compañero/a cenando sin avisar. ¿Cómo reaccionas?',
     options: [
       { value: 'ask_notice_next_time', label: 'Lo acepto hoy, pero pido que avise la próxima vez.' },
       { value: 'need_quiet_now', label: 'Le digo que necesito tranquilidad esa noche.' },
@@ -82,7 +82,7 @@ const scenarioQuestions: ScenarioQuestion[] = [
   {
     id: 'scenario_social_energy',
     category: 'Vida social',
-    scenario: 'Tus compañeros quieren hacer plan común en casa cada viernes. ¿Cómo encajas eso?',
+    scenario: 'Las personas con las que convives quieren hacer plan común en casa cada viernes. ¿Cómo encajas eso?',
     options: [
       { value: 'need_limits', label: 'Me gusta, pero necesito límites de horario y ruido.' },
       { value: 'sometimes_join', label: 'Algunas veces me apunto y otras prefiero mi espacio.' },
@@ -126,7 +126,7 @@ const scenarioQuestions: ScenarioQuestion[] = [
   {
     id: 'scenario_expenses_delay',
     category: 'Gastos compartidos',
-    scenario: 'Un compañero se retrasa con un gasto común y no avisa. ¿Qué haces?',
+    scenario: 'Una persona de la casa se retrasa con un gasto común y no avisa. ¿Qué haces?',
     options: [
       { value: 'ask_same_day', label: 'Le pregunto ese mismo día y pido claridad.' },
       { value: 'give_margin', label: 'Le doy margen, pero necesito que avise.' },
@@ -150,7 +150,7 @@ const scenarioQuestions: ScenarioQuestion[] = [
     category: 'Límites',
     scenario: 'Una norma acordada deja de funcionar para alguien de la casa. ¿Qué te parece mejor?',
     options: [
-      { value: 'review_together', label: 'Revisarla entre todos y ajustar si tiene sentido.' },
+      { value: 'review_together', label: 'Revisarla en conjunto y ajustar si tiene sentido.' },
       { value: 'keep_agreement', label: 'Mantener lo acordado salvo causa clara.' },
       { value: 'trial_period', label: 'Probar un cambio durante unas semanas.' },
       { value: 'case_by_case', label: 'Gestionarlo caso por caso.' },
@@ -159,10 +159,10 @@ const scenarioQuestions: ScenarioQuestion[] = [
 ];
 
 const dealbreakers = [
-  { id: 'no_smokers', label: 'No convivir con fumadores' },
+  { id: 'no_smokers', label: 'No convivir con personas fumadoras' },
   { id: 'no_pets', label: 'No convivir con mascotas' },
   { id: 'no_parties', label: 'No fiestas en casa' },
-  { id: 'no_overnight_guests', label: 'No invitados a dormir' },
+  { id: 'no_overnight_guests', label: 'No personas invitadas a dormir' },
   { id: 'silence_after_23', label: 'Silencio después de las 23:00' },
   { id: 'strict_cleaning', label: 'Limpieza estricta' },
   { id: 'strict_50_50', label: 'Gastos siempre al 50%' },
