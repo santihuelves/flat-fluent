@@ -1,133 +1,265 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Home, Key, Users, MapPin, Calendar, Languages, Briefcase, ArrowLeft, ArrowRight, Check, Camera, X, Loader2, Sparkles, HeartHandshake } from 'lucide-react';
+import {
+  ArrowLeft,
+  ArrowRight,
+  Briefcase,
+  Calendar,
+  Camera,
+  Check,
+  HeartHandshake,
+  Home,
+  Key,
+  Languages,
+  Loader2,
+  MapPin,
+  Search,
+  ShieldCheck,
+  Sparkles,
+  Users,
+  X,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useSEO } from '@/hooks/useSEO';
 import { ImageCropperDialog } from '@/components/profile/ImageCropperDialog';
+import {
+  AUTONOMOUS_COMMUNITIES,
+  LANGUAGE_OPTIONS,
+  MAX_BIO_LENGTH,
+  MAX_BUDGET,
+  MAX_CITY_LENGTH,
+  MAX_DISPLAY_NAME_LENGTH,
+  MAX_OCCUPATION_LENGTH,
+  MIN_BIO_LENGTH,
+  MIN_STAY_OPTIONS,
+  PROVINCES,
+  normalizeLanguage,
+  todayIso,
+} from '@/lib/profileOptions';
 
-type IntentionType = 'seek_room' | 'offer_room' | 'seek_flatmate';
+type BackendIntentionType = 'seek_room' | 'offer_room' | 'seek_flatmate';
+type GoalType = BackendIntentionType | 'have_flat_seek_housemate' | 'exploring';
 type MoveInPreference = 'asap' | 'weeks' | 'month' | 'specific' | 'flexible' | '';
 
-interface OnboardingData {
-  intentions: IntentionType[];
-  primaryIntention: IntentionType | null;
+type OnboardingData = {
+  goal: GoalType | '';
+  displayName: string;
+  age: string;
   autonomousCommunity: string;
   province: string;
   city: string;
+  budgetMin: string;
+  budgetMax: string;
   moveInDate: string;
   moveInPreference: MoveInPreference;
+  minStayMonths: string;
+  cleaning: string;
+  noise: string;
+  schedule: string;
+  visits: string;
+  pets: string;
+  smoking: string;
+  cooking: string;
+  social: string;
+  remoteWork: string;
   languages: string[];
   occupation: string;
   inclusiveProfile: boolean;
   bio: string;
   photos: string[];
-  urgency: 'urgent' | 'soon' | 'flexible' | 'exploring';
-  homeVibe: string;
-}
-
-const AUTONOMOUS_COMMUNITIES = [
-  'Andalucía', 'Aragón', 'Asturias', 'Baleares', 'Canarias', 'Cantabria',
-  'Castilla-La Mancha', 'Castilla y León', 'Cataluña', 'Ceuta', 'Extremadura',
-  'Galicia', 'La Rioja', 'Madrid', 'Melilla', 'Murcia', 'Navarra', 'País Vasco', 'Valencia'
-];
-
-const PROVINCES: Record<string, string[]> = {
-  'Andalucía': ['Almería', 'Cádiz', 'Córdoba', 'Granada', 'Huelva', 'Jaén', 'Málaga', 'Sevilla'],
-  'Aragón': ['Huesca', 'Teruel', 'Zaragoza'],
-  'Asturias': ['Asturias'],
-  'Baleares': ['Baleares'],
-  'Canarias': ['Las Palmas', 'Santa Cruz de Tenerife'],
-  'Cantabria': ['Cantabria'],
-  'Castilla-La Mancha': ['Albacete', 'Ciudad Real', 'Cuenca', 'Guadalajara', 'Toledo'],
-  'Castilla y León': ['Ávila', 'Burgos', 'León', 'Palencia', 'Salamanca', 'Segovia', 'Soria', 'Valladolid', 'Zamora'],
-  'Cataluña': ['Barcelona', 'Girona', 'Lleida', 'Tarragona'],
-  'Ceuta': ['Ceuta'],
-  'Extremadura': ['Badajoz', 'Cáceres'],
-  'Galicia': ['A Coruña', 'Lugo', 'Ourense', 'Pontevedra'],
-  'La Rioja': ['La Rioja'],
-  'Madrid': ['Madrid'],
-  'Melilla': ['Melilla'],
-  'Murcia': ['Murcia'],
-  'Navarra': ['Navarra'],
-  'País Vasco': ['Álava', 'Guipúzcoa', 'Vizcaya'],
-  'Valencia': ['Alicante', 'Castellón', 'Valencia']
 };
 
-const LANGUAGES = [
-  { id: 'es', label: 'Español' },
-  { id: 'en', label: 'English' },
-  { id: 'fr', label: 'Français' },
-  { id: 'de', label: 'Deutsch' },
-  { id: 'it', label: 'Italiano' },
-  { id: 'pt', label: 'Português' },
-  { id: 'zh', label: '中文' },
-  { id: 'ar', label: 'العربية' },
-];
-
-const MAX_CITY_LENGTH = 80;
-const MAX_OCCUPATION_LENGTH = 100;
-const MIN_BIO_LENGTH = 20;
-const MAX_BIO_LENGTH = 500;
 const PROFILE_PHOTO_LIMIT = 1;
-const todayIso = () => new Date().toISOString().split('T')[0];
+const totalSteps = 5;
 
-const homeVibeOptions = [
-  { value: 'quiet', label: 'Tranquilo/a', description: 'Valoro descanso, calma y rutinas claras.' },
-  { value: 'social', label: 'Sociable', description: 'Me gusta conversar y hacer algo de vida común.' },
-  { value: 'independent', label: 'Independiente', description: 'Comparto casa, pero necesito mi espacio.' },
-  { value: 'mixed', label: 'Equilibrado/a', description: 'Depende del día: puedo socializar o ir a mi aire.' },
+const goalOptions: Array<{
+  value: GoalType;
+  title: string;
+  description: string;
+  icon: typeof Home;
+  backendType?: BackendIntentionType;
+}> = [
+  {
+    value: 'seek_room',
+    title: 'Busco habitación',
+    description: 'Quiero alquilar una habitación en un piso compartido.',
+    icon: Home,
+    backendType: 'seek_room',
+  },
+  {
+    value: 'offer_room',
+    title: 'Ofrezco habitación',
+    description: 'Tengo una habitación disponible para alquilar.',
+    icon: Key,
+    backendType: 'offer_room',
+  },
+  {
+    value: 'seek_flatmate',
+    title: 'Busco compañeros para alquilar juntos',
+    description: 'Quiero encontrar personas compatibles y luego buscar piso.',
+    icon: Users,
+    backendType: 'seek_flatmate',
+  },
+  {
+    value: 'have_flat_seek_housemate',
+    title: 'Tengo piso y busco conviviente',
+    description: 'Ya tengo vivienda y quiero encontrar alguien compatible.',
+    icon: HeartHandshake,
+    backendType: 'offer_room',
+  },
+  {
+    value: 'exploring',
+    title: 'Solo estoy explorando',
+    description: 'Quiero mirar perfiles y entender si Convinter encaja conmigo.',
+    icon: Search,
+  },
 ];
 
 const moveInPreferenceOptions = [
-  { value: 'asap', label: 'Quiero avanzar cuanto antes' },
-  { value: 'weeks', label: 'En las próximas semanas' },
-  { value: 'month', label: 'Durante este mes' },
-  { value: 'specific', label: 'Tengo una fecha aproximada' },
-  { value: 'flexible', label: 'Estoy explorando / flexible' },
+  { value: 'asap', label: 'Cuanto antes' },
+  { value: 'weeks', label: 'Próximas semanas' },
+  { value: 'month', label: 'Este mes' },
+  { value: 'specific', label: 'Tengo fecha aproximada' },
+  { value: 'flexible', label: 'Flexible / explorando' },
 ] as const;
+
+const styleQuestions = [
+  {
+    key: 'cleaning',
+    title: 'Limpieza',
+    options: [
+      { value: 'relaxed', label: 'Relajada' },
+      { value: 'balanced', label: 'Normal' },
+      { value: 'organized', label: 'Ordenada' },
+    ],
+  },
+  {
+    key: 'noise',
+    title: 'Ruido',
+    options: [
+      { value: 'quiet', label: 'Muy tranquilo' },
+      { value: 'balanced', label: 'Normal' },
+      { value: 'lively', label: 'Con vida' },
+    ],
+  },
+  {
+    key: 'schedule',
+    title: 'Horarios',
+    options: [
+      { value: 'early', label: 'Madrugador' },
+      { value: 'regular', label: 'Regular' },
+      { value: 'night', label: 'Nocturno' },
+    ],
+  },
+  {
+    key: 'visits',
+    title: 'Visitas',
+    options: [
+      { value: 'rare', label: 'Pocas' },
+      { value: 'planned', label: 'Avisando' },
+      { value: 'frequent', label: 'Frecuentes' },
+    ],
+  },
+  {
+    key: 'pets',
+    title: 'Mascotas',
+    options: [
+      { value: 'no', label: 'Prefiero sin' },
+      { value: 'flexible', label: 'Me adapto' },
+      { value: 'yes', label: 'Pet friendly' },
+    ],
+  },
+  {
+    key: 'smoking',
+    title: 'Tabaco',
+    options: [
+      { value: 'no', label: 'No fumo' },
+      { value: 'outside', label: 'Solo fuera' },
+      { value: 'inside', label: 'Me da igual' },
+    ],
+  },
+  {
+    key: 'cooking',
+    title: 'Cocina',
+    options: [
+      { value: 'light', label: 'Poco' },
+      { value: 'normal', label: 'Normal' },
+      { value: 'often', label: 'A menudo' },
+    ],
+  },
+  {
+    key: 'social',
+    title: 'Vida social',
+    options: [
+      { value: 'independent', label: 'Independiente' },
+      { value: 'balanced', label: 'Equilibrada' },
+      { value: 'social', label: 'Sociable' },
+    ],
+  },
+  {
+    key: 'remoteWork',
+    title: 'Teletrabajo',
+    options: [
+      { value: 'no', label: 'No' },
+      { value: 'some', label: 'Algunos días' },
+      { value: 'often', label: 'Habitual' },
+    ],
+  },
+] as const;
+
+const emptyData: OnboardingData = {
+  goal: '',
+  displayName: '',
+  age: '',
+  autonomousCommunity: '',
+  province: '',
+  city: '',
+  budgetMin: '',
+  budgetMax: '',
+  moveInDate: '',
+  moveInPreference: '',
+  minStayMonths: '',
+  cleaning: '',
+  noise: '',
+  schedule: '',
+  visits: '',
+  pets: '',
+  smoking: '',
+  cooking: '',
+  social: '',
+  remoteWork: '',
+  languages: [],
+  occupation: '',
+  inclusiveProfile: false,
+  bio: '',
+  photos: [],
+};
+
+const toNumberOrNull = (value: string) => (value.trim() ? Number(value) : null);
 
 const Onboarding = () => {
   useSEO({ page: 'signup', noIndex: true });
 
-  const { t } = useTranslation();
   const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [cropperOpen, setCropperOpen] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
-  const [data, setData] = useState<OnboardingData>({
-    intentions: [],
-    primaryIntention: null,
-    autonomousCommunity: '',
-    province: '',
-    city: '',
-    moveInDate: '',
-    moveInPreference: '',
-    languages: [],
-    occupation: '',
-    inclusiveProfile: false,
-    bio: '',
-    photos: [],
-    urgency: 'flexible',
-    homeVibe: '',
-  });
+  const [data, setData] = useState<OnboardingData>(emptyData);
 
-  const hasOfferRoomIntention = data.intentions.includes('offer_room');
-  const hasSeekerIntention = data.intentions.some((intention) => intention !== 'offer_room');
-  const isOfferRoomFlow = data.primaryIntention === 'offer_room';
-  const isOfferRoomOnlyFlow = isOfferRoomFlow && !hasSeekerIntention;
-  const totalSteps = 4;
+  const selectedGoal = goalOptions.find((goal) => goal.value === data.goal);
+  const backendIntention = selectedGoal?.backendType ?? null;
+  const isExploring = data.goal === 'exploring';
   const progress = (currentStep / totalSteps) * 100;
 
   useEffect(() => {
@@ -135,63 +267,83 @@ const Onboarding = () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         navigate('/login');
+        return;
       }
+
+      const metadataName =
+        typeof session.user.user_metadata?.display_name === 'string'
+          ? session.user.user_metadata.display_name
+          : typeof session.user.user_metadata?.name === 'string'
+            ? session.user.user_metadata.name
+            : session.user.email?.split('@')[0] || '';
+
+      setData((prev) => ({ ...prev, displayName: prev.displayName || metadataName }));
     };
+
     checkAuth();
   }, [navigate]);
 
-  const handleIntentionToggle = (type: IntentionType) => {
-    setData(prev => {
-      const isSelected = prev.intentions.includes(type);
-      const newIntentions = isSelected
-        ? prev.intentions.filter(t => t !== type)
-        : [...prev.intentions, type];
-      
-      // Si deseleccionamos la intención primaria, asignar otra como primaria
-      let newPrimaryIntention = prev.primaryIntention;
-      if (isSelected && prev.primaryIntention === type) {
-        newPrimaryIntention = newIntentions[0] || null;
-      }
-      // Si es la primera intención, hacerla primaria automáticamente
-      else if (!prev.primaryIntention && newIntentions.length === 1) {
-        newPrimaryIntention = newIntentions[0];
-      }
-      
-      return {
-        ...prev,
-        intentions: newIntentions,
-        primaryIntention: newPrimaryIntention
-      };
-    });
-  };
+  const automaticTags = useMemo(() => {
+    const tags = new Set<string>();
 
-  const handlePrimaryIntentionSelect = (type: IntentionType) => {
-    setData(prev => ({ ...prev, primaryIntention: type }));
-  };
+    if (data.noise === 'quiet') tags.add('Tranquilo');
+    if (data.cleaning === 'organized') tags.add('Ordenado');
+    if (data.schedule === 'early') tags.add('Madrugador');
+    if (data.smoking === 'no') tags.add('No fumador');
+    if (data.pets === 'yes' || data.pets === 'flexible') tags.add('Pet friendly');
+    if (data.social === 'social' || data.visits === 'frequent') tags.add('Sociable');
+    if (data.social === 'independent') tags.add('Independiente');
+    if (data.remoteWork === 'some' || data.remoteWork === 'often') tags.add('Teletrabajador');
+    if (data.noise === 'quiet' && data.visits !== 'frequent') tags.add('Ambiente tranquilo');
+    if (data.social === 'social' || data.visits === 'frequent') tags.add('Ambiente social');
 
-  const handleLanguageToggle = (langId: string) => {
-    setData(prev => ({
+    return Array.from(tags);
+  }, [data.cleaning, data.noise, data.pets, data.remoteWork, data.schedule, data.smoking, data.social, data.visits]);
+
+  const completionPercent = useMemo(() => {
+    const fields = [
+      data.goal,
+      data.displayName,
+      data.age,
+      data.autonomousCommunity,
+      data.province,
+      data.city,
+      data.budgetMin || isExploring ? 'ok' : '',
+      data.budgetMax || isExploring ? 'ok' : '',
+      data.moveInPreference,
+      data.minStayMonths,
+      ...styleQuestions.map((question) => data[question.key]),
+      data.languages.length > 0 ? 'ok' : '',
+      data.occupation,
+      data.bio,
+      data.photos.length > 0 ? 'ok' : '',
+    ];
+
+    return Math.round((fields.filter(Boolean).length / fields.length) * 100);
+  }, [data, isExploring]);
+
+  const handleLanguageToggle = (languageId: string) => {
+    setData((prev) => ({
       ...prev,
-      languages: prev.languages.includes(langId)
-        ? prev.languages.filter(l => l !== langId)
-        : [...prev.languages, langId]
+      languages: prev.languages.includes(languageId)
+        ? prev.languages.filter((language) => language !== languageId)
+        : [...prev.languages, languageId],
     }));
   };
 
-  const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+  const handlePhotoSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
     if (!file) return;
 
     if (data.photos.length >= PROFILE_PHOTO_LIMIT) {
       toast.error('Solo puedes tener una foto de perfil.');
-      e.target.value = '';
+      event.target.value = '';
       return;
     }
 
-    const imageUrl = URL.createObjectURL(file);
-    setSelectedImage(imageUrl);
+    setSelectedImage(URL.createObjectURL(file));
     setCropperOpen(true);
-    e.target.value = '';
+    event.target.value = '';
   };
 
   const handlePhotoCropComplete = async (croppedBlob: Blob) => {
@@ -201,9 +353,7 @@ const Onboarding = () => {
       const { data: sessionData } = await supabase.auth.getSession();
       const userId = sessionData.session?.user.id;
 
-      if (!userId) {
-        throw new Error('NOT_AUTHENTICATED');
-      }
+      if (!userId) throw new Error('NOT_AUTHENTICATED');
 
       const fileName = `${userId}/${Date.now()}.jpg`;
       const { error: uploadError } = await supabase.storage
@@ -216,11 +366,7 @@ const Onboarding = () => {
         .from('profile-photos')
         .getPublicUrl(fileName);
 
-      setData((prev) => ({
-        ...prev,
-        photos: [publicUrl],
-      }));
-
+      setData((prev) => ({ ...prev, photos: [publicUrl] }));
       toast.success('Foto añadida al perfil.');
     } catch (error) {
       console.error('Error uploading photo:', error);
@@ -242,44 +388,57 @@ const Onboarding = () => {
   };
 
   const canProceed = (step = currentStep) => {
+    const age = Number(data.age);
+    const budgetMin = toNumberOrNull(data.budgetMin);
+    const budgetMax = toNumberOrNull(data.budgetMax);
+    const hasBudgetPair = budgetMin !== null && budgetMax !== null;
+    const budgetIsValid =
+      isExploring ||
+      (hasBudgetPair && Number.isFinite(budgetMin) && Number.isFinite(budgetMax) && budgetMin > 0 && budgetMin <= budgetMax && budgetMax <= MAX_BUDGET);
+    const dateIsValid = data.moveInPreference !== 'specific' || Boolean(data.moveInDate && data.moveInDate >= todayIso());
+
     switch (step) {
       case 1:
+        return Boolean(data.goal);
+      case 2:
+        return (
+          data.displayName.trim().length >= 2 &&
+          data.displayName.trim().length <= MAX_DISPLAY_NAME_LENGTH &&
+          Number.isFinite(age) &&
+          age >= 18 &&
+          age <= 99 &&
+          data.autonomousCommunity !== '' &&
+          data.province !== '' &&
+          data.city.trim().length >= 2 &&
+          data.city.trim().length <= MAX_CITY_LENGTH &&
+          budgetIsValid &&
+          data.moveInPreference !== '' &&
+          dateIsValid
+        );
+      case 3:
+        return styleQuestions.every((question) => Boolean(data[question.key]));
+      case 4:
         return (
           data.languages.length > 0 &&
           data.occupation.trim().length <= MAX_OCCUPATION_LENGTH &&
           data.bio.trim().length >= MIN_BIO_LENGTH &&
           data.bio.trim().length <= MAX_BIO_LENGTH
         );
-      case 2:
-        return Boolean(data.homeVibe);
-      case 3:
-        {
-          const dateIsValid = data.moveInPreference !== 'specific' || Boolean(data.moveInDate && data.moveInDate >= todayIso());
-
-          return data.autonomousCommunity !== '' &&
-            data.province !== '' &&
-            data.city.trim().length >= 2 &&
-            data.city.trim().length <= MAX_CITY_LENGTH &&
-            data.moveInPreference !== '' &&
-            dateIsValid;
-        }
-      case 4:
-        return data.intentions.length > 0 && data.primaryIntention !== null;
       default:
         return true;
     }
   };
 
-  const getStepValidationMessage = (step = currentStep) => {
-    switch (step) {
+  const getStepValidationMessage = () => {
+    switch (currentStep) {
       case 1:
-        return 'Selecciona al menos un idioma, revisa la ocupación y completa "Sobre ti" con al menos 20 caracteres.';
+        return 'Elige qué quieres hacer ahora.';
       case 2:
-        return 'Elige la energía que mejor describe cómo eres en casa.';
+        return 'Completa nombre, edad, zona, presupuesto y disponibilidad. Si estás explorando, el presupuesto puede quedar flexible.';
       case 3:
-        return 'Completa ubicación, zonas de interés y momento actual.';
+        return 'Elige tu estilo de convivencia rápido para crear tus primeras compatibilidades.';
       case 4:
-        return 'Selecciona al menos una intención y marca una como principal.';
+        return 'Añade idiomas y una descripción corta de al menos 20 caracteres.';
       default:
         return 'Revisa los datos antes de continuar.';
     }
@@ -292,31 +451,25 @@ const Onboarding = () => {
     }
 
     if (currentStep < totalSteps) {
-      setCurrentStep(prev => prev + 1);
+      setCurrentStep((prev) => prev + 1);
     }
   };
 
-  const handleBack = () => {
-    if (currentStep > 1) {
-      setCurrentStep(prev => prev - 1);
-    }
-  };
+  const handleBack = () => setCurrentStep((prev) => Math.max(prev - 1, 1));
 
   const lifestyleTags = [
-    data.homeVibe ? `onboarding_home_${data.homeVibe}` : null,
+    ...automaticTags.map((tag) => `auto_${tag.toLowerCase().replace(/\s+/g, '_')}`),
+    data.age ? `profile_age_${data.age}` : null,
     data.inclusiveProfile ? 'inclusive_lgtbiq_friendly' : null,
   ].filter((tag): tag is string => Boolean(tag));
 
-  const handleComplete = async (
-    goToTest: boolean,
-    offerDestination?: 'discover' | 'create-listing' | 'profile'
-  ) => {
-    const invalidStep = Array.from({ length: totalSteps }, (_, index) => index + 1)
-      .find(step => !canProceed(step));
+  const handleComplete = async (goToAdvancedTest: boolean, destination?: 'discover' | 'create-listing') => {
+    const invalidStep = Array.from({ length: totalSteps - 1 }, (_, index) => index + 1)
+      .find((step) => !canProceed(step));
 
     if (invalidStep) {
       setCurrentStep(invalidStep);
-      toast.error(getStepValidationMessage(invalidStep));
+      toast.error(getStepValidationMessage());
       return;
     }
 
@@ -324,536 +477,564 @@ const Onboarding = () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
-        toast.error(t('errors.auth'));
+        navigate('/login');
         return;
       }
 
-      const displayName =
-        typeof session.user.user_metadata?.display_name === 'string'
-          ? session.user.user_metadata.display_name
-          : typeof session.user.user_metadata?.name === 'string'
-            ? session.user.user_metadata.name
-            : session.user.email?.split('@')[0] || null;
+      const cleanLanguages = data.languages.map(normalizeLanguage);
+      const budgetMin = toNumberOrNull(data.budgetMin);
+      const budgetMax = toNumberOrNull(data.budgetMax);
+      const minStayMonths = data.minStayMonths ? Number(data.minStayMonths) : null;
+      const profileUserType = backendIntention === 'seek_room'
+        ? 'seeking_room'
+        : backendIntention === 'offer_room'
+          ? 'offering_room'
+          : backendIntention === 'seek_flatmate'
+            ? 'seeking_roommate'
+            : undefined;
 
-      // 1. Actualizar perfil básico (convinter_profiles o profiles según tu esquema)
-      const { error: profileError } = await supabase
+      const { error: convinterError } = await supabase
         .from('convinter_profiles')
         .upsert({
           user_id: session.user.id,
-          display_name: displayName,
+          display_name: data.displayName.trim(),
           bio: data.bio.trim() || null,
-          city: data.city || null,
+          city: data.city.trim() || null,
           province_code: data.province || null,
-          languages: data.languages,
+          languages: cleanLanguages,
           photo_url: data.photos[0] || null,
         });
 
-      if (profileError) {
-        console.error('Error updating profile:', profileError);
-        throw profileError;
-      }
+      if (convinterError) throw convinterError;
 
-      // 2. También actualizar la tabla profiles con datos adicionales
       const { error: profilesError } = await supabase
         .from('profiles')
         .upsert({
           id: session.user.id,
-          name: displayName,
+          name: data.displayName.trim(),
           bio: data.bio.trim() || null,
           autonomous_community: data.autonomousCommunity || null,
           province: data.province || null,
-          city: data.city || null,
+          city: data.city.trim() || null,
+          budget_min: budgetMin,
+          budget_max: budgetMax,
           move_in_date: data.moveInDate || null,
-          occupation: data.occupation || null,
-          languages: data.languages,
+          min_stay_months: minStayMonths,
+          occupation: data.occupation.trim() || null,
+          languages: cleanLanguages,
           photos: data.photos,
           lifestyle_tags: lifestyleTags,
-          // Mapear intención primaria a user_type
-          user_type: data.primaryIntention === 'seek_room' ? 'seeking_room' 
-            : data.primaryIntention === 'offer_room' ? 'offering_room'
-            : data.primaryIntention === 'seek_flatmate' ? 'seeking_roommate'
-            : null,
+          user_type: profileUserType,
           onboarding_completed: true,
         });
 
       if (profilesError) {
-        console.error('Error updating profiles:', profilesError);
-        // No lanzar error, continuar con el flujo
+        console.warn('Error updating base profile:', profilesError);
       }
 
-      // 3. Guardar intenciones activas en el backend de Convinter
-      for (const [index, intention] of data.intentions.entries()) {
+      if (backendIntention) {
         const { data: intentionResult, error: intentionError } = await supabase.rpc('convinter_set_intention', {
-          p_intention_type: intention,
-          p_is_primary: data.primaryIntention === intention,
-          p_urgency: data.urgency,
+          p_intention_type: backendIntention,
+          p_is_primary: true,
+          p_urgency: data.moveInPreference === 'asap' ? 'urgent' : data.moveInPreference === 'flexible' ? 'exploring' : 'flexible',
           p_details: {
+            selected_goal: data.goal,
+            age: Number(data.age),
+            city: data.city.trim() || null,
+            province: data.province || null,
+            budget_min: budgetMin,
+            budget_max: budgetMax,
             move_in_date: data.moveInDate || null,
             move_in_preference: data.moveInPreference || null,
-            city: data.city || null,
-            province: data.province || null,
-            home_vibe: data.homeVibe || null,
+            min_stay_months: minStayMonths,
+            compatibility_style: {
+              cleaning: data.cleaning,
+              noise: data.noise,
+              schedule: data.schedule,
+              visits: data.visits,
+              pets: data.pets,
+              smoking: data.smoking,
+              cooking: data.cooking,
+              social: data.social,
+              remote_work: data.remoteWork,
+            },
+            automatic_tags: automaticTags,
             inclusive_profile: data.inclusiveProfile,
-            priority: index + 1,
           },
         });
 
         const parsedResult = intentionResult as unknown as { ok?: boolean; code?: string } | null;
         if (intentionError || parsedResult?.ok === false) {
-          console.error('Error saving intention:', intentionError || parsedResult?.code);
-          toast.warning('Perfil guardado, pero no se pudieron sincronizar todas las intenciones.');
+          console.warn('Error saving intention:', intentionError || parsedResult?.code);
+          toast.warning('Perfil guardado, pero no se pudo sincronizar la intención.');
         }
       }
 
-      toast.success(t('onboarding.success'));
-      if (isOfferRoomOnlyFlow) {
-        if (offerDestination === 'profile') {
-          navigate('/profile');
-        } else if (offerDestination === 'create-listing') {
-          navigate('/create-listing');
-        } else {
-          navigate('/discover');
-        }
+      toast.success('Perfil actualizado.');
+
+      if (destination === 'create-listing') {
+        navigate('/create-listing');
       } else {
-        navigate(goToTest ? '/test' : '/discover');
+        navigate(goToAdvancedTest ? '/test' : '/discover');
       }
     } catch (error) {
       console.error('Error completing onboarding:', error);
-      toast.error(t('common.error'));
+      toast.error('No se pudo guardar el perfil.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const renderStep = () => {
-    switch (currentStep) {
-      case 1:
-        return (
-          <div className="space-y-6">
-            <div className="text-center mb-8">
-              <h2 className="text-2xl font-bold text-foreground mb-2">Crea tu perfil personal</h2>
-              <p className="text-muted-foreground">Empieza por quién eres. La confianza llega antes que el anuncio.</p>
-            </div>
-            <div className="space-y-4">
-              <div>
-                <Label className="flex items-center gap-2 mb-3">
-                  <Languages className="h-4 w-4" />
-                  Idiomas que hablas
-                </Label>
-                <div className="grid grid-cols-2 gap-3">
-                  {LANGUAGES.map(lang => (
-                    <label
-                      key={lang.id}
-                      className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
-                        data.languages.includes(lang.id)
-                          ? 'border-primary bg-primary/10'
-                          : 'border-border hover:border-primary/50'
-                      }`}
-                    >
-                      <Checkbox
-                        checked={data.languages.includes(lang.id)}
-                        onCheckedChange={() => handleLanguageToggle(lang.id)}
-                      />
-                      <span>{lang.label}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
+  const renderGoalStep = () => (
+    <div className="space-y-4">
+      <div className="text-center">
+        <h2 className="text-2xl font-bold text-foreground">¿Qué quieres hacer ahora?</h2>
+        <p className="mt-2 text-muted-foreground">Elige una opción. Podrás cambiarla más adelante.</p>
+      </div>
 
-              <div>
-                <Label className="flex items-center gap-2 mb-2">
-                  <Briefcase className="h-4 w-4" />
-                  Ocupación o situación
-                </Label>
-                <Input
-                  placeholder="Ej: Estudiante, Diseñadora UX, Enfermero..."
-                  value={data.occupation}
-                  maxLength={MAX_OCCUPATION_LENGTH}
-                  onChange={(e) => setData(prev => ({ ...prev, occupation: e.target.value }))}
-                />
-              </div>
+      <div className="grid gap-3">
+        {goalOptions.map((goal) => {
+          const Icon = goal.icon;
+          const selected = data.goal === goal.value;
 
-              <div>
-                <label
-                  className={`flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition-all ${
-                    data.inclusiveProfile ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/50'
-                  }`}
-                >
-                  <Checkbox
-                    checked={data.inclusiveProfile}
-                    onCheckedChange={(checked) => setData(prev => ({ ...prev, inclusiveProfile: Boolean(checked) }))}
-                    className="mt-0.5"
-                  />
-                  <span>
-                    <span className="flex items-center gap-2 font-medium">
-                      <HeartHandshake className="h-4 w-4" />
-                      LGTBIQ+ friendly
-                    </span>
-                    <span className="mt-1 block text-sm text-muted-foreground">
-                      Mostrar en mi perfil que valoro un entorno respetuoso e inclusivo.
-                    </span>
-                  </span>
-                </label>
-              </div>
+          return (
+            <button
+              key={goal.value}
+              type="button"
+              onClick={() => setData((prev) => ({ ...prev, goal: goal.value }))}
+              className={`flex items-start gap-4 rounded-xl border p-4 text-left transition-all ${
+                selected ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/50'
+              }`}
+            >
+              <span className="rounded-full bg-muted p-3 text-foreground">
+                <Icon className="h-5 w-5" />
+              </span>
+              <span>
+                <span className="block font-semibold text-foreground">{goal.title}</span>
+                <span className="mt-1 block text-sm text-muted-foreground">{goal.description}</span>
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
 
-              <div className="space-y-3">
-                <div className="flex items-center justify-between gap-3">
-                  <Label>Fotos del perfil</Label>
-                  <span className="text-xs text-muted-foreground">
-                    {data.photos.length}/{PROFILE_PHOTO_LIMIT}
-                  </span>
-                </div>
+  const renderBasicStep = () => (
+    <div className="space-y-5">
+      <div className="text-center">
+        <h2 className="text-2xl font-bold text-foreground">Datos básicos</h2>
+        <p className="mt-2 text-muted-foreground">Lo justo para buscar coincidencias útiles sin pedir documentación.</p>
+      </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  {data.photos.map((photo, index) => (
-                    <div key={photo} className="relative aspect-[4/3] overflow-hidden rounded-xl border bg-muted">
-                      <img
-                        src={photo}
-                        alt={`Foto ${index + 1}`}
-                        className="h-full w-full object-cover"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => removePhoto(index)}
-                        className="absolute right-2 top-2 rounded-full bg-background/85 p-1 shadow-sm"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                      {index === 0 && (
-                        <span className="absolute bottom-2 left-2 rounded-full bg-background/85 px-2 py-1 text-xs">
-                          Portada
-                        </span>
-                      )}
-                    </div>
-                  ))}
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-2">
+          <Label>Nombre visible</Label>
+          <Input
+            value={data.displayName}
+            maxLength={MAX_DISPLAY_NAME_LENGTH}
+            onChange={(event) => setData((prev) => ({ ...prev, displayName: event.target.value }))}
+            placeholder="Ej: Lucía"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>Edad</Label>
+          <Input
+            type="number"
+            min={18}
+            max={99}
+            value={data.age}
+            onChange={(event) => setData((prev) => ({ ...prev, age: event.target.value }))}
+            placeholder="Ej: 29"
+          />
+        </div>
+      </div>
 
-                  {data.photos.length < PROFILE_PHOTO_LIMIT && (
-                    <label className="flex aspect-[4/3] cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-border bg-muted/30 transition-colors hover:border-primary">
-                      <input
-                        type="file"
-                        accept="image/*"
-                        capture="user"
-                        className="hidden"
-                        onChange={handlePhotoSelect}
-                        disabled={uploadingPhoto}
-                      />
-                      {uploadingPhoto ? (
-                        <Loader2 className="mb-2 h-5 w-5 animate-spin text-muted-foreground" />
-                      ) : (
-                        <Camera className="mb-2 h-5 w-5 text-muted-foreground" />
-                      )}
-                      <span className="text-sm text-muted-foreground">Hacer selfie o subir foto</span>
-                    </label>
-                  )}
-                </div>
+      <div className="space-y-3">
+        <Label className="flex items-center gap-2">
+          <MapPin className="h-4 w-4" />
+          Ciudad o zona
+        </Label>
+        <Select
+          value={data.autonomousCommunity}
+          onValueChange={(value) => setData((prev) => ({ ...prev, autonomousCommunity: value, province: '' }))}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Comunidad autónoma" />
+          </SelectTrigger>
+          <SelectContent>
+            {AUTONOMOUS_COMMUNITIES.map((community) => (
+              <SelectItem key={community} value={community}>
+                {community}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
-                <p className="text-xs text-muted-foreground">
-                  Una foto clara es suficiente para generar confianza. En móvil podrás hacer una selfie.
-                </p>
-              </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Select
+            value={data.province}
+            onValueChange={(value) => setData((prev) => ({ ...prev, province: value }))}
+            disabled={!data.autonomousCommunity}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Provincia" />
+            </SelectTrigger>
+            <SelectContent>
+              {(PROVINCES[data.autonomousCommunity] || []).map((province) => (
+                <SelectItem key={province} value={province}>
+                  {province}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Input
+            value={data.city}
+            maxLength={MAX_CITY_LENGTH}
+            onChange={(event) => setData((prev) => ({ ...prev, city: event.target.value }))}
+            placeholder="Barrio o zona preferida"
+          />
+        </div>
+      </div>
 
-              <div>
-                <div className="mb-2 flex items-center justify-between gap-3">
-                  <Label htmlFor="bio">Sobre ti</Label>
-                  <span className="text-xs text-muted-foreground">
-                    {data.bio.trim().length}/{MAX_BIO_LENGTH}
-                  </span>
-                </div>
-                <Textarea
-                  id="bio"
-                  rows={5}
-                  maxLength={MAX_BIO_LENGTH}
-                  placeholder="Cuenta brevemente cómo eres conviviendo, qué valoras en casa y qué te ayuda a sentirte cómodo/a."
-                  value={data.bio}
-                  onChange={(e) => setData(prev => ({ ...prev, bio: e.target.value }))}
-                />
-                <p className="mt-2 text-xs text-muted-foreground">
-                  Mínimo {MIN_BIO_LENGTH} caracteres.
-                </p>
-              </div>
-            </div>
-          </div>
-        );
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-2">
+          <Label>Presupuesto mínimo</Label>
+          <Input
+            type="number"
+            min={1}
+            max={MAX_BUDGET}
+            value={data.budgetMin}
+            onChange={(event) => setData((prev) => ({ ...prev, budgetMin: event.target.value }))}
+            placeholder={isExploring ? 'Opcional' : 'Ej: 450'}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>Presupuesto máximo</Label>
+          <Input
+            type="number"
+            min={1}
+            max={MAX_BUDGET}
+            value={data.budgetMax}
+            onChange={(event) => setData((prev) => ({ ...prev, budgetMax: event.target.value }))}
+            placeholder={isExploring ? 'Opcional' : 'Ej: 850'}
+          />
+        </div>
+      </div>
 
-      case 2:
-        return (
-          <div className="space-y-6">
-            <div className="text-center mb-8">
-              <h2 className="text-2xl font-bold text-foreground mb-2">Cómo convives</h2>
-              <p className="text-muted-foreground">Unas señales rápidas ayudan más que una ficha fría.</p>
-            </div>
-            <div className="space-y-5">
-              <div className="space-y-3">
-                <Label className="flex items-center gap-2">
-                  <Sparkles className="h-4 w-4" />
-                  ¿Qué energía tienes en casa?
-                </Label>
-                <div className="grid gap-3">
-                  {homeVibeOptions.map((option) => (
-                    <button
-                      type="button"
-                      key={option.value}
-                      onClick={() => setData(prev => ({ ...prev, homeVibe: option.value }))}
-                      className={`rounded-xl border p-4 text-left transition-all ${
-                        data.homeVibe === option.value ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/50'
-                      }`}
-                    >
-                      <span className="font-medium">{option.label}</span>
-                      <p className="mt-1 text-sm text-muted-foreground">{option.description}</p>
-                    </button>
-                  ))}
-                </div>
-              </div>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-2">
+          <Label className="flex items-center gap-2">
+            <Calendar className="h-4 w-4" />
+            Fecha de entrada
+          </Label>
+          <Select
+            value={data.moveInPreference}
+            onValueChange={(value) => setData((prev) => ({
+              ...prev,
+              moveInPreference: value as MoveInPreference,
+              moveInDate: value === 'specific' ? prev.moveInDate : '',
+            }))}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Disponibilidad" />
+            </SelectTrigger>
+            <SelectContent>
+              {moveInPreferenceOptions.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-2">
+          <Label>Duración prevista</Label>
+          <Select
+            value={data.minStayMonths}
+            onValueChange={(value) => setData((prev) => ({ ...prev, minStayMonths: value }))}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Selecciona duración" />
+            </SelectTrigger>
+            <SelectContent>
+              {MIN_STAY_OPTIONS.map((months) => (
+                <SelectItem key={months} value={months.toString()}>
+                  {months} {months === 1 ? 'mes' : 'meses'}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
 
-              <div className="rounded-xl border border-border/70 bg-muted/30 p-4">
-                <p className="text-sm font-medium text-foreground">El test se encarga del detalle.</p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Limpieza, horarios, visitas, ruido y tabaco se preguntan en el test para calcular compatibilidad sin repetirte preguntas en el perfil.
-                </p>
-              </div>
-            </div>
-          </div>
-        );
+      {data.moveInPreference === 'specific' && (
+        <Input
+          type="date"
+          min={todayIso()}
+          value={data.moveInDate}
+          onChange={(event) => setData((prev) => ({ ...prev, moveInDate: event.target.value }))}
+        />
+      )}
+    </div>
+  );
 
-      case 3:
-        return (
-          <div className="space-y-6">
-            <div className="text-center mb-8">
-              <h2 className="text-2xl font-bold text-foreground mb-2">Zona y momento</h2>
-              <p className="text-muted-foreground">Dinos qué zona te interesa y en qué momento estás. Puedes ajustarlo después.</p>
-            </div>
-            <div className="space-y-4">
-              <div>
-                <Label className="flex items-center gap-2 mb-2">
-                  <MapPin className="h-4 w-4" />
-                  Comunidad autónoma
-                </Label>
-                <Select
-                  value={data.autonomousCommunity}
-                  onValueChange={(value) => setData(prev => ({ ...prev, autonomousCommunity: value, province: '' }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecciona una comunidad" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {AUTONOMOUS_COMMUNITIES.map(community => (
-                      <SelectItem key={community} value={community}>{community}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+  const renderStyleStep = () => (
+    <div className="space-y-5">
+      <div className="text-center">
+        <h2 className="text-2xl font-bold text-foreground">Tu estilo de convivencia</h2>
+        <p className="mt-2 text-muted-foreground">
+          Elige la opción que más se parezca a ti. Esto nos ayuda a crear tus primeras compatibilidades.
+        </p>
+      </div>
 
-              {data.autonomousCommunity && (
-                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-                  <Label className="mb-2 block">Provincia</Label>
-                  <Select
-                    value={data.province}
-                    onValueChange={(value) => setData(prev => ({ ...prev, province: value }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecciona una provincia" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {PROVINCES[data.autonomousCommunity]?.map(province => (
-                        <SelectItem key={province} value={province}>{province}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </motion.div>
-              )}
-
-              <div>
-                <Label className="mb-2 block">Ciudad o zonas preferidas</Label>
-                <Input
-                  placeholder="Ej: Malasaña, Chamberí, Lavapiés..."
-                  value={data.city}
-                  maxLength={MAX_CITY_LENGTH}
-                  onChange={(e) => setData(prev => ({ ...prev, city: e.target.value }))}
-                />
-              </div>
-
-              <div>
-                <Label className="flex items-center gap-2 mb-2">
-                  <Calendar className="h-4 w-4" />
-                  Momento actual
-                </Label>
-                <Select
-                  value={data.moveInPreference}
-                  onValueChange={(value) => setData(prev => ({
-                    ...prev,
-                    moveInPreference: value as MoveInPreference,
-                    moveInDate: value === 'specific' ? prev.moveInDate : '',
-                  }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecciona una opción" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {moveInPreferenceOptions.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {data.moveInPreference === 'specific' && (
-                <Input
-                  type="date"
-                  min={todayIso()}
-                  value={data.moveInDate}
-                  onChange={(e) => setData(prev => ({ ...prev, moveInDate: e.target.value }))}
-                />
-              )}
-
-            </div>
-          </div>
-        );
-
-      case 4:
-        return (
-          <div className="space-y-6">
-            <div className="text-center mb-8">
-              <h2 className="text-2xl font-bold text-foreground mb-2">¿Qué quieres hacer ahora?</h2>
-              <p className="text-muted-foreground">Puedes seleccionar varias opciones y marcar una como principal.</p>
-            </div>
-            <div className="grid gap-4">
-              {[
-                { type: 'seek_room' as IntentionType, icon: Home, label: t('onboarding.step1.seekingRoom'), desc: t('onboarding.step1.seekingRoomDesc') },
-                { type: 'offer_room' as IntentionType, icon: Key, label: t('onboarding.step1.offeringRoom'), desc: t('onboarding.step1.offeringRoomDesc') },
-                { type: 'seek_flatmate' as IntentionType, icon: Users, label: t('onboarding.step1.seekingRoommate'), desc: t('onboarding.step1.seekingRoommateDesc') },
-              ].map(({ type, icon: Icon, label, desc }) => {
-                const isSelected = data.intentions.includes(type);
-                const isPrimary = data.primaryIntention === type;
-
+      <div className="grid gap-4">
+        {styleQuestions.map((question) => (
+          <div key={question.key} className="space-y-2">
+            <Label>{question.title}</Label>
+            <div className="grid grid-cols-3 gap-2">
+              {question.options.map((option) => {
+                const selected = data[question.key] === option.value;
                 return (
                   <button
-                    key={type}
-                    onClick={() => handleIntentionToggle(type)}
-                    className={`flex flex-col gap-3 p-5 rounded-xl border-2 transition-all text-left relative ${
-                      isSelected
-                        ? 'border-primary bg-primary/10 shadow-md'
-                        : 'border-border hover:border-primary/50 hover:bg-muted/50'
+                    key={option.value}
+                    type="button"
+                    onClick={() => setData((prev) => ({ ...prev, [question.key]: option.value }))}
+                    className={`min-h-12 rounded-xl border px-2 text-sm font-medium transition-all ${
+                      selected ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-background hover:border-primary/50'
                     }`}
                   >
-                    <div className="flex items-start gap-4">
-                      <div className={`p-3 rounded-full flex-shrink-0 ${isSelected ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
-                        <Icon className="h-6 w-6" />
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="text-lg font-medium">{label}</span>
-                          {isSelected && <Check className="h-5 w-5 text-primary" />}
-                          {isPrimary && (
-                            <span className="px-2 py-0.5 text-xs font-medium bg-primary text-primary-foreground rounded-full">
-                              {t('common.primary')}
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-sm text-muted-foreground mt-1">{desc}</p>
-                      </div>
-                    </div>
-
-                    {isSelected && !isPrimary && data.intentions.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handlePrimaryIntentionSelect(type);
-                        }}
-                        className="text-xs text-primary hover:underline self-start ml-16"
-                      >
-                        {t('onboarding.step1.makePrimary')}
-                      </button>
-                    )}
+                    {option.label}
                   </button>
                 );
               })}
-
-              {hasOfferRoomIntention && hasSeekerIntention && (
-                <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 text-sm text-muted-foreground">
-                  <p className="font-medium text-foreground">Puedes combinar estas opciones.</p>
-                  <p className="mt-1">
-                    Guardaremos todas tus intenciones en el perfil, pero cada anuncio se publicará por separado: una habitación disponible o una búsqueda para alquilar juntos.
-                  </p>
-                </div>
-              )}
             </div>
           </div>
-        );
+        ))}
+      </div>
+    </div>
+  );
 
+  const renderPublicProfileStep = () => (
+    <div className="space-y-5">
+      <div className="text-center">
+        <h2 className="text-2xl font-bold text-foreground">Perfil público</h2>
+        <p className="mt-2 text-muted-foreground">Esto ayuda a que otros perfiles sepan quién hay detrás.</p>
+      </div>
+
+      <div className="space-y-3">
+        <Label className="flex items-center gap-2">
+          <Languages className="h-4 w-4" />
+          Idiomas
+        </Label>
+        <div className="grid grid-cols-2 gap-2">
+          {LANGUAGE_OPTIONS.map((language) => (
+            <label
+              key={language.id}
+              className={`flex cursor-pointer items-center gap-2 rounded-xl border p-3 transition-all ${
+                data.languages.includes(language.id) ? 'border-primary bg-primary/10' : 'border-border'
+              }`}
+            >
+              <Checkbox
+                checked={data.languages.includes(language.id)}
+                onCheckedChange={() => handleLanguageToggle(language.id)}
+              />
+              <span className="text-sm">{language.label}</span>
+            </label>
+          ))}
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label className="flex items-center gap-2">
+          <Briefcase className="h-4 w-4" />
+          Ocupación o situación
+        </Label>
+        <Input
+          value={data.occupation}
+          maxLength={MAX_OCCUPATION_LENGTH}
+          onChange={(event) => setData((prev) => ({ ...prev, occupation: event.target.value }))}
+          placeholder="Ej: Estudiante, Diseñadora UX, Enfermero..."
+        />
+      </div>
+
+      <label
+        className={`flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition-all ${
+          data.inclusiveProfile ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/50'
+        }`}
+      >
+        <Checkbox
+          checked={data.inclusiveProfile}
+          onCheckedChange={(checked) => setData((prev) => ({ ...prev, inclusiveProfile: Boolean(checked) }))}
+          className="mt-0.5"
+        />
+        <span>
+          <span className="flex items-center gap-2 font-medium">
+            <HeartHandshake className="h-4 w-4" />
+            LGTBIQ+ friendly
+          </span>
+          <span className="mt-1 block text-sm text-muted-foreground">
+            Mostrar que valoras una convivencia respetuosa e inclusiva.
+          </span>
+        </span>
+      </label>
+
+      <div className="space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <Label>Foto de perfil</Label>
+          <span className="text-xs text-muted-foreground">{data.photos.length}/{PROFILE_PHOTO_LIMIT}</span>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          {data.photos.map((photo, index) => (
+            <div key={photo} className="relative aspect-[4/3] overflow-hidden rounded-xl border bg-muted">
+              <img src={photo} alt={`Foto ${index + 1}`} className="h-full w-full object-cover" />
+              <button
+                type="button"
+                onClick={() => removePhoto(index)}
+                className="absolute right-2 top-2 rounded-full bg-background/85 p-1 shadow-sm"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          ))}
+          {data.photos.length < PROFILE_PHOTO_LIMIT && (
+            <label className="flex aspect-[4/3] cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-border bg-muted/30 transition-colors hover:border-primary">
+              <input
+                type="file"
+                accept="image/*"
+                capture="user"
+                className="hidden"
+                onChange={handlePhotoSelect}
+                disabled={uploadingPhoto}
+              />
+              {uploadingPhoto ? (
+                <Loader2 className="mb-2 h-5 w-5 animate-spin text-muted-foreground" />
+              ) : (
+                <Camera className="mb-2 h-5 w-5 text-muted-foreground" />
+              )}
+              <span className="text-sm text-muted-foreground">Hacer selfie o subir foto</span>
+            </label>
+          )}
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <div className="flex items-center justify-between gap-3">
+          <Label htmlFor="bio">Descripción corta</Label>
+          <span className="text-xs text-muted-foreground">{data.bio.trim().length}/{MAX_BIO_LENGTH}</span>
+        </div>
+        <Textarea
+          id="bio"
+          rows={5}
+          maxLength={MAX_BIO_LENGTH}
+          value={data.bio}
+          onChange={(event) => setData((prev) => ({ ...prev, bio: event.target.value }))}
+          placeholder="Cuenta brevemente cómo eres conviviendo y qué valoras en casa."
+        />
+        <p className="text-xs text-muted-foreground">Mínimo {MIN_BIO_LENGTH} caracteres.</p>
+      </div>
+    </div>
+  );
+
+  const renderProgressStep = () => (
+    <div className="space-y-6 text-center">
+      <div>
+        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 text-primary">
+          <ShieldCheck className="h-8 w-8" />
+        </div>
+        <h2 className="text-2xl font-bold text-foreground">Perfil completado al {completionPercent}%</h2>
+        <p className="mt-2 text-muted-foreground">
+          Ya tenemos una base para recomendarte perfiles compatibles. Puedes mejorar la precisión con el test avanzado.
+        </p>
+      </div>
+
+      {automaticTags.length > 0 && (
+        <div className="rounded-xl border border-border/70 p-4 text-left">
+          <p className="mb-3 text-sm font-medium text-foreground">Etiquetas automáticas</p>
+          <div className="flex flex-wrap gap-2">
+            {automaticTags.map((tag) => (
+              <span key={tag} className="rounded-full bg-primary/10 px-3 py-1 text-sm font-medium text-primary">
+                {tag}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="grid gap-3">
+        <Button variant="hero" onClick={() => handleComplete(true)} disabled={isLoading}>
+          {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+          Hacer test ahora
+        </Button>
+        {(data.goal === 'offer_room' || data.goal === 'have_flat_seek_housemate') && (
+          <Button variant="outline" onClick={() => handleComplete(false, 'create-listing')} disabled={isLoading}>
+            Crear anuncio
+          </Button>
+        )}
+        <Button variant="outline" onClick={() => handleComplete(false, 'discover')} disabled={isLoading}>
+          Completar más tarde
+        </Button>
+      </div>
+    </div>
+  );
+
+  const renderStep = () => {
+    switch (currentStep) {
+      case 1:
+        return renderGoalStep();
+      case 2:
+        return renderBasicStep();
+      case 3:
+        return renderStyleStep();
+      case 4:
+        return renderPublicProfileStep();
+      case 5:
+        return renderProgressStep();
       default:
         return null;
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 flex flex-col">
-      {/* Header */}
-      <div className="p-4 border-b border-border bg-background/80 backdrop-blur-sm">
-        <div className="max-w-lg mx-auto">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-muted-foreground">
-              {t('onboarding.step')} {currentStep} {t('onboarding.of')} {totalSteps}
-            </span>
-            <span className="text-sm font-medium text-primary">{Math.round(progress)}%</span>
+    <div className="min-h-screen bg-gradient-soft">
+      <div className="sticky top-0 z-20 border-b border-border bg-background/95 px-4 py-4 backdrop-blur">
+        <div className="mx-auto max-w-2xl">
+          <div className="mb-2 flex items-center justify-between text-sm text-muted-foreground">
+            <span>Paso {currentStep} de {totalSteps}</span>
+            <span>{Math.round(progress)}%</span>
           </div>
           <Progress value={progress} className="h-2" />
         </div>
       </div>
 
-      {/* Content */}
-      <div className="flex-1 flex items-center justify-center p-4">
-        <div className="w-full max-w-lg">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={currentStep}
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              transition={{ duration: 0.3 }}
-            >
-              {renderStep()}
-            </motion.div>
-          </AnimatePresence>
-        </div>
-      </div>
+      <main className="mx-auto max-w-2xl px-4 py-8 pb-32">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={currentStep}
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            transition={{ duration: 0.2 }}
+          >
+            {renderStep()}
+          </motion.div>
+        </AnimatePresence>
+      </main>
 
-      {/* Navigation */}
-      <div className="p-4 border-t border-border bg-background/80 backdrop-blur-sm">
-        <div className="max-w-lg mx-auto flex gap-3">
-          {currentStep > 1 && (
-            <Button variant="outline" onClick={handleBack} className="flex-1">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              {t('onboarding.back')}
+      {currentStep < totalSteps && (
+        <div className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-background/95 p-4 backdrop-blur">
+          <div className="mx-auto flex max-w-2xl gap-3">
+            <Button variant="outline" onClick={handleBack} disabled={currentStep === 1} className="flex-1">
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Atrás
             </Button>
-          )}
-          
-          {currentStep < totalSteps ? (
-            <Button onClick={handleNext} disabled={!canProceed()} className="flex-1">
-              {t('onboarding.next')}
-              <ArrowRight className="h-4 w-4 ml-2" />
+            <Button variant="hero" onClick={handleNext} className="flex-1">
+              {currentStep === totalSteps - 1 ? 'Ver progreso' : 'Siguiente'}
+              {currentStep === totalSteps - 1 ? <Check className="ml-2 h-4 w-4" /> : <ArrowRight className="ml-2 h-4 w-4" />}
             </Button>
-          ) : (
-            <div className="flex-1 flex gap-2">
-              <Button
-                variant="outline"
-                onClick={() => handleComplete(false, isOfferRoomOnlyFlow ? 'discover' : undefined)}
-                disabled={!canProceed() || isLoading}
-                className="flex-1"
-              >
-                  {isOfferRoomOnlyFlow ? 'Ver personas' : t('onboarding.skipTest')}
-              </Button>
-              <Button
-                onClick={() => handleComplete(true, isOfferRoomOnlyFlow ? 'create-listing' : undefined)}
-                disabled={!canProceed() || isLoading}
-                className="flex-1"
-              >
-                {isOfferRoomOnlyFlow ? 'Crear anuncio ahora' : t('onboarding.doTest')}
-              </Button>
-            </div>
-          )}
+          </div>
         </div>
-      </div>
+      )}
 
       <ImageCropperDialog
         open={cropperOpen}

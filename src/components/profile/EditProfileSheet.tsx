@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Camera, HeartHandshake, Loader2, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import type { Json } from '@/integrations/supabase/types';
@@ -353,10 +354,6 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
       return 'Selecciona al menos un idioma.';
     }
 
-    if (!formData.min_stay_months) {
-      return 'Selecciona una estancia mínima.';
-    }
-
     return null;
   };
 
@@ -420,7 +417,7 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
           budget_max: cleanBudgetMax,
           lifestyle_tags: encodedLifestyleTags,
           move_in_date: formData.move_in_date || null,
-          min_stay_months: Number(formData.min_stay_months),
+          min_stay_months: formData.min_stay_months ? Number(formData.min_stay_months) : null,
           occupation: cleanOccupation || null,
           languages: cleanLanguages,
           photos: cleanPhotos,
@@ -500,7 +497,14 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
           <SheetDescription>{t('profile.editDescription')}</SheetDescription>
         </SheetHeader>
 
-        <div className="space-y-6 py-6">
+        <Tabs defaultValue="personal" className="py-6">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="personal">Personal</TabsTrigger>
+            <TabsTrigger value="preferences">Datos</TabsTrigger>
+            <TabsTrigger value="intentions">Intenciones</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="personal" className="space-y-6 pt-4">
           <div className="space-y-3">
             <div className="flex items-center justify-between gap-3">
               <Label>Foto de perfil</Label>
@@ -585,7 +589,7 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
 
           <div className="space-y-3">
             <div className="flex items-center justify-between gap-3">
-              <Label htmlFor="bio">Sobre ti y convivencia</Label>
+              <Label htmlFor="bio">Sobre ti</Label>
               <span className="text-xs text-muted-foreground">
                 {formData.bio.trim().length}/{MAX_BIO_LENGTH}
               </span>
@@ -595,10 +599,46 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
               value={formData.bio}
               maxLength={MAX_BIO_LENGTH}
               onChange={(e) => setFormData((prev) => ({ ...prev, bio: e.target.value }))}
-              placeholder="Cuéntanos quién eres, cómo convives y qué valoras en casa."
+              placeholder="Cuéntanos quién eres, qué valoras y qué ayuda a generar confianza contigo."
               rows={5}
             />
           </div>
+
+          <div className="space-y-3">
+            <Label htmlFor="occupation">Ocupación o situación</Label>
+            <Input
+              id="occupation"
+              value={formData.occupation}
+              maxLength={MAX_OCCUPATION_LENGTH}
+              onChange={(e) => setFormData((prev) => ({ ...prev, occupation: e.target.value }))}
+              placeholder={t('onboarding.step4.occupationPlaceholder')}
+            />
+          </div>
+
+          <div className="space-y-3">
+            <Label>{t('profile.languages')}</Label>
+            <div className="flex flex-wrap gap-2">
+              {LANGUAGE_OPTIONS.map((lang) => (
+                <Badge
+                  key={lang.id}
+                  variant={formData.languages.includes(lang.id) ? 'default' : 'outline'}
+                  className="cursor-pointer rounded-full transition-colors"
+                  onClick={() => toggleLanguage(lang.id)}
+                >
+                  {lang.label}
+                </Badge>
+              ))}
+            </div>
+          </div>
+          </TabsContent>
+
+          <TabsContent value="preferences" className="space-y-6 pt-4">
+            <div className="rounded-xl border border-border/60 bg-muted/30 p-4">
+              <p className="text-sm font-medium text-foreground">Datos prácticos, no compatibilidad.</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Aquí solo van zona, presupuesto y fechas. Limpieza, horarios, visitas, ruido y tabaco se actualizan desde el test.
+              </p>
+            </div>
 
           <div className="space-y-3">
             <Label>Ubicación</Label>
@@ -699,32 +739,17 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
             </div>
           </div>
 
-          <div className="space-y-3">
-            <Label htmlFor="occupation">Ocupación</Label>
-            <Input
-              id="occupation"
-              value={formData.occupation}
-              maxLength={MAX_OCCUPATION_LENGTH}
-              onChange={(e) => setFormData((prev) => ({ ...prev, occupation: e.target.value }))}
-              placeholder={t('onboarding.step4.occupationPlaceholder')}
-            />
-          </div>
+          </TabsContent>
 
-          <div className="space-y-3">
-            <Label>{t('profile.languages')}</Label>
-            <div className="flex flex-wrap gap-2">
-              {LANGUAGE_OPTIONS.map((lang) => (
-                <Badge
-                  key={lang.id}
-                  variant={formData.languages.includes(lang.id) ? 'default' : 'outline'}
-                  className="cursor-pointer rounded-full transition-colors"
-                  onClick={() => toggleLanguage(lang.id)}
-                >
-                  {lang.label}
-                </Badge>
-              ))}
-            </div>
-          </div>
+          <TabsContent value="intentions" className="space-y-6 pt-4">
+            {!hasSeekRoomIntention && !hasSeekFlatmateIntention && !hasOfferRoomIntention && (
+              <div className="rounded-xl border border-dashed border-border p-4">
+                <p className="text-sm font-medium text-foreground">Aún no has definido qué buscas.</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Completa el onboarding para activar tus intenciones y poder editarlas aquí.
+                </p>
+              </div>
+            )}
 
           {hasSeekRoomIntention && (
             <div className="space-y-3 rounded-xl border border-border/60 p-4">
@@ -1022,7 +1047,10 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
               </div>
             </div>
           )}
+          </TabsContent>
+        </Tabs>
 
+        <div className="border-t border-border/60 bg-background py-4">
           <Button onClick={handleSave} disabled={saving} className="w-full" variant="hero">
             {saving ? (
               <>

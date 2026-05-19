@@ -222,6 +222,10 @@ export default function Profile() {
     : null;
 
   const locationBits = [profile.city, profile.province_code, profile.autonomous_community].filter(Boolean);
+  const automaticCompatibilityTags = lifestyleTags
+    .filter((tag) => tag.startsWith('auto_'))
+    .map((tag) => tag.replace('auto_', '').replace(/_/g, ' '))
+    .map((tag) => tag.charAt(0).toUpperCase() + tag.slice(1));
   const primarySeekingIntention =
     profile.intentions?.find((intention) => intention.is_primary && intention.intention_type !== 'offer_room') ??
     profile.intentions?.find((intention) => intention.intention_type !== 'offer_room') ??
@@ -356,6 +360,13 @@ export default function Profile() {
                 </div>
               </div>
 
+              <div className="rounded-xl border border-border/60 bg-background/70 p-4">
+                <h3 className="text-sm font-semibold text-muted-foreground mb-1">Perfil visible públicamente</h3>
+                <p className="text-sm text-muted-foreground">
+                  Foto, nombre, idiomas, descripción e intención principal. No mostramos documentación ni datos sensibles al empezar.
+                </p>
+              </div>
+
               {/* Languages */}
               {profile.languages && profile.languages.length > 0 && (
                 <div>
@@ -392,7 +403,7 @@ export default function Profile() {
               {hasPracticalDetails && (
                 <div className="space-y-4">
                   <div>
-                    <h3 className="text-sm font-semibold text-muted-foreground mb-2">Resumen práctico</h3>
+                    <h3 className="text-sm font-semibold text-muted-foreground mb-2">Datos visibles solo para matches</h3>
                     <div className="grid gap-3 sm:grid-cols-2">
                       {infoCards.map(({ key, icon: Icon, label, value }) => (
                         <div key={key} className="rounded-xl border border-border/60 bg-background/70 p-4">
@@ -455,6 +466,25 @@ export default function Profile() {
                 </div>
               )}
 
+              {automaticCompatibilityTags.length > 0 && (
+                <div className="rounded-xl border border-border/60 bg-background/70 p-4">
+                  <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground mb-3">
+                    <ShieldCheck className="h-4 w-4" />
+                    Datos privados usados solo para compatibilidad
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {automaticCompatibilityTags.map((tag) => (
+                      <Badge key={tag} variant="secondary" className="rounded-full">
+                        {tag}
+                      </Badge>
+                    ))}
+                  </div>
+                  <p className="mt-3 text-sm text-muted-foreground">
+                    Estas etiquetas ayudan al cálculo de compatibilidad. No sustituyen al test avanzado ni obligan a mostrar información sensible.
+                  </p>
+                </div>
+              )}
+
               {/* Bio */}
               {profile.bio && (
                 <div>
@@ -465,7 +495,10 @@ export default function Profile() {
 
               {/* Trust Score */}
               <div>
-                <h3 className="text-sm font-semibold text-muted-foreground mb-2">{t('profile.trustScore')}</h3>
+                <h3 className="text-sm font-semibold text-muted-foreground mb-1">Verificación opcional</h3>
+                <p className="mb-3 text-sm text-muted-foreground">
+                  Puedes aumentar confianza progresivamente. DNI, nómina o ingresos exactos no son obligatorios al empezar.
+                </p>
                 <div className="flex items-center gap-2">
                   <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
                     <div 
