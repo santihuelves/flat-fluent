@@ -146,9 +146,9 @@ const styleQuestions = [
     key: 'noise',
     title: 'Ruido',
     options: [
-      { value: 'quiet', label: 'Muy tranquilo' },
+      { value: 'quiet', label: 'Silencioso' },
       { value: 'balanced', label: 'Normal' },
-      { value: 'lively', label: 'Con vida' },
+      { value: 'lively', label: 'Animado' },
     ],
   },
   {
@@ -182,18 +182,18 @@ const styleQuestions = [
     key: 'smoking',
     title: 'Tabaco',
     options: [
-      { value: 'no', label: 'No fumo' },
-      { value: 'outside', label: 'Solo fuera' },
-      { value: 'inside', label: 'Fumo en casa' },
+      { value: 'no', label: 'No fumador' },
+      { value: 'outside', label: 'Fumador solo exterior' },
+      { value: 'inside', label: 'Flexible con fumadores' },
     ],
   },
   {
     key: 'cooking',
     title: 'Uso cocina',
     options: [
-      { value: 'light', label: 'Poco' },
-      { value: 'normal', label: 'Normal' },
-      { value: 'often', label: 'A menudo' },
+      { value: 'light', label: 'Cocina ligera' },
+      { value: 'normal', label: 'Cocina habitual' },
+      { value: 'often', label: 'Cocina intensiva' },
     ],
   },
   {
@@ -211,7 +211,7 @@ const styleQuestions = [
     options: [
       { value: 'no', label: 'No' },
       { value: 'some', label: 'Algunos días' },
-      { value: 'often', label: 'Habitual' },
+      { value: 'often', label: 'Frecuente' },
     ],
   },
 ] as const;
