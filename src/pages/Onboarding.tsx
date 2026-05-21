@@ -14,7 +14,6 @@ import {
   Languages,
   Loader2,
   MapPin,
-  Search,
   ShieldCheck,
   Sparkles,
   Users,
@@ -47,7 +46,7 @@ import {
 } from '@/lib/profileOptions';
 
 type BackendIntentionType = 'seek_room' | 'offer_room' | 'seek_flatmate';
-type GoalType = BackendIntentionType | 'have_flat_seek_housemate' | 'exploring';
+type GoalType = BackendIntentionType;
 type MoveInPreference = 'asap' | 'weeks' | 'month' | 'specific' | 'flexible' | '';
 
 type OnboardingData = {
@@ -104,23 +103,10 @@ const goalOptions: Array<{
   },
   {
     value: 'seek_flatmate',
-    title: 'Busco compañeros para alquilar juntos',
+    title: 'Busco compañero/a para alquilar piso juntos',
     description: 'Quiero encontrar personas compatibles y luego buscar piso.',
     icon: Users,
     backendType: 'seek_flatmate',
-  },
-  {
-    value: 'have_flat_seek_housemate',
-    title: 'Tengo piso y busco conviviente',
-    description: 'Ya tengo vivienda y quiero encontrar alguien compatible.',
-    icon: HeartHandshake,
-    backendType: 'offer_room',
-  },
-  {
-    value: 'exploring',
-    title: 'Solo estoy explorando',
-    description: 'Quiero mirar perfiles y entender si Convinter encaja conmigo.',
-    icon: Search,
   },
 ];
 
@@ -129,7 +115,7 @@ const moveInPreferenceOptions = [
   { value: 'weeks', label: 'Próximas semanas' },
   { value: 'month', label: 'Este mes' },
   { value: 'specific', label: 'Tengo fecha aproximada' },
-  { value: 'flexible', label: 'Flexible / explorando' },
+  { value: 'flexible', label: 'Flexible' },
 ] as const;
 
 const styleQuestions = [
@@ -259,7 +245,6 @@ const Onboarding = () => {
 
   const selectedGoal = goalOptions.find((goal) => goal.value === data.goal);
   const backendIntention = selectedGoal?.backendType ?? null;
-  const isExploring = data.goal === 'exploring';
   const progress = (currentStep / totalSteps) * 100;
 
   useEffect(() => {
@@ -308,8 +293,8 @@ const Onboarding = () => {
       data.autonomousCommunity,
       data.province,
       data.city,
-      data.budgetMin || isExploring ? 'ok' : '',
-      data.budgetMax || isExploring ? 'ok' : '',
+      data.budgetMin,
+      data.budgetMax,
       data.moveInPreference,
       data.minStayMonths,
       ...styleQuestions.map((question) => data[question.key]),
@@ -320,7 +305,7 @@ const Onboarding = () => {
     ];
 
     return Math.round((fields.filter(Boolean).length / fields.length) * 100);
-  }, [data, isExploring]);
+  }, [data]);
 
   const handleLanguageToggle = (languageId: string) => {
     setData((prev) => ({
@@ -393,8 +378,7 @@ const Onboarding = () => {
     const budgetMax = toNumberOrNull(data.budgetMax);
     const hasBudgetPair = budgetMin !== null && budgetMax !== null;
     const budgetIsValid =
-      isExploring ||
-      (hasBudgetPair && Number.isFinite(budgetMin) && Number.isFinite(budgetMax) && budgetMin > 0 && budgetMin <= budgetMax && budgetMax <= MAX_BUDGET);
+      hasBudgetPair && Number.isFinite(budgetMin) && Number.isFinite(budgetMax) && budgetMin > 0 && budgetMin <= budgetMax && budgetMax <= MAX_BUDGET;
     const dateIsValid = data.moveInPreference !== 'specific' || Boolean(data.moveInDate && data.moveInDate >= todayIso());
 
     switch (step) {
@@ -434,7 +418,7 @@ const Onboarding = () => {
       case 1:
         return 'Elige qué quieres hacer ahora.';
       case 2:
-        return 'Completa nombre, edad, zona, presupuesto y disponibilidad. Si estás explorando, el presupuesto puede quedar flexible.';
+        return 'Completa nombre, edad, zona, presupuesto y disponibilidad.';
       case 3:
         return 'Elige tu estilo de convivencia rápido para crear tus primeras compatibilidades.';
       case 4:
@@ -536,7 +520,7 @@ const Onboarding = () => {
         const { data: intentionResult, error: intentionError } = await supabase.rpc('convinter_set_intention', {
           p_intention_type: backendIntention,
           p_is_primary: true,
-          p_urgency: data.moveInPreference === 'asap' ? 'urgent' : data.moveInPreference === 'flexible' ? 'exploring' : 'flexible',
+          p_urgency: data.moveInPreference === 'asap' ? 'urgent' : 'flexible',
           p_details: {
             selected_goal: data.goal,
             age: Number(data.age),
@@ -588,7 +572,7 @@ const Onboarding = () => {
   const renderGoalStep = () => (
     <div className="space-y-4">
       <div className="text-center">
-        <h2 className="text-2xl font-bold text-foreground">¿Qué quieres hacer ahora?</h2>
+        <h2 className="text-2xl font-bold text-foreground">¿Qué quieres hacer en Convinter?</h2>
         <p className="mt-2 text-muted-foreground">Elige una opción. Podrás cambiarla más adelante.</p>
       </div>
 
@@ -706,7 +690,7 @@ const Onboarding = () => {
             max={MAX_BUDGET}
             value={data.budgetMin}
             onChange={(event) => setData((prev) => ({ ...prev, budgetMin: event.target.value }))}
-            placeholder={isExploring ? 'Opcional' : 'Ej: 450'}
+            placeholder="Ej: 450"
           />
         </div>
         <div className="space-y-2">
@@ -717,7 +701,7 @@ const Onboarding = () => {
             max={MAX_BUDGET}
             value={data.budgetMax}
             onChange={(event) => setData((prev) => ({ ...prev, budgetMax: event.target.value }))}
-            placeholder={isExploring ? 'Opcional' : 'Ej: 850'}
+            placeholder="Ej: 850"
           />
         </div>
       </div>
@@ -966,7 +950,7 @@ const Onboarding = () => {
           {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
           Hacer test ahora
         </Button>
-        {(data.goal === 'offer_room' || data.goal === 'have_flat_seek_housemate') && (
+        {data.goal === 'offer_room' && (
           <Button variant="outline" onClick={() => handleComplete(false, 'create-listing')} disabled={isLoading}>
             Crear anuncio
           </Button>
