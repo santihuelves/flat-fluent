@@ -66,6 +66,35 @@ type CreateListingResponse = {
   listing_id?: string;
 };
 
+type ProfilePrefillData = {
+  autonomous_community: string | null;
+  province: string | null;
+  city: string | null;
+  lifestyle_tags: string[] | null;
+  user_type: 'seeking_room' | 'offering_room' | 'seeking_roommate' | null;
+};
+
+type CompatibilityStyle = {
+  cleaning?: string | null;
+  noise?: string | null;
+  schedule?: string | null;
+  visits?: string | null;
+  pets?: string | null;
+  smoking?: string | null;
+  cooking?: string | null;
+  social?: string | null;
+  remote_work?: string | null;
+};
+
+type ProfileIntentionPrefill = {
+  intention_type?: 'seek_room' | 'offer_room' | 'seek_flatmate';
+  is_primary?: boolean;
+  details?: {
+    selected_goal?: string | null;
+    compatibility_style?: CompatibilityStyle | null;
+  } | null;
+};
+
 const getCreateErrorMessage = (code?: string) => {
   if (code === 'NOT_AUTHENTICATED') return 'Inicia sesión para publicar anuncios.';
   if (code === 'TITLE_REQUIRED') return 'El título es obligatorio.';
@@ -77,13 +106,124 @@ const getCreateErrorMessage = (code?: string) => {
 
 const sanitizeFileName = (name: string) => name.toLowerCase().replace(/[^a-z0-9.]+/g, '-');
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
+const getCompatibilityStyle = (details: unknown): CompatibilityStyle | null => {
+  if (!isRecord(details) || !isRecord(details.compatibility_style)) return null;
+  return details.compatibility_style as CompatibilityStyle;
+};
+
+const getSelectedGoal = (details: unknown) =>
+  isRecord(details) && typeof details.selected_goal === 'string' ? details.selected_goal : null;
+
+const normalizeCompatibilityValue = (value: string | null | undefined) =>
+  value?.toLowerCase().replace(/\s+/g, '_') ?? '';
+
+const mapCleaningPolicy = (cleaning: string | null | undefined) => {
+  switch (normalizeCompatibilityValue(cleaning)) {
+    case 'relaxed':
+    case 'relajada':
+      return 'to_agree';
+    case 'balanced':
+    case 'normal':
+      return 'shared';
+    case 'organized':
+    case 'ordenada':
+      return 'schedule';
+    default:
+      return '';
+  }
+};
+
+const mapQuietHoursPolicy = (noise: string | null | undefined) => {
+  switch (normalizeCompatibilityValue(noise)) {
+    case 'quiet':
+    case 'silencioso':
+      return 'strict';
+    case 'balanced':
+    case 'normal':
+      return 'reasonable';
+    case 'lively':
+    case 'animado':
+      return 'flexible';
+    default:
+      return '';
+  }
+};
+
+const mapHomeEnvironment = (style: CompatibilityStyle) => {
+  const social = normalizeCompatibilityValue(style.social);
+  if (social === 'independent' || social === 'a_mi_aire') return 'quiet';
+  if (social === 'balanced' || social === 'algo_de_vida_comun') return 'mixed';
+  if (social === 'social' || social === 'casa_sociable') return 'mixed';
+
+  const noise = normalizeCompatibilityValue(style.noise);
+  if (noise === 'quiet' || noise === 'silencioso') return 'quiet';
+  if (noise === 'balanced' || noise === 'normal' || noise === 'lively' || noise === 'animado') return 'mixed';
+  return '';
+};
+
+const mapVisitsPolicy = (visits: string | null | undefined) => {
+  switch (normalizeCompatibilityValue(visits)) {
+    case 'rare':
+    case 'pocas':
+      return 'occasional';
+    case 'planned':
+    case 'avisando':
+      return 'with_notice';
+    case 'frequent':
+    case 'frecuentes':
+      return 'to_agree';
+    default:
+      return '';
+  }
+};
+
+const mapKitchenUsePolicy = (cooking: string | null | undefined) => {
+  switch (normalizeCompatibilityValue(cooking)) {
+    case 'light':
+    case 'ligera':
+    case 'cocina_ligera':
+      return 'limited';
+    case 'normal':
+    case 'habitual':
+    case 'cocina_habitual':
+      return 'to_agree';
+    case 'often':
+    case 'intensiva':
+    case 'cocina_intensiva':
+      return 'free_use';
+    default:
+      return '';
+  }
+};
+
+const mapRemoteWorkPolicy = (remoteWork: string | null | undefined) => {
+  switch (normalizeCompatibilityValue(remoteWork)) {
+    case 'often':
+    case 'frequent':
+    case 'frecuente':
+      return 'allowed';
+    case 'some':
+    case 'algunos_dias':
+      return 'occasional';
+    case 'no':
+      return 'to_agree';
+    default:
+      return '';
+  }
+};
+
 export default function CreateListing() {
   useSEO({ page: 'createListing', noIndex: true });
 
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const hasUserEditedFormRef = useRef(false);
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [profilePrefillApplied, setProfilePrefillApplied] = useState(false);
   const [photoFiles, setPhotoFiles] = useState<File[]>([]);
   const [formData, setFormData] = useState<FormData>({
     type: '',
@@ -114,7 +254,134 @@ export default function CreateListing() {
     previews.forEach((preview) => URL.revokeObjectURL(preview.url));
   }, [previews]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    const prefillFromProfile = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        const [{ data: profileData, error: profileError }, { data: intentionsData, error: intentionsError }] = await Promise.all([
+          supabase
+            .from('profiles')
+            .select('autonomous_community, province, city, lifestyle_tags, user_type')
+            .eq('id', user.id)
+            .maybeSingle(),
+          supabase.rpc('convinter_get_intentions', {
+            p_profile_id: user.id,
+          }),
+        ]);
+
+        if (profileError) {
+          console.warn('Error loading profile for listing prefill:', profileError);
+        }
+        if (intentionsError) {
+          console.warn('Error loading intentions for listing prefill:', intentionsError);
+        }
+
+        if (cancelled || hasUserEditedFormRef.current) return;
+
+        const profile = (profileData ?? null) as ProfilePrefillData | null;
+        const intentionsResult = intentionsData as unknown as { ok?: boolean; intentions?: ProfileIntentionPrefill[] } | null;
+        const intentions = intentionsResult?.ok ? intentionsResult.intentions ?? [] : [];
+        const offerIntention = intentions.find((intention) => intention.intention_type === 'offer_room') ?? null;
+        const intentionWithCompatibility =
+          offerIntention ??
+          intentions.find((intention) => Boolean(getCompatibilityStyle(intention.details))) ??
+          null;
+        const compatibilityStyle = getCompatibilityStyle(intentionWithCompatibility?.details) ?? null;
+        const hasOfferGoal =
+          profile?.user_type === 'offering_room' ||
+          Boolean(offerIntention) ||
+          intentions.some((intention) => getSelectedGoal(intention.details) === 'have_flat_seek_housemate');
+
+        setFormData((current) => {
+          if (hasUserEditedFormRef.current) return current;
+
+          const nextRoomDetails = { ...current.roomDetails };
+          let applied = false;
+
+          const applyRoomDetail = <Key extends keyof RoomListingDetailsForm>(
+            key: Key,
+            value: RoomListingDetailsForm[Key] | ''
+          ) => {
+            if (!value || nextRoomDetails[key]) return;
+            nextRoomDetails[key] = value as RoomListingDetailsForm[Key];
+            applied = true;
+          };
+
+          if (compatibilityStyle) {
+            applyRoomDetail('cleaningPolicy', mapCleaningPolicy(compatibilityStyle.cleaning));
+            applyRoomDetail('quietHoursPolicy', mapQuietHoursPolicy(compatibilityStyle.noise));
+            applyRoomDetail('homeEnvironment', mapHomeEnvironment(compatibilityStyle));
+            applyRoomDetail('visitsPolicy', mapVisitsPolicy(compatibilityStyle.visits));
+            applyRoomDetail('kitchenUsePolicy', mapKitchenUsePolicy(compatibilityStyle.cooking));
+            applyRoomDetail('remoteWorkPolicy', mapRemoteWorkPolicy(compatibilityStyle.remote_work));
+          }
+
+          const next: FormData = {
+            ...current,
+            roomDetails: nextRoomDetails,
+          };
+
+          if (hasOfferGoal && !next.type) {
+            next.type = 'offer_room';
+            applied = true;
+          }
+
+          if (profile?.autonomous_community && !next.autonomousCommunity) {
+            next.autonomousCommunity = profile.autonomous_community;
+            applied = true;
+          }
+          if (profile?.province && !next.province) {
+            next.province = profile.province;
+            applied = true;
+          }
+          if (profile?.city && !next.city) {
+            next.city = profile.city;
+            applied = true;
+          }
+
+          if (compatibilityStyle?.smoking && !current.smokingAllowed) {
+            const smoking = normalizeCompatibilityValue(compatibilityStyle.smoking);
+            if (smoking === 'no' || smoking === 'no_fumador') {
+              next.smokingAllowed = false;
+              applied = true;
+            }
+          }
+
+          if (compatibilityStyle?.pets) {
+            const pets = normalizeCompatibilityValue(compatibilityStyle.pets);
+            if ((pets === 'no' || pets === 'prefiero_sin') && current.petsAllowed === false) {
+              next.petsAllowed = false;
+              applied = true;
+            } else if ((pets === 'yes' || pets === 'pet_friendly') && current.petsAllowed === false) {
+              next.petsAllowed = true;
+              applied = true;
+            }
+          }
+
+          if (applied) {
+            setProfilePrefillApplied(true);
+          }
+
+          return next;
+        });
+      } catch (error) {
+        console.warn('Unexpected error preloading listing form from profile:', error);
+      }
+    };
+
+    prefillFromProfile();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const handleTypeSelect = (type: ListingKind) => {
+    hasUserEditedFormRef.current = true;
     setFormData({
       ...formData,
       type,
@@ -328,7 +595,15 @@ export default function CreateListing() {
 
   return (
     <Layout>
-      <div className="container py-8 max-w-2xl">
+      <div
+        className="container py-8 max-w-2xl"
+        onInputCapture={() => {
+          hasUserEditedFormRef.current = true;
+        }}
+        onChangeCapture={() => {
+          hasUserEditedFormRef.current = true;
+        }}
+      >
         <Button
           variant="ghost"
           className="mb-6"
@@ -347,6 +622,12 @@ export default function CreateListing() {
             />
           ))}
         </div>
+
+        {profilePrefillApplied && (
+          <div className="mb-6 rounded-xl border border-primary/20 bg-primary/5 p-4 text-sm text-muted-foreground">
+            Hemos usado algunos datos de tu perfil para ahorrar tiempo. Puedes cambiarlos para este anuncio.
+          </div>
+        )}
 
         {step === 1 && (
           <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}>
@@ -1322,8 +1603,10 @@ export default function CreateListing() {
               {!isFlatmateListing && (
                 <div className="space-y-4 rounded-xl border border-border p-4">
                   <div>
-                    <h2 className="font-semibold">Condiciones de convivencia</h2>
-                    <p className="text-sm text-muted-foreground">Aclara cómo es la convivencia diaria y qué normas debe conocer quien entre a vivir.</p>
+                    <h2 className="font-semibold">Convivencia en esta vivienda</h2>
+                    <p className="text-sm text-muted-foreground">
+                      Estos datos describen cómo funciona la casa. Puedes ajustarlos aunque se hayan sugerido desde tu perfil.
+                    </p>
                   </div>
 
                   <div className="space-y-3">
