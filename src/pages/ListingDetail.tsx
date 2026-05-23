@@ -595,12 +595,12 @@ export default function ListingDetail() {
                 <h1 className="text-3xl md:text-4xl font-bold mb-3">{listing.title}</h1>
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <MapPin className="w-4 h-4" />
-                  <span>{listing.city || 'Ciudad no indicada'}{listing.province_code ? `, ${listing.province_code}` : ''}</span>
+                  <span>{listing.city || 'Municipio o ciudad no indicado'}{listing.province_code ? `, ${listing.province_code}` : ''}</span>
                 </div>
                 {roomDetails.neighborhood && (
                   <div className="flex items-center gap-2 text-muted-foreground">
                     <MapPin className="w-4 h-4" />
-                    <span>Barrio/Zona: {roomDetails.neighborhood}</span>
+                    <span>Zona o barrio: {roomDetails.neighborhood}</span>
                   </div>
                 )}
                 {roomDetails.address_hint && (
@@ -775,7 +775,7 @@ export default function ListingDetail() {
                       </div>
                       {owner.city && (
                         <div className="flex justify-between text-sm">
-                          <span className="text-muted-foreground">Ciudad</span>
+                          <span className="text-muted-foreground">Municipio o ciudad</span>
                           <span className="font-medium">{owner.city}</span>
                         </div>
                       )}

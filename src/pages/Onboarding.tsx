@@ -418,7 +418,9 @@ const Onboarding = () => {
       case 1:
         return 'Elige qué quieres hacer ahora.';
       case 2:
-        return 'Completa nombre, edad, zona, presupuesto y disponibilidad.';
+        return data.goal === 'offer_room'
+          ? 'Completa nombre, edad, zona, precio y disponibilidad.'
+          : 'Completa nombre, edad, zona, presupuesto y disponibilidad.';
       case 3:
         return 'Elige tu estilo de convivencia rápido para crear tus primeras compatibilidades.';
       case 4:
@@ -446,6 +448,26 @@ const Onboarding = () => {
     data.age ? `profile_age_${data.age}` : null,
     data.inclusiveProfile ? 'inclusive_lgtbiq_friendly' : null,
   ].filter((tag): tag is string => Boolean(tag));
+
+  const getCreateListingPath = () => {
+    if (backendIntention === 'offer_room' || backendIntention === 'seek_flatmate') {
+      return `/create-listing?type=${backendIntention}`;
+    }
+
+    return '/create-listing';
+  };
+
+  const getAdvancedTestPath = () => {
+    if (backendIntention === 'offer_room' || backendIntention === 'seek_flatmate') {
+      const params = new URLSearchParams({
+        next: 'create-listing',
+        type: backendIntention,
+      });
+      return `/test?${params.toString()}`;
+    }
+
+    return '/test';
+  };
 
   const handleComplete = async (goToAdvancedTest: boolean, destination?: 'discover' | 'create-listing') => {
     const invalidStep = Array.from({ length: totalSteps - 1 }, (_, index) => index + 1)
@@ -557,9 +579,9 @@ const Onboarding = () => {
       toast.success('Perfil actualizado.');
 
       if (destination === 'create-listing') {
-        navigate('/create-listing');
+        navigate(getCreateListingPath());
       } else {
-        navigate(goToAdvancedTest ? '/test' : '/discover');
+        navigate(goToAdvancedTest ? getAdvancedTestPath() : '/discover');
       }
     } catch (error) {
       console.error('Error completing onboarding:', error);
@@ -604,8 +626,11 @@ const Onboarding = () => {
     </div>
   );
 
-  const renderBasicStep = () => (
-    <div className="space-y-5">
+  const renderBasicStep = () => {
+    const isOfferRoom = data.goal === 'offer_room';
+
+    return (
+      <div className="space-y-5">
       <div className="text-center">
         <h2 className="text-2xl font-bold text-foreground">Datos básicos</h2>
         <p className="mt-2 text-muted-foreground">Lo justo para buscar coincidencias útiles sin pedir documentación.</p>
@@ -637,7 +662,7 @@ const Onboarding = () => {
       <div className="space-y-3">
         <Label className="flex items-center gap-2">
           <MapPin className="h-4 w-4" />
-          Ciudad o zona
+          {isOfferRoom ? 'Ubicación de la habitación' : 'Ubicación'}
         </Label>
         <Select
           value={data.autonomousCommunity}
@@ -656,61 +681,84 @@ const Onboarding = () => {
         </Select>
 
         <div className="grid gap-3 sm:grid-cols-2">
-          <Select
-            value={data.province}
-            onValueChange={(value) => setData((prev) => ({ ...prev, province: value }))}
-            disabled={!data.autonomousCommunity}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Provincia" />
-            </SelectTrigger>
-            <SelectContent>
-              {(PROVINCES[data.autonomousCommunity] || []).map((province) => (
-                <SelectItem key={province} value={province}>
-                  {province}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Input
-            value={data.city}
-            maxLength={MAX_CITY_LENGTH}
-            onChange={(event) => setData((prev) => ({ ...prev, city: event.target.value }))}
-            placeholder="Barrio o zona preferida"
-          />
+          <div className="space-y-2">
+            <Label>Provincia</Label>
+            <Select
+              value={data.province}
+              onValueChange={(value) => setData((prev) => ({ ...prev, province: value }))}
+              disabled={!data.autonomousCommunity}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Provincia" />
+              </SelectTrigger>
+              <SelectContent>
+                {(PROVINCES[data.autonomousCommunity] || []).map((province) => (
+                  <SelectItem key={province} value={province}>
+                    {province}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label>Municipio o ciudad</Label>
+            <Input
+              value={data.city}
+              maxLength={MAX_CITY_LENGTH}
+              onChange={(event) => setData((prev) => ({ ...prev, city: event.target.value }))}
+              placeholder="Ej: Madrid, Móstoles, Pinto, Cullera, Telde, Santa Lucía de Tirajana..."
+            />
+          </div>
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      {isOfferRoom ? (
         <div className="space-y-2">
-          <Label>Presupuesto mínimo</Label>
+          <Label>Precio mensual de la habitación</Label>
           <Input
             type="number"
             min={1}
             max={MAX_BUDGET}
             value={data.budgetMin}
-            onChange={(event) => setData((prev) => ({ ...prev, budgetMin: event.target.value }))}
-            placeholder="Ej: 450"
+            onChange={(event) => {
+              const value = event.target.value;
+              setData((prev) => ({ ...prev, budgetMin: value, budgetMax: value }));
+            }}
+            placeholder="Ej: 650"
           />
         </div>
-        <div className="space-y-2">
-          <Label>Presupuesto máximo</Label>
-          <Input
-            type="number"
-            min={1}
-            max={MAX_BUDGET}
-            value={data.budgetMax}
-            onChange={(event) => setData((prev) => ({ ...prev, budgetMax: event.target.value }))}
-            placeholder="Ej: 850"
-          />
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-2">
+            <Label>Presupuesto mínimo</Label>
+            <Input
+              type="number"
+              min={1}
+              max={MAX_BUDGET}
+              value={data.budgetMin}
+              onChange={(event) => setData((prev) => ({ ...prev, budgetMin: event.target.value }))}
+              placeholder="Ej: 450"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Presupuesto máximo</Label>
+            <Input
+              type="number"
+              min={1}
+              max={MAX_BUDGET}
+              value={data.budgetMax}
+              onChange={(event) => setData((prev) => ({ ...prev, budgetMax: event.target.value }))}
+              placeholder="Ej: 850"
+            />
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
           <Label className="flex items-center gap-2">
             <Calendar className="h-4 w-4" />
-            Fecha de entrada
+            {isOfferRoom ? 'Disponibilidad de la habitación' : 'Fecha de entrada'}
           </Label>
           <Select
             value={data.moveInPreference}
@@ -731,9 +779,18 @@ const Onboarding = () => {
               ))}
             </SelectContent>
           </Select>
+
+          {data.moveInPreference === 'specific' && (
+            <Input
+              type="date"
+              min={todayIso()}
+              value={data.moveInDate}
+              onChange={(event) => setData((prev) => ({ ...prev, moveInDate: event.target.value }))}
+            />
+          )}
         </div>
         <div className="space-y-2">
-          <Label>Duración prevista</Label>
+          <Label>{isOfferRoom ? 'Estancia mínima' : 'Duración prevista'}</Label>
           <Select
             value={data.minStayMonths}
             onValueChange={(value) => setData((prev) => ({ ...prev, minStayMonths: value }))}
@@ -751,17 +808,9 @@ const Onboarding = () => {
           </Select>
         </div>
       </div>
-
-      {data.moveInPreference === 'specific' && (
-        <Input
-          type="date"
-          min={todayIso()}
-          value={data.moveInDate}
-          onChange={(event) => setData((prev) => ({ ...prev, moveInDate: event.target.value }))}
-        />
-      )}
-    </div>
-  );
+      </div>
+    );
+  };
 
   const renderStyleStep = () => (
     <div className="space-y-5">
@@ -950,7 +999,7 @@ const Onboarding = () => {
           {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
           Hacer test ahora
         </Button>
-        {data.goal === 'offer_room' && (
+        {(data.goal === 'offer_room' || data.goal === 'seek_flatmate') && (
           <Button variant="outline" onClick={() => handleComplete(false, 'create-listing')} disabled={isLoading}>
             Crear anuncio
           </Button>

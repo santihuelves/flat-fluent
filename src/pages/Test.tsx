@@ -1,7 +1,7 @@
 import { Layout } from '@/components/layout/Layout';
 import { motion } from 'framer-motion';
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { AlertTriangle, ArrowLeft, ArrowRight, CheckCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -217,10 +217,16 @@ const dealbreakers = [
   { id: 'no_indoor_smoking', label: 'No acepto fumar dentro de casa' },
 ];
 
+const getListingTypeFromParam = (value: string | null) =>
+  value === 'offer_room' || value === 'seek_flatmate' ? value : null;
+
 export default function Test() {
   useSEO({ page: 'test', noIndex: true });
 
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const nextRoute = searchParams.get('next');
+  const requestedListingType = getListingTypeFromParam(searchParams.get('type'));
   const [currentStep, setCurrentStep] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [selectedDealbreakers, setSelectedDealbreakers] = useState<string[]>([]);
@@ -288,7 +294,11 @@ export default function Test() {
       if (profileError) throw profileError;
 
       toast.success('Test avanzado guardado.');
-      navigate('/discover');
+      if (nextRoute === 'create-listing' && requestedListingType) {
+        navigate(`/create-listing?type=${requestedListingType}`);
+      } else {
+        navigate('/discover');
+      }
     } catch (error) {
       console.error('Error completing advanced test:', error);
       toast.error('No se pudo guardar el test.');

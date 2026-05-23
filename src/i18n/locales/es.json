@@ -1,6 +1,6 @@
 {
   "profile": {
-    "otherNeighborhood": "Otro barrio..."
+    "otherNeighborhood": "Otra zona o barrio..."
   },
   "nav": {
     "discover": "Descubrir",
@@ -22,7 +22,7 @@
     "stats": {
       "users": "Usuarios activos",
       "matches": "Matches exitosos",
-      "cities": "Ciudades"
+      "cities": "Municipios y ciudades"
     },
     "features": {
       "title": "¿Por qué Convinter?",
@@ -104,7 +104,7 @@
     "noName": "Sin nombre",
     "addPhoto": "Añadir foto",
     "availableFrom": "Desde",
-    "preferredNeighborhoods": "Barrios preferidos",
+    "preferredNeighborhoods": "Zonas o barrios preferidos",
     "languagesLabel": "Idiomas",
     "occupationLabel": "Ocupación",
     "stayInfo": "Información de estancia",
@@ -125,9 +125,9 @@
     "location": "Ubicación",
     "autonomousCommunity": "Comunidad Autónoma",
     "province": "Provincia",
-    "city": "Ciudad",
-    "neighborhoods": "Barrios preferidos",
-    "neighborhoodPlaceholder": "Añadir barrio",
+    "city": "Municipio o ciudad",
+    "neighborhoods": "Zonas o barrios preferidos",
+    "neighborhoodPlaceholder": "Añadir zona o barrio",
     "budget": "Presupuesto mensual (€)",
     "budgetMin": "Mínimo",
     "budgetMax": "Máximo",
@@ -591,8 +591,8 @@
       "selectCommunity": "Selecciona una comunidad",
       "province": "Provincia",
       "selectProvince": "Selecciona una provincia",
-      "city": "Ciudad o barrios preferidos",
-      "cityPlaceholder": "Ej: Malasaña, Lavapiés..."
+      "city": "Municipio o ciudad",
+      "cityPlaceholder": "Ej: Madrid, Móstoles, Pinto, Cullera..."
     },
     "step3": {
       "title": "Presupuesto y fechas",

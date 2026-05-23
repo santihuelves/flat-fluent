@@ -218,6 +218,12 @@ export const nearbyServiceOptions = [
   { value: 'parks', label: 'Parques o zonas verdes' },
   { value: 'restaurants', label: 'Bares y restaurantes' },
   { value: 'shops', label: 'Comercios de barrio' },
+  { value: 'beach', label: 'Playa o zona costera' },
+  { value: 'university', label: 'Universidad o centro de estudios' },
+  { value: 'health_center', label: 'Centro de salud' },
+  { value: 'easy_parking', label: 'Aparcamiento fácil' },
+  { value: 'laundry', label: 'Lavandería cercana' },
+  { value: 'storage_rental', label: 'Trasteros de alquiler cercanos' },
 ] as const;
 
 const booleanOptions = new Set<string>(['yes', 'no']);
@@ -292,6 +298,10 @@ export type RoomListingDetails = {
   equipped_kitchen?: boolean;
   kitchen_equipment?: Array<(typeof kitchenEquipmentOptions)[number]['value']>;
   washing_machine?: boolean;
+  dryer_available?: boolean;
+  drying_area?: boolean;
+  luggage_storage?: boolean;
+  storage_room_available?: boolean;
   room_size_sqm?: number;
   room_window?: 'window' | 'balcony' | 'terrace' | 'none';
   room_orientation?: 'exterior' | 'interior' | 'courtyard' | 'mixed';
@@ -345,6 +355,10 @@ export type RoomListingDetailsForm = {
   equippedKitchen: '' | 'yes' | 'no';
   kitchenEquipment: string[];
   washingMachine: '' | 'yes' | 'no';
+  dryerAvailable: '' | 'yes' | 'no';
+  dryingArea: '' | 'yes' | 'no';
+  luggageStorage: '' | 'yes' | 'no';
+  storageRoomAvailable: '' | 'yes' | 'no';
   roomSizeSqm: string;
   roomWindow: string;
   roomOrientation: string;
@@ -398,6 +412,10 @@ export const emptyRoomListingDetailsForm = (): RoomListingDetailsForm => ({
   equippedKitchen: '',
   kitchenEquipment: [],
   washingMachine: '',
+  dryerAvailable: '',
+  dryingArea: '',
+  luggageStorage: '',
+  storageRoomAvailable: '',
   roomSizeSqm: '',
   roomWindow: '',
   roomOrientation: '',
@@ -607,6 +625,22 @@ export const normalizeRoomListingDetails = (value: Json | null | undefined): Roo
     details.washing_machine = value.washing_machine;
   }
 
+  if (typeof value.dryer_available === 'boolean') {
+    details.dryer_available = value.dryer_available;
+  }
+
+  if (typeof value.drying_area === 'boolean') {
+    details.drying_area = value.drying_area;
+  }
+
+  if (typeof value.luggage_storage === 'boolean') {
+    details.luggage_storage = value.luggage_storage;
+  }
+
+  if (typeof value.storage_room_available === 'boolean') {
+    details.storage_room_available = value.storage_room_available;
+  }
+
   if (typeof value.room_size_sqm === 'number' && Number.isFinite(value.room_size_sqm)) {
     details.room_size_sqm = value.room_size_sqm;
   }
@@ -712,6 +746,10 @@ export const roomListingDetailsFormFromDetails = (value: Json | null | undefined
     equippedKitchen: getBooleanFormValue(details.equipped_kitchen),
     kitchenEquipment: details.kitchen_equipment ?? [],
     washingMachine: getBooleanFormValue(details.washing_machine),
+    dryerAvailable: getBooleanFormValue(details.dryer_available),
+    dryingArea: getBooleanFormValue(details.drying_area),
+    luggageStorage: getBooleanFormValue(details.luggage_storage),
+    storageRoomAvailable: getBooleanFormValue(details.storage_room_available),
     roomSizeSqm: details.room_size_sqm?.toString() ?? '',
     roomWindow: details.room_window ?? '',
     roomOrientation: details.room_orientation ?? '',
@@ -905,6 +943,26 @@ export const buildRoomListingDetailsFromForm = (form: RoomListingDetailsForm): R
   const washingMachine = parseBooleanField(form.washingMachine);
   if (typeof washingMachine === 'boolean') {
     details.washing_machine = washingMachine;
+  }
+
+  const dryerAvailable = parseBooleanField(form.dryerAvailable);
+  if (typeof dryerAvailable === 'boolean') {
+    details.dryer_available = dryerAvailable;
+  }
+
+  const dryingArea = parseBooleanField(form.dryingArea);
+  if (typeof dryingArea === 'boolean') {
+    details.drying_area = dryingArea;
+  }
+
+  const luggageStorage = parseBooleanField(form.luggageStorage);
+  if (typeof luggageStorage === 'boolean') {
+    details.luggage_storage = luggageStorage;
+  }
+
+  const storageRoomAvailable = parseBooleanField(form.storageRoomAvailable);
+  if (typeof storageRoomAvailable === 'boolean') {
+    details.storage_room_available = storageRoomAvailable;
   }
 
   const roomSizeSqm = form.roomSizeSqm.trim();
@@ -1126,7 +1184,23 @@ export const getRoomListingHousingItems = (details: RoomListingDetails) => {
   }
 
   if (typeof details.washing_machine === 'boolean') {
-    items.push({ label: 'Lavadora', value: details.washing_machine ? 'Sí' : 'No' });
+    items.push({ label: 'Lavadora disponible', value: details.washing_machine ? 'Sí' : 'No' });
+  }
+
+  if (typeof details.dryer_available === 'boolean') {
+    items.push({ label: 'Secadora disponible', value: details.dryer_available ? 'Sí' : 'No' });
+  }
+
+  if (typeof details.drying_area === 'boolean') {
+    items.push({ label: 'Zona para tender', value: details.drying_area ? 'Sí' : 'No' });
+  }
+
+  if (typeof details.luggage_storage === 'boolean') {
+    items.push({ label: 'Espacio para guardar maletas', value: details.luggage_storage ? 'Sí' : 'No' });
+  }
+
+  if (typeof details.storage_room_available === 'boolean') {
+    items.push({ label: 'Trastero disponible', value: details.storage_room_available ? 'Sí' : 'No' });
   }
 
   return items;
@@ -1214,7 +1288,7 @@ export const getRoomListingLocationItems = (details: RoomListingDetails) => {
       .filter((label): label is string => Boolean(label));
 
     if (labels.length > 0) {
-      items.push({ label: 'Servicios cercanos', value: labels.join(', ') });
+      items.push({ label: 'Servicios y entorno cercano', value: labels.join(', ') });
     }
   }
 
@@ -1227,7 +1301,7 @@ export const getRoomListingLocationItems = (details: RoomListingDetails) => {
 
 export const getRoomListingLocationLabel = (details: RoomListingDetails, city: string | null | undefined) => {
   const parts = [city, details.neighborhood].filter((part): part is string => Boolean(part?.trim()));
-  return parts.length > 0 ? parts.join(' · ') : 'Ciudad no indicada';
+  return parts.length > 0 ? parts.join(' · ') : 'Municipio o ciudad no indicado';
 };
 
 export const getRoomListingCardHighlights = (

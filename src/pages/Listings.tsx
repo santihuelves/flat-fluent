@@ -322,7 +322,7 @@ export default function Listings() {
     const roomDetails = normalizeRoomListingDetails(listing.listing_type === 'room' ? listing.details : null);
     const locationLabel = listing.listing_type === 'room'
       ? getRoomListingLocationLabel(roomDetails, listing.city)
-      : listing.city || 'Ciudad no indicada';
+      : listing.city || 'Municipio o ciudad no indicado';
     const cleanDescription = stripLegacyNeighborhoodFromDescription(listing.description);
     const highlights = listing.listing_type === 'room'
       ? getRoomListingCardHighlights(roomDetails, { billsIncluded: listing.bills_included, maxItems: 5 })
@@ -444,7 +444,7 @@ export default function Listings() {
           <div className="relative flex-1">
             <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Buscar por título, ciudad o persona..."
+              placeholder="Buscar por título, municipio o ciudad..."
               value={searchTerm}
               onChange={(event) => setSearchTerm(event.target.value)}
               className="pl-10"
@@ -460,7 +460,7 @@ export default function Listings() {
             </PopoverTrigger>
             <PopoverContent className="w-[220px] p-0 bg-popover" align="start">
               <Command>
-                <CommandInput placeholder="Buscar ciudad..." />
+                <CommandInput placeholder="Buscar municipio o ciudad..." />
                 <CommandList>
                   <CommandEmpty>Sin resultados</CommandEmpty>
                   <CommandGroup>
@@ -732,7 +732,7 @@ export default function Listings() {
           <div className="text-center py-16">
             <Home className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
             <h3 className="text-lg font-semibold mb-2">No hay anuncios con esos filtros</h3>
-            <p className="text-muted-foreground mb-4">Prueba cambiando ciudad, precio o tipo de anuncio.</p>
+            <p className="text-muted-foreground mb-4">Prueba cambiando municipio o ciudad, precio o tipo de anuncio.</p>
             <Button variant="outline" onClick={clearFilters}>Limpiar filtros</Button>
           </div>
         )}

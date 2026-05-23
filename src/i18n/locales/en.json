@@ -1,6 +1,6 @@
 {
   "profile": {
-    "otherNeighborhood": "Other neighborhood..."
+    "otherNeighborhood": "Other area or neighborhood..."
   },
   "nav": {
     "discover": "Discover",
@@ -22,7 +22,7 @@
     "stats": {
       "users": "Active users",
       "matches": "Successful matches",
-      "cities": "Cities"
+      "cities": "Municipalities and cities"
     },
     "features": {
       "title": "Why Convinter?",
@@ -104,7 +104,7 @@
     "noName": "No name",
     "addPhoto": "Add photo",
     "availableFrom": "From",
-    "preferredNeighborhoods": "Preferred neighborhoods",
+    "preferredNeighborhoods": "Preferred areas or neighborhoods",
     "languagesLabel": "Languages",
     "occupationLabel": "Occupation",
     "stayInfo": "Stay information",
@@ -125,9 +125,9 @@
     "location": "Location",
     "autonomousCommunity": "Autonomous Community",
     "province": "Province",
-    "city": "City",
-    "neighborhoods": "Preferred neighborhoods",
-    "neighborhoodPlaceholder": "Add neighborhood",
+    "city": "Municipality or city",
+    "neighborhoods": "Preferred areas or neighborhoods",
+    "neighborhoodPlaceholder": "Add area or neighborhood",
     "budget": "Monthly budget (€)",
     "budgetMin": "Minimum",
     "budgetMax": "Maximum",
@@ -591,8 +591,8 @@
       "selectCommunity": "Select a community",
       "province": "Province",
       "selectProvince": "Select a province",
-      "city": "City or preferred neighborhoods",
-      "cityPlaceholder": "E.g.: Malasaña, Lavapiés..."
+      "city": "Municipality or city",
+      "cityPlaceholder": "E.g.: Madrid, Móstoles, Pinto, Cullera..."
     },
     "step3": {
       "title": "Budget and dates",

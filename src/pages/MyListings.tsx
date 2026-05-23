@@ -31,6 +31,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/integrations/supabase/client';
 import type { Tables } from '@/integrations/supabase/types';
 import { bathroomUsePolicyOptions, buildRoomListingDetailsFromForm, cleaningPolicyOptions, contractAvailableOptions, depositMonthsOptions, getRoomListingCardHighlights, getRoomListingLocationLabel, roomListingDetailsFormFromDetails, homeEnvironmentOptions, homeFloorOptions, homeOrientationOptions, householdGenderMixOptions, householdOccupationOptions, kitchenEquipmentOptions, kitchenUsePolicyOptions, livingRoomUsePolicyOptions, nearbyServiceOptions, normalizeRoomListingDetails, noticePeriodOptions, occupancyPolicyOptions, partyPolicyOptions, preferredGenderOptions, quietHoursPolicyOptions, registrationAllowedOptions, remoteWorkPolicyOptions, roomBathroomOptions, roomFurnitureOptions, roomFurnishingStatusOptions, roomLockOptions, roomNaturalLightOptions, roomOrientationOptions, roomWindowOptions, stripLegacyNeighborhoodFromDescription, visitsPolicyOptions, type RoomListingDetailsForm } from '@/lib/listingDetails';
+import { AUTONOMOUS_COMMUNITIES, PROVINCES } from '@/lib/profileOptions';
 import { toast } from 'sonner';
 import { useSEO } from '@/hooks/useSEO';
 
@@ -49,6 +50,8 @@ type UpdateListingResponse = {
 type EditForm = {
   title: string;
   description: string;
+  autonomousCommunity: string;
+  province: string;
   city: string;
   neighborhood: string;
   price: string;
@@ -68,6 +71,8 @@ const TITLE_MIN_LENGTH = 10;
 const TITLE_MAX_LENGTH = 80;
 const DESCRIPTION_MIN_LENGTH = 20;
 const DESCRIPTION_MAX_LENGTH = 1200;
+const CITY_MAX_LENGTH = 80;
+const NEIGHBORHOOD_MAX_LENGTH = 80;
 const ADDRESS_HINT_MAX_LENGTH = 140;
 const AGE_RANGE_MIN = 18;
 const AGE_RANGE_MAX = 75;
@@ -82,21 +87,6 @@ const BATHROOM_COUNT_MAX = 5;
 const ROOM_SIZE_MIN = 6;
 const ROOM_SIZE_MAX = 40;
 const TRANSPORT_WALK_MINUTES_MAX = 30;
-
-const cities = [
-  'Madrid',
-  'Barcelona',
-  'Valencia',
-  'Sevilla',
-  'Bilbao',
-  'Zaragoza',
-  'Malaga',
-  'Granada',
-  'San Sebastian',
-  'Alicante',
-  'A Coruna',
-  'Palma de Mallorca',
-];
 
 const statusLabels: Record<string, string> = {
   active: 'Activo',
@@ -155,13 +145,24 @@ const extractLegacyNeighborhood = (description: string | null | undefined) => {
   };
 };
 
+const getAutonomousCommunityFromProvince = (provinceCode: string | null | undefined) => {
+  if (!provinceCode) return '';
+
+  return AUTONOMOUS_COMMUNITIES.find((community) =>
+    (PROVINCES[community] ?? []).includes(provinceCode)
+  ) ?? '';
+};
+
 const toEditForm = (listing: Listing): EditForm => {
   const roomDetails = roomListingDetailsFormFromDetails(listing.details);
   const { cleanDescription, neighborhood: legacyNeighborhood } = extractLegacyNeighborhood(listing.description);
+  const province = listing.province_code ?? '';
 
   return {
     title: listing.title,
     description: cleanDescription,
+    autonomousCommunity: getAutonomousCommunityFromProvince(province),
+    province,
     city: listing.city ?? '',
     neighborhood: roomDetails.neighborhood || legacyNeighborhood,
     price: listing.price_monthly?.toString() ?? '',
@@ -341,6 +342,8 @@ export default function MyListings() {
 
     const title = editForm.title.trim();
     const description = editForm.description.trim();
+    const city = editForm.city.trim();
+    const neighborhood = editForm.neighborhood.trim();
 
     if (title.length < TITLE_MIN_LENGTH) {
       toast.error(`El título debe tener al menos ${TITLE_MIN_LENGTH} caracteres`);
@@ -359,6 +362,21 @@ export default function MyListings() {
 
     if (description.length > DESCRIPTION_MAX_LENGTH) {
       toast.error(`La descripción no puede superar ${DESCRIPTION_MAX_LENGTH} caracteres`);
+      return false;
+    }
+
+    if (!city) {
+      toast.error('Introduce un municipio o ciudad');
+      return false;
+    }
+
+    if (city.length > CITY_MAX_LENGTH) {
+      toast.error(`El municipio o ciudad no puede superar ${CITY_MAX_LENGTH} caracteres`);
+      return false;
+    }
+
+    if (neighborhood.length > NEIGHBORHOOD_MAX_LENGTH) {
+      toast.error(`La zona o barrio no puede superar ${NEIGHBORHOOD_MAX_LENGTH} caracteres`);
       return false;
     }
 
@@ -451,7 +469,8 @@ export default function MyListings() {
         p_listing_id: editingListing.id,
         p_title: editForm.title.trim(),
         p_description: editForm.description.trim(),
-        p_city: editForm.city || undefined,
+        p_city: editForm.city.trim() || undefined,
+        p_province_code: editForm.province || undefined,
         p_price_monthly: editForm.price ? Number(editForm.price) : undefined,
         p_available_from: editForm.availableFrom || undefined,
         p_min_stay_months: editForm.minStay ? Number(editForm.minStay) : undefined,
@@ -592,7 +611,7 @@ export default function MyListings() {
               <Input
                 value={searchQuery}
                 onChange={(event) => setSearchQuery(event.target.value)}
-                placeholder="Buscar por título, ciudad o descripción"
+                placeholder="Buscar por título, municipio, ciudad o descripción"
                 className="w-full sm:w-80"
               />
             </div>
@@ -647,7 +666,7 @@ export default function MyListings() {
               const roomDetails = normalizeRoomListingDetails(listing.listing_type === 'room' ? listing.details : null);
               const locationLabel = listing.listing_type === 'room'
                 ? getRoomListingLocationLabel(roomDetails, listing.city)
-                : listing.city || 'Ciudad no indicada';
+                : listing.city || 'Municipio o ciudad no indicado';
               const cleanDescription = stripLegacyNeighborhoodFromDescription(listing.description);
               const highlights = listing.listing_type === 'room'
                 ? getRoomListingCardHighlights(roomDetails, { billsIncluded: listing.bills_included, maxItems: 5 })
@@ -799,27 +818,71 @@ export default function MyListings() {
 
                 <div className="grid sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>Ciudad</Label>
-                    <Select value={editForm.city} onValueChange={(value) => setEditForm({ ...editForm, city: value })} disabled={saving}>
+                    <Label>Comunidad autónoma</Label>
+                    <Select
+                      value={editForm.autonomousCommunity}
+                      onValueChange={(value) => setEditForm({
+                        ...editForm,
+                        autonomousCommunity: value,
+                        province: '',
+                        city: '',
+                      })}
+                      disabled={saving}
+                    >
                       <SelectTrigger>
-                        <SelectValue placeholder="Selecciona ciudad" />
+                        <SelectValue placeholder="Selecciona comunidad" />
                       </SelectTrigger>
                       <SelectContent>
-                        {cities.map((city) => (
-                          <SelectItem key={city} value={city}>{city}</SelectItem>
+                        {AUTONOMOUS_COMMUNITIES.map((community) => (
+                          <SelectItem key={community} value={community}>{community}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="listing-neighborhood">Barrio o zona</Label>
+                    <Label>Provincia</Label>
+                    <Select
+                      value={editForm.province}
+                      onValueChange={(value) => setEditForm({ ...editForm, province: value, city: '' })}
+                      disabled={!editForm.autonomousCommunity || saving}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecciona provincia" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(PROVINCES[editForm.autonomousCommunity] ?? []).map((province) => (
+                          <SelectItem key={province} value={province}>{province}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="listing-city">Municipio o ciudad</Label>
+                    <Input
+                      id="listing-city"
+                      placeholder="Ej: Madrid, Móstoles, Pinto, Cullera, Telde..."
+                      value={editForm.city}
+                      maxLength={CITY_MAX_LENGTH}
+                      onChange={(event) => setEditForm({ ...editForm, city: event.target.value })}
+                      disabled={!editForm.province || saving}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="listing-neighborhood">Zona o barrio</Label>
                     <Input
                       id="listing-neighborhood"
+                      placeholder="Ej: Centro, Malasaña, Vecindario, Gràcia..."
                       value={editForm.neighborhood}
+                      maxLength={NEIGHBORHOOD_MAX_LENGTH}
                       onChange={(event) => setEditForm({ ...editForm, neighborhood: event.target.value })}
                       disabled={saving}
                     />
+                    <p className="text-xs text-muted-foreground text-right">
+                      {editForm.neighborhood.length}/{NEIGHBORHOOD_MAX_LENGTH}
+                    </p>
                   </div>
 
                   {isEditingRoomListing && (
@@ -895,8 +958,8 @@ export default function MyListings() {
 
                     <div className="space-y-3 sm:col-span-2 rounded-xl border border-border/70 p-4">
                       <div>
-                        <Label>Servicios cercanos</Label>
-                        <p className="text-xs text-muted-foreground">Marca lo que hay cerca caminando.</p>
+                        <Label>Servicios y entorno cercano</Label>
+                        <p className="text-xs text-muted-foreground">Marca lo que hay cerca caminando o a pocos minutos.</p>
                       </div>
                       <div className="grid sm:grid-cols-2 gap-2">
                         {nearbyServiceOptions.map((option) => {
@@ -935,7 +998,7 @@ export default function MyListings() {
                       <Textarea
                         id="listing-location-notes"
                         rows={3}
-                        placeholder="Ej: zona tranquila, supermercado a dos calles, buen acceso nocturno..."
+                        placeholder="Ej: lavandería a 3 minutos andando, supermercado a dos calles, buen acceso nocturno..."
                         value={editForm.roomDetails.locationNotes}
                         onChange={(event) => setEditForm({
                           ...editForm,
@@ -1146,12 +1209,92 @@ export default function MyListings() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label>Lavadora</Label>
+                      <Label>Lavadora disponible</Label>
                       <Select
                         value={editForm.roomDetails.washingMachine}
                         onValueChange={(value) => setEditForm({
                           ...editForm,
                           roomDetails: { ...editForm.roomDetails, washingMachine: value as RoomListingDetailsForm['washingMachine'] },
+                        })}
+                        disabled={saving}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Sin especificar" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="yes">Sí</SelectItem>
+                          <SelectItem value="no">No</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Secadora disponible</Label>
+                      <Select
+                        value={editForm.roomDetails.dryerAvailable}
+                        onValueChange={(value) => setEditForm({
+                          ...editForm,
+                          roomDetails: { ...editForm.roomDetails, dryerAvailable: value as RoomListingDetailsForm['dryerAvailable'] },
+                        })}
+                        disabled={saving}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Sin especificar" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="yes">Sí</SelectItem>
+                          <SelectItem value="no">No</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Zona para tender</Label>
+                      <Select
+                        value={editForm.roomDetails.dryingArea}
+                        onValueChange={(value) => setEditForm({
+                          ...editForm,
+                          roomDetails: { ...editForm.roomDetails, dryingArea: value as RoomListingDetailsForm['dryingArea'] },
+                        })}
+                        disabled={saving}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Sin especificar" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="yes">Sí</SelectItem>
+                          <SelectItem value="no">No</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Espacio para guardar maletas</Label>
+                      <Select
+                        value={editForm.roomDetails.luggageStorage}
+                        onValueChange={(value) => setEditForm({
+                          ...editForm,
+                          roomDetails: { ...editForm.roomDetails, luggageStorage: value as RoomListingDetailsForm['luggageStorage'] },
+                        })}
+                        disabled={saving}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Sin especificar" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="yes">Sí</SelectItem>
+                          <SelectItem value="no">No</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Trastero disponible</Label>
+                      <Select
+                        value={editForm.roomDetails.storageRoomAvailable}
+                        onValueChange={(value) => setEditForm({
+                          ...editForm,
+                          roomDetails: { ...editForm.roomDetails, storageRoomAvailable: value as RoomListingDetailsForm['storageRoomAvailable'] },
                         })}
                         disabled={saving}
                       >

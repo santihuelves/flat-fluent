@@ -321,7 +321,7 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
     }
 
     if (city.length < 2 || city.length > MAX_CITY_LENGTH) {
-      return 'La ciudad debe tener entre 2 y 80 caracteres.';
+      return 'El municipio o ciudad debe tener entre 2 y 80 caracteres.';
     }
 
     if (province.length < 2 || province.length > MAX_PROVINCE_LENGTH) {
@@ -658,29 +658,35 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
               </SelectContent>
             </Select>
 
-            <div className="grid grid-cols-2 gap-2">
-              <Input
-                value={formData.city}
-                maxLength={MAX_CITY_LENGTH}
-                onChange={(e) => setFormData((prev) => ({ ...prev, city: e.target.value }))}
-                placeholder={t('profile.city')}
-              />
-              <Select
-                value={formData.province_code}
-                onValueChange={(value) => setFormData((prev) => ({ ...prev, province_code: value }))}
-                disabled={!formData.autonomous_community}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder={t('profile.province')} />
-                </SelectTrigger>
-                <SelectContent>
-                  {(PROVINCES[formData.autonomous_community] || []).map((province) => (
-                    <SelectItem key={province} value={province}>
-                      {province}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label>{t('profile.city')}</Label>
+                <Input
+                  value={formData.city}
+                  maxLength={MAX_CITY_LENGTH}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, city: e.target.value }))}
+                  placeholder="Ej: Madrid, Móstoles, Pinto..."
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>{t('profile.province')}</Label>
+                <Select
+                  value={formData.province_code}
+                  onValueChange={(value) => setFormData((prev) => ({ ...prev, province_code: value }))}
+                  disabled={!formData.autonomous_community}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={t('profile.province')} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(PROVINCES[formData.autonomous_community] || []).map((province) => (
+                      <SelectItem key={province} value={province}>
+                        {province}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
 

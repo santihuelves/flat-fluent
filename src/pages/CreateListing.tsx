@@ -1,5 +1,5 @@
 ﻿import { ChangeEvent, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Home, Loader2, Upload, Users, X } from 'lucide-react';
 import { Layout } from '@/components/layout/Layout';
@@ -22,6 +22,9 @@ const listingTypes = [
 ] as const;
 
 type ListingKind = typeof listingTypes[number]['value'];
+
+const getListingKindFromParam = (value: string | null): ListingKind | null =>
+  listingTypes.some((type) => type.value === value) ? value as ListingKind : null;
 
 const TITLE_MIN_LENGTH = 10;
 const TITLE_MAX_LENGTH = 80;
@@ -219,14 +222,16 @@ export default function CreateListing() {
   useSEO({ page: 'createListing', noIndex: true });
 
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const requestedListingType = getListingKindFromParam(searchParams.get('type'));
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const hasUserEditedFormRef = useRef(false);
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState(requestedListingType ? 2 : 1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [profilePrefillApplied, setProfilePrefillApplied] = useState(false);
   const [photoFiles, setPhotoFiles] = useState<File[]>([]);
   const [formData, setFormData] = useState<FormData>({
-    type: '',
+    type: requestedListingType ?? '',
     title: '',
     description: '',
     autonomousCommunity: '',
@@ -253,6 +258,20 @@ export default function CreateListing() {
   useEffect(() => () => {
     previews.forEach((preview) => URL.revokeObjectURL(preview.url));
   }, [previews]);
+
+  useEffect(() => {
+    if (!requestedListingType || hasUserEditedFormRef.current) return;
+
+    setFormData((current) => {
+      if (current.type === requestedListingType) return current;
+
+      return {
+        ...current,
+        type: requestedListingType,
+      };
+    });
+    setStep((current) => Math.max(current, 2));
+  }, [requestedListingType]);
 
   useEffect(() => {
     let cancelled = false;
@@ -437,7 +456,7 @@ export default function CreateListing() {
       return false;
     }
     if (neighborhood.length > NEIGHBORHOOD_MAX_LENGTH) {
-      toast.error(`El barrio o zona no puede superar ${NEIGHBORHOOD_MAX_LENGTH} caracteres`);
+      toast.error(`La zona o barrio no puede superar ${NEIGHBORHOOD_MAX_LENGTH} caracteres`);
       return false;
     }
     if (formData.roomDetails.addressHint.length > ADDRESS_HINT_MAX_LENGTH) {
@@ -453,7 +472,7 @@ export default function CreateListing() {
       return false;
     }
     if (!formData.city) {
-      toast.error('Introduce una ciudad');
+      toast.error('Introduce un municipio o ciudad');
       return false;
     }
     return true;
@@ -744,10 +763,10 @@ export default function CreateListing() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="city">Ciudad o municipio</Label>
+                    <Label htmlFor="city">Municipio o ciudad</Label>
                     <Input
                       id="city"
-                      placeholder="Ej: Madrid, Barcelona, Las Palmas..."
+                      placeholder="Ej: Madrid, Móstoles, Pinto, Cullera, Telde..."
                       value={formData.city}
                       maxLength={80}
                       onChange={(event) => setFormData({ ...formData, city: event.target.value })}
@@ -756,10 +775,10 @@ export default function CreateListing() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="neighborhood">Barrio o zona</Label>
+                    <Label htmlFor="neighborhood">Zona o barrio</Label>
                     <Input
                       id="neighborhood"
-                      placeholder="Ej: Vallecas, Malasaña, Gràcia..."
+                      placeholder="Ej: Centro, Malasaña, Vecindario, Gràcia..."
                       value={formData.neighborhood}
                       maxLength={NEIGHBORHOOD_MAX_LENGTH}
                       onChange={(event) => setFormData({ ...formData, neighborhood: event.target.value })}
@@ -976,8 +995,8 @@ export default function CreateListing() {
 
                     <div className="space-y-3 sm:col-span-2 rounded-xl border border-border/70 p-4">
                       <div>
-                        <Label>Servicios cercanos</Label>
-                        <p className="text-xs text-muted-foreground">Marca lo que hay cerca caminando.</p>
+                        <Label>Servicios y entorno cercano</Label>
+                        <p className="text-xs text-muted-foreground">Marca lo que hay cerca caminando o a pocos minutos.</p>
                       </div>
                       <div className="grid sm:grid-cols-2 gap-2">
                         {nearbyServiceOptions.map((option) => {
@@ -1015,7 +1034,7 @@ export default function CreateListing() {
                       <Textarea
                         id="locationNotes"
                         rows={3}
-                        placeholder="Ej: zona tranquila, supermercado a dos calles, buen acceso nocturno..."
+                        placeholder="Ej: lavandería a 3 minutos andando, supermercado a dos calles, buen acceso nocturno..."
                         value={formData.roomDetails.locationNotes}
                         onChange={(event) => setFormData({
                           ...formData,
@@ -1391,12 +1410,88 @@ export default function CreateListing() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label>Lavadora</Label>
+                      <Label>Lavadora disponible</Label>
                       <Select
                         value={formData.roomDetails.washingMachine}
                         onValueChange={(value) => setFormData({
                           ...formData,
                           roomDetails: { ...formData.roomDetails, washingMachine: value as RoomListingDetailsForm['washingMachine'] },
+                        })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Sin especificar" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="yes">Sí</SelectItem>
+                          <SelectItem value="no">No</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Secadora disponible</Label>
+                      <Select
+                        value={formData.roomDetails.dryerAvailable}
+                        onValueChange={(value) => setFormData({
+                          ...formData,
+                          roomDetails: { ...formData.roomDetails, dryerAvailable: value as RoomListingDetailsForm['dryerAvailable'] },
+                        })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Sin especificar" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="yes">Sí</SelectItem>
+                          <SelectItem value="no">No</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Zona para tender</Label>
+                      <Select
+                        value={formData.roomDetails.dryingArea}
+                        onValueChange={(value) => setFormData({
+                          ...formData,
+                          roomDetails: { ...formData.roomDetails, dryingArea: value as RoomListingDetailsForm['dryingArea'] },
+                        })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Sin especificar" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="yes">Sí</SelectItem>
+                          <SelectItem value="no">No</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Espacio para guardar maletas</Label>
+                      <Select
+                        value={formData.roomDetails.luggageStorage}
+                        onValueChange={(value) => setFormData({
+                          ...formData,
+                          roomDetails: { ...formData.roomDetails, luggageStorage: value as RoomListingDetailsForm['luggageStorage'] },
+                        })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Sin especificar" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="yes">Sí</SelectItem>
+                          <SelectItem value="no">No</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Trastero disponible</Label>
+                      <Select
+                        value={formData.roomDetails.storageRoomAvailable}
+                        onValueChange={(value) => setFormData({
+                          ...formData,
+                          roomDetails: { ...formData.roomDetails, storageRoomAvailable: value as RoomListingDetailsForm['storageRoomAvailable'] },
                         })}
                       >
                         <SelectTrigger>

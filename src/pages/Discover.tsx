@@ -510,7 +510,7 @@ export default function Discover() {
               </PopoverTrigger>
               <PopoverContent className="w-[200px] p-0 bg-popover z-50" align="start">
                 <Command>
-                  <CommandInput placeholder="Buscar ciudad..." />
+                  <CommandInput placeholder="Buscar municipio o ciudad..." />
                   <CommandList>
                     <CommandEmpty>No encontrada</CommandEmpty>
                     <CommandGroup>
