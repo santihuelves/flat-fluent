@@ -847,6 +847,10 @@ export type Database = {
       }
       convinter_enqueue_listing_doc_deletions: { Args: never; Returns: number }
       convinter_enqueue_selfie_deletions: { Args: never; Returns: number }
+      convinter_get_consent_state: {
+        Args: { p_other_user: string }
+        Returns: Json
+      }
       convinter_get_intentions: {
         Args: { p_profile_id?: string }
         Returns: Json
