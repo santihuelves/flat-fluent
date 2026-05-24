@@ -32,14 +32,26 @@ type ProfileDetailResponse = {
   user?: PublicProfileData;
 };
 
+type CompatibilityMismatch = {
+  question_id?: string;
+  a?: string;
+  b?: string;
+  sim?: number;
+};
+
 type CompatibilityData = {
   ok: boolean;
   score?: number;
   breakdown?: {
     reasons?: string[];
     friction?: string;
+    common_questions?: number;
+    mismatches?: CompatibilityMismatch[];
   };
   code?: string;
+  cached?: boolean;
+  detail_level?: number;
+  computed_at?: string;
 };
 
 type RpcInvoker = (
@@ -63,6 +75,10 @@ type RequestState = 'idle' | 'sending' | 'sent';
 const rpc = supabase.rpc.bind(supabase) as unknown as RpcInvoker;
 
 const getName = (profile: PublicProfileData) => profile.display_name || profile.handle || 'Usuario';
+
+const getCompatibilityDetailLevel = (consentLevel?: number | null) => (
+  Number(consentLevel ?? 0) >= 2 ? 2 : 1
+);
 
 const getErrorMessage = (code?: string) => {
   if (code === 'NOT_AUTHENTICATED') return 'Inicia sesión para ver este perfil.';
@@ -133,20 +149,26 @@ export default function PublicProfile() {
     return blocked;
   }, []);
 
-  const loadCompatibility = useCallback(async (userId: string) => {
+  const loadCompatibility = useCallback(async (userId: string, detailLevel = 1) => {
     setIsLoadingCompatibility(true);
     const { data, error: rpcError } = await supabase.rpc('convinter_compute_and_cache_guarded', {
       p_other_user: userId,
-      p_detail_level: 1,
+      p_detail_level: detailLevel,
     });
 
     if (rpcError) {
+      console.warn('Error computing compatibility:', rpcError);
       setCompatibility({ ok: false, code: rpcError.code });
       setIsLoadingCompatibility(false);
       return;
     }
 
-    setCompatibility(data as unknown as CompatibilityData);
+    const result = data as unknown as CompatibilityData;
+    if (!result.ok) {
+      console.warn('Compatibility calculation returned non-ok result:', result);
+    }
+
+    setCompatibility(result);
     setIsLoadingCompatibility(false);
   }, []);
 
@@ -219,7 +241,7 @@ export default function PublicProfile() {
 
     const state = await loadConsentState(result.user.user_id);
     if (state.state === 'active') {
-      void loadCompatibility(result.user.user_id);
+      void loadCompatibility(result.user.user_id, getCompatibilityDetailLevel(state.consent_level));
     }
   }, [id, loadBlockState, loadCompatibility, loadConsentState]);
 
@@ -289,7 +311,7 @@ export default function PublicProfile() {
         if (nextState === 'active') {
           setConsentRequestState('idle');
           toast.info('Ya teneis compatibilidad activa');
-          await loadCompatibility(profile.user_id);
+          await loadCompatibility(profile.user_id, getCompatibilityDetailLevel(result.consent_level));
           return;
         }
 
@@ -359,7 +381,7 @@ export default function PublicProfile() {
         consent_level: result.consent_level ?? consentState.requested_level ?? 1,
       });
       toast.success('Solicitud aceptada');
-      await loadCompatibility(profile.user_id);
+      await loadCompatibility(profile.user_id, getCompatibilityDetailLevel(result.consent_level ?? consentState.requested_level ?? 1));
     } else {
       setConsentState({
         ok: true,
@@ -404,12 +426,23 @@ export default function PublicProfile() {
   const reasons = compatibility?.breakdown?.reasons ?? [];
   const consentStatus = consentState?.state ?? 'none';
   const hasActiveConsent = consentStatus === 'active';
+  const hasCompatibilityResult = hasActiveConsent && compatibility?.ok === true;
+  const hasCompatibilityError = hasActiveConsent && compatibility?.ok === false;
+  const compatibilityScore = typeof compatibility?.score === 'number' && Number.isFinite(compatibility.score)
+    ? Math.round(compatibility.score)
+    : null;
+  const commonQuestions = typeof compatibility?.breakdown?.common_questions === 'number'
+    ? compatibility.breakdown.common_questions
+    : null;
+  const mismatches = compatibility?.breakdown?.mismatches ?? [];
   const isIncomingRequest = consentStatus === 'incoming_pending';
   const canRequestConsent = !isBlocked && !isLoadingConsentState && consentStatus === 'none' && consentRequestState === 'idle';
   const consentMessage = (() => {
     if (isBlocked) return 'Usuario bloqueado';
     if (isLoadingConsentState) return 'Comprobando consentimiento...';
-    if (hasActiveConsent) return compatibility?.ok ? 'Compatibilidad visible' : 'Compatibilidad activa';
+    if (hasCompatibilityResult) return 'Compatibilidad visible';
+    if (hasCompatibilityError) return 'Compatibilidad activa, pero todavia no se ha podido calcular el porcentaje.';
+    if (hasActiveConsent) return 'Calculando compatibilidad...';
     if (consentStatus === 'outgoing_pending') return 'Solicitud enviada';
     if (isIncomingRequest) return 'Solicitud de compatibilidad recibida';
     if (consentStatus === 'rejected') return 'Compatibilidad no disponible por ahora';
@@ -472,11 +505,11 @@ export default function PublicProfile() {
                   </div>
 
                   <div className="flex items-center gap-2">
-                    {isLoadingConsentState || (hasActiveConsent && isLoadingCompatibility) ? (
+                    {isLoadingConsentState || (hasActiveConsent && isLoadingCompatibility && !compatibility) ? (
                       <Loader2 className="h-5 w-5 animate-spin text-primary" />
-                    ) : hasActiveConsent && compatibility?.ok ? (
+                    ) : hasCompatibilityResult && compatibilityScore !== null ? (
                       <>
-                        <div className="text-3xl font-bold text-primary">{compatibility.score ?? 0}%</div>
+                        <div className="text-3xl font-bold text-primary">{compatibilityScore}%</div>
                         <div className="text-sm text-muted-foreground">compatibilidad</div>
                       </>
                     ) : (
@@ -534,22 +567,71 @@ export default function PublicProfile() {
           <Card>
             <CardContent className="p-6">
               <h2 className="font-semibold mb-3">Compatibilidad</h2>
-              {hasActiveConsent && compatibility?.ok ? (
-                <div className="space-y-2">
-                  {reasons.slice(0, 4).map((reason, index) => (
-                    <div key={`${reason}-${index}`} className="flex items-center gap-2 text-sm">
-                      <CheckCircle className="h-4 w-4 text-green-500" />
-                      <span>{reason}</span>
+              {hasCompatibilityResult ? (
+                <div className="space-y-4">
+                  <div className="flex flex-wrap items-center gap-2">
+                    {compatibilityScore !== null && (
+                      <Badge className="rounded-full">{compatibilityScore}% compatibilidad</Badge>
+                    )}
+                    {commonQuestions !== null && (
+                      <Badge variant="outline" className="rounded-full">
+                        {commonQuestions} respuestas comparadas
+                      </Badge>
+                    )}
+                    {compatibility?.cached && (
+                      <Badge variant="secondary" className="rounded-full">Calculado previamente</Badge>
+                    )}
+                  </div>
+
+                  {reasons.length > 0 && (
+                    <div className="space-y-2">
+                      {reasons.slice(0, 4).map((reason, index) => (
+                        <div key={`${reason}-${index}`} className="flex items-center gap-2 text-sm">
+                          <CheckCircle className="h-4 w-4 text-green-500" />
+                          <span>{reason}</span>
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  )}
+
                   {compatibility.breakdown?.friction && (
                     <div className="flex items-center gap-2 text-sm">
                       <AlertCircle className="h-4 w-4 text-amber-500" />
                       <span>{compatibility.breakdown.friction}</span>
                     </div>
                   )}
+
+                  {mismatches.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium">Puntos a hablar</p>
+                      {mismatches.slice(0, 4).map((item, index) => (
+                        <div key={`${item.question_id ?? 'mismatch'}-${index}`} className="rounded-xl border border-border p-3 text-sm text-muted-foreground">
+                          <p className="font-medium text-foreground">{item.question_id ?? 'Diferencia detectada'}</p>
+                          <p>
+                            Respuestas: {item.a ?? 'No indicado'} / {item.b ?? 'No indicado'}
+                            {typeof item.sim === 'number' ? ` · similitud ${Math.round(item.sim * 100)}%` : ''}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {reasons.length === 0 && !compatibility.breakdown?.friction && mismatches.length === 0 && (
+                    <p className="text-sm text-muted-foreground">
+                      Compatibilidad calculada. Aun no hay desglose disponible para este nivel de detalle.
+                    </p>
+                  )}
                 </div>
-              ) : hasActiveConsent && isLoadingCompatibility ? (
+              ) : hasCompatibilityError ? (
+                <div className="space-y-2">
+                  <p className="text-sm text-muted-foreground">
+                    Compatibilidad activa, pero todavia no se ha podido calcular el porcentaje.
+                  </p>
+                  {compatibility?.code && (
+                    <p className="text-xs text-muted-foreground">Codigo: {compatibility.code}</p>
+                  )}
+                </div>
+              ) : hasActiveConsent && (isLoadingCompatibility || compatibility === null) ? (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Loader2 className="h-4 w-4 animate-spin" />
                   Calculando compatibilidad...
