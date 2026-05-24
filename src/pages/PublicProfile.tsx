@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { AlertCircle, ArrowLeft, CheckCircle, Heart, Loader2, MapPin, MessageCircle, Shield } from 'lucide-react';
+import { AlertCircle, ArrowLeft, CheckCircle, Heart, Loader2, MapPin, MessageCircle, Shield, X } from 'lucide-react';
 import { Layout } from '@/components/layout/Layout';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -42,7 +42,25 @@ type CompatibilityData = {
   code?: string;
 };
 
+type RpcInvoker = (
+  fn: string,
+  args?: Record<string, unknown>
+) => Promise<{ data: unknown; error: { message?: string; code?: string } | null }>;
+
+type ConsentStateValue = 'none' | 'outgoing_pending' | 'incoming_pending' | 'active' | 'rejected';
+
+type ConsentStateData = {
+  ok: boolean;
+  code?: string;
+  state?: ConsentStateValue;
+  request_id?: number | null;
+  consent_level?: number | null;
+  requested_level?: number | null;
+};
+
 type RequestState = 'idle' | 'sending' | 'sent';
+
+const rpc = supabase.rpc.bind(supabase) as unknown as RpcInvoker;
 
 const getName = (profile: PublicProfileData) => profile.display_name || profile.handle || 'Usuario';
 
@@ -60,7 +78,10 @@ export default function PublicProfile() {
   const [compatibility, setCompatibility] = useState<CompatibilityData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingCompatibility, setIsLoadingCompatibility] = useState(false);
+  const [isLoadingConsentState, setIsLoadingConsentState] = useState(false);
   const [consentRequestState, setConsentRequestState] = useState<RequestState>('idle');
+  const [consentState, setConsentState] = useState<ConsentStateData | null>(null);
+  const [isRespondingConsent, setIsRespondingConsent] = useState(false);
   const [isOpeningChat, setIsOpeningChat] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isBlocked, setIsBlocked] = useState(false);
@@ -129,6 +150,33 @@ export default function PublicProfile() {
     setIsLoadingCompatibility(false);
   }, []);
 
+  const loadConsentState = useCallback(async (userId: string) => {
+    setIsLoadingConsentState(true);
+
+    const { data, error: rpcError } = await rpc('convinter_get_consent_state', {
+      p_other_user: userId,
+    });
+
+    if (rpcError) {
+      console.warn('Error loading consent state:', rpcError);
+      const fallback: ConsentStateData = { ok: false, code: rpcError.code };
+      setConsentState(fallback);
+      setConsentRequestState('idle');
+      setCompatibility(null);
+      setIsLoadingConsentState(false);
+      return fallback;
+    }
+
+    const result = data as ConsentStateData;
+    setConsentState(result);
+    setConsentRequestState(result.state === 'outgoing_pending' ? 'sent' : 'idle');
+    if (result.state !== 'active') {
+      setCompatibility(null);
+    }
+    setIsLoadingConsentState(false);
+    return result;
+  }, []);
+
   const loadProfile = useCallback(async () => {
     if (!id) {
       setError('Perfil no encontrado.');
@@ -138,6 +186,9 @@ export default function PublicProfile() {
 
     setIsLoading(true);
     setError(null);
+    setCompatibility(null);
+    setConsentState(null);
+    setConsentRequestState('idle');
 
     const { data, error: rpcError } = await supabase.rpc('convinter_get_profile_detail', {
       p_user: id,
@@ -166,8 +217,11 @@ export default function PublicProfile() {
       return;
     }
 
-    loadCompatibility(result.user.user_id);
-  }, [id, loadBlockState, loadCompatibility]);
+    const state = await loadConsentState(result.user.user_id);
+    if (state.state === 'active') {
+      void loadCompatibility(result.user.user_id);
+    }
+  }, [id, loadBlockState, loadCompatibility, loadConsentState]);
 
   useEffect(() => {
     loadProfile();
@@ -214,22 +268,54 @@ export default function PublicProfile() {
     setConsentRequestState('sending');
 
     try {
-      const { data, error: rpcError } = await supabase.rpc('convinter_request_consent', {
+      const { data, error: rpcError } = await rpc('convinter_request_consent', {
         p_to_user: profile.user_id,
         p_requested_level: 1,
       });
 
       if (rpcError) throw rpcError;
 
-      const result = data as unknown as { ok: boolean; code?: string };
+      const result = data as ConsentStateData;
       if (result.ok) {
+        const nextState = result.state ?? (
+          result.code === 'ALREADY_CONNECTED' ? 'active' :
+          result.code === 'PENDING_INCOMING' ? 'incoming_pending' :
+          result.code === 'PREVIOUSLY_REJECTED' ? 'rejected' :
+          'outgoing_pending'
+        );
+
+        setConsentState({ ...result, state: nextState });
+
+        if (nextState === 'active') {
+          setConsentRequestState('idle');
+          toast.info('Ya teneis compatibilidad activa');
+          await loadCompatibility(profile.user_id);
+          return;
+        }
+
+        if (nextState === 'incoming_pending') {
+          setConsentRequestState('idle');
+          setCompatibility(null);
+          toast.info('Ya tienes una solicitud recibida de este usuario');
+          return;
+        }
+
+        if (nextState === 'rejected') {
+          setConsentRequestState('idle');
+          setCompatibility(null);
+          toast.info('La solicitud fue rechazada anteriormente');
+          return;
+        }
+
         setConsentRequestState('sent');
-        toast.success('Solicitud de compatibilidad enviada');
+        setCompatibility(null);
+        toast.success(result.code === 'PENDING_OUTGOING' ? 'Ya habias enviado esta solicitud' : 'Solicitud de compatibilidad enviada');
         return;
       }
 
-      if (result.code === 'ALREADY_REQUESTED') {
+      if (result.code === 'ALREADY_REQUESTED' || result.code === 'PENDING_OUTGOING') {
         setConsentRequestState('sent');
+        setConsentState({ ok: true, state: 'outgoing_pending', code: result.code });
         toast.info('Ya habias enviado esta solicitud');
         return;
       }
@@ -240,6 +326,52 @@ export default function PublicProfile() {
       toast.error('No se pudo enviar la solicitud');
       setConsentRequestState('idle');
     }
+  };
+
+  const handleRespondConsent = async (accept: boolean) => {
+    if (!profile || !consentState?.request_id) return;
+    setIsRespondingConsent(true);
+
+    const { data, error: rpcError } = await supabase.rpc('convinter_respond_consent_request', {
+      p_request_id: consentState.request_id,
+      p_accept: accept,
+    });
+
+    if (rpcError) {
+      console.error('Error responding consent request:', rpcError);
+      toast.error('No se pudo responder la solicitud');
+      setIsRespondingConsent(false);
+      return;
+    }
+
+    const result = data as unknown as { ok: boolean; code?: string; consent_level?: number };
+    if (!result.ok) {
+      toast.error(result.code === 'REQUEST_NOT_FOUND' ? 'La solicitud ya no existe' : 'No se pudo responder la solicitud');
+      setIsRespondingConsent(false);
+      return;
+    }
+
+    if (accept) {
+      setConsentState({
+        ok: true,
+        state: 'active',
+        request_id: consentState.request_id,
+        consent_level: result.consent_level ?? consentState.requested_level ?? 1,
+      });
+      toast.success('Solicitud aceptada');
+      await loadCompatibility(profile.user_id);
+    } else {
+      setConsentState({
+        ok: true,
+        state: 'rejected',
+        request_id: consentState.request_id,
+        consent_level: 0,
+      });
+      setCompatibility(null);
+      toast.success('Solicitud rechazada');
+    }
+
+    setIsRespondingConsent(false);
   };
 
   if (isLoading) {
@@ -270,6 +402,28 @@ export default function PublicProfile() {
 
   const name = getName(profile);
   const reasons = compatibility?.breakdown?.reasons ?? [];
+  const consentStatus = consentState?.state ?? 'none';
+  const hasActiveConsent = consentStatus === 'active';
+  const isIncomingRequest = consentStatus === 'incoming_pending';
+  const canRequestConsent = !isBlocked && !isLoadingConsentState && consentStatus === 'none' && consentRequestState === 'idle';
+  const consentMessage = (() => {
+    if (isBlocked) return 'Usuario bloqueado';
+    if (isLoadingConsentState) return 'Comprobando consentimiento...';
+    if (hasActiveConsent) return compatibility?.ok ? 'Compatibilidad visible' : 'Compatibilidad activa';
+    if (consentStatus === 'outgoing_pending') return 'Solicitud enviada';
+    if (isIncomingRequest) return 'Solicitud de compatibilidad recibida';
+    if (consentStatus === 'rejected') return 'Compatibilidad no disponible por ahora';
+    return 'Pide compatibilidad para comparar vuestros habitos de convivencia';
+  })();
+  const requestButtonLabel = (() => {
+    if (isBlocked) return 'Usuario bloqueado';
+    if (isLoadingConsentState) return 'Comprobando...';
+    if (hasActiveConsent) return 'Compatibilidad visible';
+    if (consentStatus === 'outgoing_pending' || consentRequestState === 'sent') return 'Solicitud enviada';
+    if (consentStatus === 'rejected') return 'Solicitud rechazada';
+    if (consentRequestState === 'sending') return 'Enviando...';
+    return 'Pedir compatibilidad';
+  })();
 
   return (
     <Layout>
@@ -318,9 +472,9 @@ export default function PublicProfile() {
                   </div>
 
                   <div className="flex items-center gap-2">
-                    {isLoadingCompatibility ? (
+                    {isLoadingConsentState || (hasActiveConsent && isLoadingCompatibility) ? (
                       <Loader2 className="h-5 w-5 animate-spin text-primary" />
-                    ) : compatibility?.ok ? (
+                    ) : hasActiveConsent && compatibility?.ok ? (
                       <>
                         <div className="text-3xl font-bold text-primary">{compatibility.score ?? 0}%</div>
                         <div className="text-sm text-muted-foreground">compatibilidad</div>
@@ -328,16 +482,38 @@ export default function PublicProfile() {
                     ) : (
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         <AlertCircle className="h-4 w-4" />
-                        {isBlocked ? 'Usuario bloqueado' : 'Compatibilidad pendiente de consentimiento'}
+                        {consentMessage}
                       </div>
                     )}
                   </div>
 
                   <div className="flex gap-2">
-                    <Button className="flex-1" onClick={handleRequestConsent} disabled={isBlocked || compatibility?.ok || consentRequestState !== 'idle'}>
-                      {consentRequestState === 'sending' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Heart className="mr-2 h-4 w-4" />}
-                      {isBlocked ? 'Usuario bloqueado' : compatibility?.ok ? 'Compatibilidad visible' : consentRequestState === 'sent' ? 'Solicitud enviada' : consentRequestState === 'sending' ? 'Enviando...' : 'Pedir compatibilidad'}
-                    </Button>
+                    {isIncomingRequest ? (
+                      <>
+                        <Button
+                          variant="outline"
+                          className="flex-1"
+                          onClick={() => void handleRespondConsent(false)}
+                          disabled={isRespondingConsent}
+                        >
+                          {isRespondingConsent ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <X className="mr-2 h-4 w-4" />}
+                          Rechazar
+                        </Button>
+                        <Button
+                          className="flex-1"
+                          onClick={() => void handleRespondConsent(true)}
+                          disabled={isRespondingConsent}
+                        >
+                          {isRespondingConsent ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
+                          Aceptar
+                        </Button>
+                      </>
+                    ) : (
+                      <Button className="flex-1" onClick={handleRequestConsent} disabled={!canRequestConsent}>
+                        {consentRequestState === 'sending' || isLoadingConsentState ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Heart className="mr-2 h-4 w-4" />}
+                        {requestButtonLabel}
+                      </Button>
+                    )}
                     <Button variant="outline" className="flex-1" onClick={handleMessage} disabled={isBlocked || isOpeningChat}>
                       {isOpeningChat ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <MessageCircle className="mr-2 h-4 w-4" />}
                       Mensaje
@@ -358,7 +534,7 @@ export default function PublicProfile() {
           <Card>
             <CardContent className="p-6">
               <h2 className="font-semibold mb-3">Compatibilidad</h2>
-              {compatibility?.ok ? (
+              {hasActiveConsent && compatibility?.ok ? (
                 <div className="space-y-2">
                   {reasons.slice(0, 4).map((reason, index) => (
                     <div key={`${reason}-${index}`} className="flex items-center gap-2 text-sm">
@@ -373,8 +549,13 @@ export default function PublicProfile() {
                     </div>
                   )}
                 </div>
+              ) : hasActiveConsent && isLoadingCompatibility ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Calculando compatibilidad...
+                </div>
               ) : (
-                <p className="text-sm text-muted-foreground">Pide compatibilidad para comparar vuestros hábitos de convivencia.</p>
+                <p className="text-sm text-muted-foreground">{consentMessage}</p>
               )}
             </CardContent>
           </Card>
