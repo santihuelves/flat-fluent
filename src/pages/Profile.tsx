@@ -48,7 +48,7 @@ interface ProfileData {
   trust_score: number;
   trust_badge: string;
   selfie_verified: boolean;
-  // Campos opcionales para test exhaustivo (pueden no existir en la DB aún)
+  // Campos legacy de test; el test principal actual es full_test_completed.
   quick_test_completed?: boolean | null;
   quick_test_completed_at?: string | null;
   full_test_completed?: boolean | null;
@@ -203,6 +203,7 @@ export default function Profile() {
       profile.min_stay_months ||
       profile.occupation
   );
+  const hasLivingProfile = lifestyleTags.length > 0 || hasPracticalDetails || Boolean(profile.bio);
 
   const budgetLabel =
     profile.budget_min && profile.budget_max
@@ -512,20 +513,20 @@ export default function Profile() {
             </div>
           </motion.div>
 
-          {/* Test Status */}
+          {/* Compatibility profile and test status */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
             className={`glass-card rounded-2xl p-6 mb-6 border-2 ${
-              profile.full_test_completed ? 'border-success/30' : profile.quick_test_completed ? 'border-primary/30' : 'border-accent/30'
+              profile.full_test_completed ? 'border-success/30' : hasLivingProfile ? 'border-primary/30' : 'border-accent/30'
             }`}
           >
             <div className="flex items-start gap-4">
               <div className={`flex items-center justify-center w-12 h-12 rounded-xl ${
-                profile.full_test_completed ? 'bg-success/10 text-success' : profile.quick_test_completed ? 'bg-primary/10 text-primary' : 'bg-accent/10 text-accent'
+                profile.full_test_completed ? 'bg-success/10 text-success' : hasLivingProfile ? 'bg-primary/10 text-primary' : 'bg-accent/10 text-accent'
               }`}>
-                {profile.full_test_completed || profile.quick_test_completed ? (
+                {profile.full_test_completed || hasLivingProfile ? (
                   <CheckCircle className="h-6 w-6" />
                 ) : (
                   <AlertCircle className="h-6 w-6" />
@@ -534,27 +535,22 @@ export default function Profile() {
               <div className="flex-1">
                 <h3 className="font-semibold">{t('profile.testStatus')}</h3>
                 
-                {/* Quick Test Status */}
+                {/* Living profile status */}
                 <div className="mt-2">
-                  {profile.quick_test_completed ? (
+                  {hasLivingProfile ? (
                     <div className="flex items-center gap-2 text-sm">
                       <CheckCircle className="h-4 w-4 text-success" />
-                      <span>{t('profile.testQuickCompleted')}</span>
-                      {profile.quick_test_completed_at && (
-                        <span className="text-muted-foreground text-xs">
-                          ({new Date(profile.quick_test_completed_at).toLocaleDateString()})
-                        </span>
-                      )}
+                      <span>{t('profile.livingProfileCompleted')}</span>
                     </div>
                   ) : (
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <AlertCircle className="h-4 w-4" />
-                      <span>{t('profile.testQuickPending')}</span>
+                      <span>{t('profile.livingProfilePending')}</span>
                     </div>
                   )}
                 </div>
 
-                {/* Full Test Status */}
+                {/* Compatibility test status */}
                 <div className="mt-2">
                   {profile.full_test_completed ? (
                     <div className="flex items-center gap-2 text-sm">
@@ -578,7 +574,7 @@ export default function Profile() {
                 {profile.full_test_requested_at && !profile.full_test_completed && (
                   <div className="mt-3 p-3 rounded-lg bg-primary/10 border border-primary/30">
                     <p className="text-sm text-primary font-medium">
-                      💬 {t('profile.testFullRequested')}
+                      {t('profile.testFullRequested')}
                     </p>
                     <p className="text-xs text-muted-foreground mt-1">
                       {t('profile.testFullRequestedDate')} {new Date(profile.full_test_requested_at).toLocaleDateString()}
@@ -588,17 +584,9 @@ export default function Profile() {
 
                 {/* Action Buttons */}
                 <div className="flex gap-2 mt-3">
-                  {!profile.quick_test_completed && (
+                  {!profile.full_test_completed && (
                     <Link to="/test">
                       <Button variant="hero" size="sm" className="gap-2">
-                        <FileText className="h-4 w-4" />
-                        {t('profile.completeQuickTest')}
-                      </Button>
-                    </Link>
-                  )}
-                  {profile.quick_test_completed && !profile.full_test_completed && (
-                    <Link to="/test">
-                      <Button variant="outline" size="sm" className="gap-2">
                         <FileText className="h-4 w-4" />
                         {t('profile.completeFullTest')}
                       </Button>

@@ -95,7 +95,7 @@
     "title": "Mi Perfil",
     "edit": "Editar perfil",
     "about": "Sobre mí",
-    "testStatus": "Test de compatibilidad",
+    "testStatus": "Perfil y compatibilidad",
     "testDone": "Has completado el test de compatibilidad",
     "testNotDone": "Completa el test para mejorar tus matches",
     "takeTest": "Hacer el test",
@@ -151,26 +151,28 @@
       "silver": "Silver",
       "bronze": "Bronze"
     },
-    "testQuickCompleted": "Test rápido completado",
-    "testQuickPending": "Test rápido pendiente",
-    "testFullCompleted": "Test exhaustivo completado",
-    "testFullPending": "Test exhaustivo pendiente",
-    "testFullRequested": "Alguien ha solicitado que completes el test exhaustivo",
+    "testQuickCompleted": "Perfil de convivencia completado",
+    "testQuickPending": "Perfil de convivencia pendiente",
+    "livingProfileCompleted": "Perfil de convivencia completado",
+    "livingProfilePending": "Perfil de convivencia pendiente",
+    "testFullCompleted": "Test de compatibilidad completado",
+    "testFullPending": "Test de compatibilidad pendiente",
+    "testFullRequested": "Alguien te ha invitado a completar el test de compatibilidad",
     "testFullRequestedDate": "Solicitud recibida el",
-    "completeQuickTest": "Completar test rápido",
-    "completeFullTest": "Completar test exhaustivo",
+    "completeQuickTest": "Completar perfil de convivencia",
+    "completeFullTest": "Completar test de compatibilidad",
     "errorLoading": "Error al cargar el perfil",
     "errorCreating": "Error al crear el perfil"
   },
   "test": {
     "title": "Test de Convivencia",
     "subtitle": "Responde honestamente. Esto nos ayuda a encontrar tu match perfecto.",
-    "modeSubtitle": "Elige entre test rápido o exhaustivo",
+    "modeSubtitle": "Completa el test de compatibilidad",
     "modes": {
-      "quick": "Test rápido (~3 min)",
-      "full": "Test exhaustivo (~5-8 min)"
+      "quick": "Perfil de convivencia",
+      "full": "Test de compatibilidad (~5-8 min)"
     },
-    "tipQuick": "Rápido y orientativo. Úsalo si solo quieres una primera impresión.",
+    "tipQuick": "El perfil de convivencia ya recoge tus preferencias principales.",
     "tipFull": "Más de 30 preguntas para compatibilidad real. Recomendado.",
     "tip": "Responde como VIVES, no como te gustaría vivir.",
     "categories": {

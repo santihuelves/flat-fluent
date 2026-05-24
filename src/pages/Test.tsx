@@ -293,7 +293,7 @@ export default function Test() {
 
       if (profileError) throw profileError;
 
-      toast.success('Test avanzado guardado.');
+      toast.success('Test de compatibilidad guardado.');
       if (nextRoute === 'create-listing' && requestedListingType) {
         navigate(`/create-listing?type=${requestedListingType}`);
       } else {
@@ -332,7 +332,7 @@ export default function Test() {
     <Layout showMobileNav={false}>
       <div className="container max-w-3xl py-8">
         <div className="mb-8">
-          <p className="text-sm text-muted-foreground">Test avanzado</p>
+          <p className="text-sm text-muted-foreground">Test de compatibilidad</p>
           <h1 className="mt-1 text-3xl font-bold text-foreground">Situaciones reales de convivencia</h1>
           <p className="mt-3 text-muted-foreground">
             Ahora veremos cómo reaccionarías en casos reales del día a día. No hay respuestas buenas o malas: buscamos personas compatibles contigo.
@@ -354,7 +354,7 @@ export default function Test() {
         >
           <AlertTriangle className="mt-0.5 h-5 w-5 flex-shrink-0 text-accent" />
           <p className="text-sm text-muted-foreground">
-            El perfil rápido ya recoge tus preferencias declaradas. Este test mide comunicación, límites y tolerancia en situaciones concretas.
+            Tu perfil de convivencia ya recoge tus preferencias declaradas. Este test mide comunicación, límites y tolerancia en situaciones concretas.
           </p>
         </motion.div>
 

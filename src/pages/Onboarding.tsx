@@ -422,7 +422,7 @@ const Onboarding = () => {
           ? 'Completa nombre, edad, zona, precio y disponibilidad.'
           : 'Completa nombre, edad, zona, presupuesto y disponibilidad.';
       case 3:
-        return 'Elige tu estilo de convivencia rápido para crear tus primeras compatibilidades.';
+        return 'Elige tu estilo de convivencia para crear tus primeras compatibilidades.';
       case 4:
         return 'Añade idiomas y una descripción corta de al menos 20 caracteres.';
       default:

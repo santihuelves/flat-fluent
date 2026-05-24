@@ -95,7 +95,7 @@
     "title": "My Profile",
     "edit": "Edit profile",
     "about": "About me",
-    "testStatus": "Compatibility test",
+    "testStatus": "Profile and compatibility",
     "testDone": "You have completed the compatibility test",
     "testNotDone": "Complete the test to improve your matches",
     "takeTest": "Take the test",
@@ -151,26 +151,28 @@
       "silver": "Silver",
       "bronze": "Bronze"
     },
-    "testQuickCompleted": "Quick test completed",
-    "testQuickPending": "Quick test pending",
-    "testFullCompleted": "Full test completed",
-    "testFullPending": "Full test pending",
-    "testFullRequested": "Someone has requested you complete the full test",
+    "testQuickCompleted": "Living profile completed",
+    "testQuickPending": "Living profile pending",
+    "livingProfileCompleted": "Living profile completed",
+    "livingProfilePending": "Living profile pending",
+    "testFullCompleted": "Compatibility test completed",
+    "testFullPending": "Compatibility test pending",
+    "testFullRequested": "Someone invited you to complete the compatibility test",
     "testFullRequestedDate": "Request received on",
-    "completeQuickTest": "Complete quick test",
-    "completeFullTest": "Complete full test",
+    "completeQuickTest": "Complete living profile",
+    "completeFullTest": "Complete compatibility test",
     "errorLoading": "Error loading profile",
     "errorCreating": "Error creating profile"
   },
   "test": {
     "title": "Cohabitation Test",
     "subtitle": "Answer honestly. This helps us find your perfect match.",
-    "modeSubtitle": "Pick quick or full test",
+    "modeSubtitle": "Complete the compatibility test",
     "modes": {
-      "quick": "Quick test (~3 min)",
-      "full": "Full test (~5-8 min)"
+      "quick": "Living profile",
+      "full": "Compatibility test (~5-8 min)"
     },
-    "tipQuick": "Fast and indicative. Use it if you just want a first impression.",
+    "tipQuick": "Your living profile already stores your main preferences.",
     "tipFull": "30+ questions for real compatibility. Recommended.",
     "tip": "Answer how you LIVE, not how you'd like to live.",
     "categories": {

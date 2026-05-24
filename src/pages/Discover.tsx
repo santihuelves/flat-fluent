@@ -402,10 +402,10 @@ export default function Discover() {
       if (!result.ok) throw new Error(result.code || 'REQUEST_FAILED');
 
       setFullTestRequests(prev => ({ ...prev, [currentProfile.user_id]: 'sent' }));
-      toast.success('Solicitud de test exhaustivo enviada');
+      toast.success('Invitacion para completar el test enviada');
     } catch (error) {
-      console.error('Error requesting full test:', error);
-      toast.error('Error al solicitar test exhaustivo');
+      console.error('Error requesting compatibility test:', error);
+      toast.error('Error al invitar a completar el test');
       setFullTestRequests(prev => ({ ...prev, [currentProfile.user_id]: 'idle' }));
     }
   };
@@ -774,15 +774,11 @@ export default function Discover() {
                   )}
                   {currentProfile.full_test_completed ? (
                     <Badge variant="default" className="rounded-full bg-success/20 text-success border-success/30">
-                      ✓ Test exhaustivo
-                    </Badge>
-                  ) : currentProfile.quick_test_completed ? (
-                    <Badge variant="default" className="rounded-full bg-primary/20 text-primary border-primary/30">
-                      ✓ Test rápido
+                      ✓ Test de compatibilidad
                     </Badge>
                   ) : (
                     <Badge variant="outline" className="rounded-full text-muted-foreground">
-                      Sin test
+                      Test pendiente
                     </Badge>
                   )}
                   {currentProfile.languages?.map((lang, i) => (
@@ -851,12 +847,12 @@ export default function Discover() {
                   </div>
                 )}
 
-                {/* Request Full Test */}
-                {currentProfile.quick_test_completed && !currentProfile.full_test_completed && (
+                {/* Request compatibility test */}
+                {!currentProfile.full_test_completed && (
                   <div className="p-4 rounded-lg bg-primary/10 border border-primary/30 text-center">
                     <FileText className="h-8 w-8 mx-auto mb-2 text-primary" />
                     <p className="text-sm text-muted-foreground mb-3">
-                      Este usuario solo ha completado el test rápido. Puedes pedirle que complete el exhaustivo para mayor precisión.
+                      Este usuario todavia no ha completado el test de compatibilidad. Puedes invitarle a hacerlo para mejorar la precision.
                     </p>
                     <Button
                       variant="outline"
@@ -866,7 +862,7 @@ export default function Discover() {
                       className="gap-2"
                     >
                       {currentFullTestRequestState === 'sending' && <Loader2 className="h-4 w-4 animate-spin" />}
-                      {currentFullTestRequestState === 'sent' ? 'Solicitud enviada' : currentFullTestRequestState === 'sending' ? 'Enviando...' : 'Solicitar test exhaustivo'}
+                      {currentFullTestRequestState === 'sent' ? 'Invitacion enviada' : currentFullTestRequestState === 'sending' ? 'Enviando...' : 'Invitar a completar test'}
                     </Button>
                   </div>
                 )}
