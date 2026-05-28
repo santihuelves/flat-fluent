@@ -61,12 +61,16 @@ type ListingDetailResponse = {
 
 type CompatibilityData = {
   ok: boolean;
-  score?: number;
+  score?: number | null;
+  can_show_score?: boolean;
+  common_questions?: number;
   breakdown?: {
     reasons?: string[];
     friction?: string;
+    common_questions?: number;
   };
   code?: string;
+  message?: string;
 };
 
 type OwnerConnectionState = 'unknown' | 'none' | 'incoming' | 'outgoing' | 'connected';
@@ -452,6 +456,24 @@ export default function ListingDetail() {
   const photos = getListingPhotos(listing);
   const activePhoto = photos[Math.min(activePhotoIndex, photos.length - 1)] || '/placeholder.svg';
   const compatibilityReasons = compatibility?.breakdown?.reasons ?? [];
+  const commonQuestions = typeof compatibility?.common_questions === 'number'
+    ? compatibility.common_questions
+    : typeof compatibility?.breakdown?.common_questions === 'number'
+    ? compatibility.breakdown.common_questions
+    : null;
+  const hasEnoughCommonQuestions = typeof commonQuestions === 'number' && commonQuestions >= 8;
+  const compatibilityScore =
+    compatibility?.ok &&
+    compatibility.can_show_score !== false &&
+    hasEnoughCommonQuestions &&
+    typeof compatibility.score === 'number' &&
+    Number.isFinite(compatibility.score)
+      ? Math.round(compatibility.score)
+      : null;
+  const hasDetailedCompatibility = compatibilityScore !== null;
+  const hasInsufficientCommonAnswers =
+    (compatibility?.ok === false && compatibility.code === 'INSUFFICIENT_COMMON_ANSWERS') ||
+    (compatibility?.ok === true && commonQuestions !== null && !hasEnoughCommonQuestions);
   const isOwner = currentUserId === owner.user_id;
   const isListingPaused = listing.status === 'paused';
   const isListingDeleted = listing.status === 'deleted';
@@ -819,22 +841,26 @@ export default function ListingDetail() {
                     <div className="text-center mb-4">
                       {isLoadingCompatibility ? (
                         <Loader2 className="h-6 w-6 animate-spin text-primary mx-auto" />
-                      ) : compatibility?.ok ? (
+                      ) : hasDetailedCompatibility ? (
                         <>
-                          <div className="text-3xl font-bold text-primary mb-1">{compatibility.score ?? 0}%</div>
+                          <div className="text-3xl font-bold text-primary mb-1">{compatibilityScore}%</div>
                           <p className="text-sm text-muted-foreground">Compatibilidad</p>
                         </>
                       ) : (
                         <>
                           <AlertCircle className="h-6 w-6 text-muted-foreground mx-auto mb-2" />
                           <p className="text-sm text-muted-foreground">
-                            {isBlocked ? 'Usuario bloqueado' : 'Compatibilidad pendiente de consentimiento'}
+                            {isBlocked
+                              ? 'Usuario bloqueado'
+                              : hasInsufficientCommonAnswers
+                                ? compatibility.message || 'No hay suficientes respuestas comunes para calcular la compatibilidad detallada.'
+                                : 'Compatibilidad pendiente de consentimiento'}
                           </p>
                         </>
                       )}
                     </div>
 
-                    {compatibility?.ok && (
+                    {hasDetailedCompatibility && (
                       <>
                         <Separator className="my-4" />
                         <div className="space-y-3">

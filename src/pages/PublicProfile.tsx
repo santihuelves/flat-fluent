@@ -41,7 +41,9 @@ type CompatibilityMismatch = {
 
 type CompatibilityData = {
   ok: boolean;
-  score?: number;
+  score?: number | null;
+  can_show_score?: boolean;
+  common_questions?: number;
   breakdown?: {
     reasons?: string[];
     friction?: string;
@@ -49,6 +51,7 @@ type CompatibilityData = {
     mismatches?: CompatibilityMismatch[];
   };
   code?: string;
+  message?: string;
   cached?: boolean;
   detail_level?: number;
   computed_at?: string;
@@ -426,13 +429,25 @@ export default function PublicProfile() {
   const reasons = compatibility?.breakdown?.reasons ?? [];
   const consentStatus = consentState?.state ?? 'none';
   const hasActiveConsent = consentStatus === 'active';
-  const hasCompatibilityResult = hasActiveConsent && compatibility?.ok === true;
+  const commonQuestions = typeof compatibility?.common_questions === 'number'
+    ? compatibility.common_questions
+    : typeof compatibility?.breakdown?.common_questions === 'number'
+    ? compatibility.breakdown.common_questions
+    : null;
+  const hasEnoughCommonQuestions = typeof commonQuestions === 'number' && commonQuestions >= 8;
+  const hasDetailedCompatibilityScore =
+    compatibility?.ok === true &&
+    compatibility.can_show_score !== false &&
+    hasEnoughCommonQuestions &&
+    typeof compatibility.score === 'number' &&
+    Number.isFinite(compatibility.score);
+  const hasCompatibilityResult = hasActiveConsent && hasDetailedCompatibilityScore;
   const hasCompatibilityError = hasActiveConsent && compatibility?.ok === false;
+  const hasInsufficientCommonAnswers =
+    (hasCompatibilityError && compatibility?.code === 'INSUFFICIENT_COMMON_ANSWERS') ||
+    (hasActiveConsent && compatibility?.ok === true && commonQuestions !== null && !hasEnoughCommonQuestions);
   const compatibilityScore = typeof compatibility?.score === 'number' && Number.isFinite(compatibility.score)
     ? Math.round(compatibility.score)
-    : null;
-  const commonQuestions = typeof compatibility?.breakdown?.common_questions === 'number'
-    ? compatibility.breakdown.common_questions
     : null;
   const mismatches = compatibility?.breakdown?.mismatches ?? [];
   const isIncomingRequest = consentStatus === 'incoming_pending';
@@ -441,6 +456,7 @@ export default function PublicProfile() {
     if (isBlocked) return 'Usuario bloqueado';
     if (isLoadingConsentState) return 'Comprobando consentimiento...';
     if (hasCompatibilityResult) return 'Compatibilidad visible';
+    if (hasInsufficientCommonAnswers) return 'No hay suficientes respuestas comunes para calcular la compatibilidad detallada.';
     if (hasCompatibilityError) return 'Compatibilidad activa, pero todavia no se ha podido calcular el porcentaje.';
     if (hasActiveConsent) return 'Calculando compatibilidad...';
     if (consentStatus === 'outgoing_pending') return 'Solicitud enviada';
@@ -625,8 +641,15 @@ export default function PublicProfile() {
               ) : hasCompatibilityError ? (
                 <div className="space-y-2">
                   <p className="text-sm text-muted-foreground">
-                    Compatibilidad activa, pero todavia no se ha podido calcular el porcentaje.
+                    {hasInsufficientCommonAnswers
+                      ? compatibility.message || 'No hay suficientes respuestas comunes para calcular la compatibilidad detallada.'
+                      : 'Compatibilidad activa, pero todavia no se ha podido calcular el porcentaje.'}
                   </p>
+                  {hasInsufficientCommonAnswers && commonQuestions !== null && (
+                    <p className="text-xs text-muted-foreground">
+                      {commonQuestions} respuestas comunes encontradas.
+                    </p>
+                  )}
                   {compatibility?.code && (
                     <p className="text-xs text-muted-foreground">Codigo: {compatibility.code}</p>
                   )}
