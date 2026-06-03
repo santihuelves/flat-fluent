@@ -66,6 +66,22 @@ export const depositMonthsOptions = [
   { value: 'to_agree', label: 'A concretar' },
 ] as const;
 
+export const MIN_STAY_MIN_MONTHS = 1;
+export const MIN_STAY_MAX_MONTHS = 24;
+export const MIN_STAY_INDEFINITE_VALUE = 25;
+
+export const formatMinStayLabel = (months: number | null | undefined, fallback = 'Flexible') => {
+  if (!months) return fallback;
+  if (months > MIN_STAY_MAX_MONTHS) return 'Por tiempo indefinido';
+  return months === 1 ? '1 mes' : `${months} meses`;
+};
+
+export const getMinStaySliderValue = (value: string | number | null | undefined) => {
+  const months = Number(value);
+  if (!Number.isFinite(months) || months < MIN_STAY_MIN_MONTHS) return 6;
+  return Math.min(months, MIN_STAY_INDEFINITE_VALUE);
+};
+
 export const cleaningPolicyOptions = [
   { value: 'shared', label: 'Limpieza compartida' },
   { value: 'schedule', label: 'Turnos de limpieza' },

@@ -30,7 +30,7 @@ import { Slider } from '@/components/ui/slider';
 import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/integrations/supabase/client';
 import type { Tables } from '@/integrations/supabase/types';
-import { bathroomUsePolicyOptions, buildRoomListingDetailsFromForm, cleaningPolicyOptions, contractAvailableOptions, depositMonthsOptions, getRoomListingCardHighlights, getRoomListingLocationLabel, roomListingDetailsFormFromDetails, homeEnvironmentOptions, homeFloorOptions, homeOrientationOptions, householdGenderMixOptions, householdOccupationOptions, kitchenEquipmentOptions, kitchenUsePolicyOptions, livingRoomUsePolicyOptions, nearbyServiceOptions, normalizeRoomListingDetails, noticePeriodOptions, occupancyPolicyOptions, partyPolicyOptions, preferredGenderOptions, quietHoursPolicyOptions, registrationAllowedOptions, remoteWorkPolicyOptions, roomBathroomOptions, roomFurnitureOptions, roomFurnishingStatusOptions, roomLockOptions, roomNaturalLightOptions, roomOrientationOptions, roomWindowOptions, stripLegacyNeighborhoodFromDescription, visitsPolicyOptions, type RoomListingDetailsForm } from '@/lib/listingDetails';
+import { MIN_STAY_INDEFINITE_VALUE, MIN_STAY_MAX_MONTHS, MIN_STAY_MIN_MONTHS, bathroomUsePolicyOptions, buildRoomListingDetailsFromForm, cleaningPolicyOptions, contractAvailableOptions, depositMonthsOptions, formatMinStayLabel, getMinStaySliderValue, getRoomListingCardHighlights, getRoomListingLocationLabel, roomListingDetailsFormFromDetails, homeEnvironmentOptions, homeFloorOptions, homeOrientationOptions, householdGenderMixOptions, householdOccupationOptions, kitchenEquipmentOptions, kitchenUsePolicyOptions, livingRoomUsePolicyOptions, nearbyServiceOptions, normalizeRoomListingDetails, noticePeriodOptions, occupancyPolicyOptions, partyPolicyOptions, preferredGenderOptions, quietHoursPolicyOptions, registrationAllowedOptions, remoteWorkPolicyOptions, roomBathroomOptions, roomFurnitureOptions, roomFurnishingStatusOptions, roomLockOptions, roomNaturalLightOptions, roomOrientationOptions, roomWindowOptions, stripLegacyNeighborhoodFromDescription, visitsPolicyOptions, type RoomListingDetailsForm } from '@/lib/listingDetails';
 import { AUTONOMOUS_COMMUNITIES, PROVINCES } from '@/lib/profileOptions';
 import { toast } from 'sonner';
 import { useSEO } from '@/hooks/useSEO';
@@ -108,7 +108,7 @@ const formatUpdatedAt = (date: string | null) => {
 };
 
 const getListingTypeLabel = (listingType: Listing['listing_type']) => (
-  listingType === 'room' ? 'Habitación disponible' : 'Busca compañero/a para alquilar juntos'
+  listingType === 'room' ? 'Habitación disponible' : 'Anuncio antiguo'
 );
 
 const getListingImage = (listing: Listing) => {
@@ -734,7 +734,7 @@ export default function MyListings() {
                         </div>
                         <div className="flex items-center gap-2">
                           <Home className="h-4 w-4 text-primary" />
-                          <span>{listing.min_stay_months ? `${listing.min_stay_months} meses` : 'Sin mínimo'}</span>
+                          <span>{formatMinStayLabel(listing.min_stay_months, 'Sin mínimo')}</span>
                         </div>
                       </div>
 
@@ -1575,21 +1575,27 @@ export default function MyListings() {
                       />
                     </div>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="listing-min-stay">Estancia mínima</Label>
-                      <Select value={editForm.minStay} onValueChange={(value) => setEditForm({ ...editForm, minStay: value })} disabled={saving}>
-                        <SelectTrigger id="listing-min-stay">
-                          <SelectValue placeholder="Sin mínimo" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="1">1 mes</SelectItem>
-                          <SelectItem value="2">2 meses</SelectItem>
-                          <SelectItem value="3">3 meses</SelectItem>
-                          <SelectItem value="4">4 meses</SelectItem>
-                          <SelectItem value="5">5 meses</SelectItem>
-                          <SelectItem value="6">6 meses</SelectItem>
-                        </SelectContent>
-                      </Select>
+                    <div className="space-y-4 rounded-xl border border-border/70 p-4">
+                      <div className="flex items-center justify-between gap-4">
+                        <Label htmlFor="listing-min-stay">Estancia mínima</Label>
+                        <span className="text-sm font-medium">
+                          {formatMinStayLabel(getMinStaySliderValue(editForm.minStay))}
+                        </span>
+                      </div>
+                      <Slider
+                        id="listing-min-stay"
+                        min={MIN_STAY_MIN_MONTHS}
+                        max={MIN_STAY_INDEFINITE_VALUE}
+                        step={1}
+                        value={[getMinStaySliderValue(editForm.minStay)]}
+                        onValueChange={([value]) => setEditForm({ ...editForm, minStay: String(value) })}
+                        disabled={saving}
+                      />
+                      <div className="flex justify-between text-xs text-muted-foreground">
+                        <span>{MIN_STAY_MIN_MONTHS} mes</span>
+                        <span>{MIN_STAY_MAX_MONTHS} meses</span>
+                        <span>Indefinido</span>
+                      </div>
                     </div>
 
                     <div className="space-y-2">
@@ -1795,21 +1801,27 @@ export default function MyListings() {
                         />
                       </div>
 
-                      <div className="space-y-2">
-                        <Label htmlFor="listing-min-stay">Estancia mínima</Label>
-                        <Select value={editForm.minStay} onValueChange={(value) => setEditForm({ ...editForm, minStay: value })} disabled={saving}>
-                          <SelectTrigger id="listing-min-stay">
-                            <SelectValue placeholder="Sin mínimo" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="1">1 mes</SelectItem>
-                            <SelectItem value="2">2 meses</SelectItem>
-                            <SelectItem value="3">3 meses</SelectItem>
-                            <SelectItem value="4">4 meses</SelectItem>
-                            <SelectItem value="5">5 meses</SelectItem>
-                            <SelectItem value="6">6 meses</SelectItem>
-                          </SelectContent>
-                        </Select>
+                      <div className="space-y-4 rounded-xl border border-border/70 p-4">
+                        <div className="flex items-center justify-between gap-4">
+                          <Label htmlFor="listing-min-stay">Estancia mínima</Label>
+                          <span className="text-sm font-medium">
+                            {formatMinStayLabel(getMinStaySliderValue(editForm.minStay))}
+                          </span>
+                        </div>
+                        <Slider
+                          id="listing-min-stay"
+                          min={MIN_STAY_MIN_MONTHS}
+                          max={MIN_STAY_INDEFINITE_VALUE}
+                          step={1}
+                          value={[getMinStaySliderValue(editForm.minStay)]}
+                          onValueChange={([value]) => setEditForm({ ...editForm, minStay: String(value) })}
+                          disabled={saving}
+                        />
+                        <div className="flex justify-between text-xs text-muted-foreground">
+                          <span>{MIN_STAY_MIN_MONTHS} mes</span>
+                          <span>{MIN_STAY_MAX_MONTHS} meses</span>
+                          <span>Indefinido</span>
+                        </div>
                       </div>
                     </>
                   )}

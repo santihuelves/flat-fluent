@@ -1,7 +1,7 @@
 ﻿import { ChangeEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Home, Loader2, Upload, Users, X } from 'lucide-react';
+import { ArrowLeft, Home, Key, Loader2, Search, Upload, X } from 'lucide-react';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -11,20 +11,20 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Slider } from '@/components/ui/slider';
 import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/integrations/supabase/client';
-import { bathroomUsePolicyOptions, buildRoomListingDetailsFromForm, cleaningPolicyOptions, contractAvailableOptions, depositMonthsOptions, emptyRoomListingDetailsForm, homeEnvironmentOptions, homeFloorOptions, homeOrientationOptions, householdGenderMixOptions, householdOccupationOptions, kitchenEquipmentOptions, kitchenUsePolicyOptions, livingRoomUsePolicyOptions, nearbyServiceOptions, noticePeriodOptions, occupancyPolicyOptions, partyPolicyOptions, preferredGenderOptions, quietHoursPolicyOptions, registrationAllowedOptions, remoteWorkPolicyOptions, roomBathroomOptions, roomFurnitureOptions, roomFurnishingStatusOptions, roomLockOptions, roomNaturalLightOptions, roomOrientationOptions, roomWindowOptions, visitsPolicyOptions, type RoomListingDetailsForm } from '@/lib/listingDetails';
+import { MIN_STAY_INDEFINITE_VALUE, MIN_STAY_MAX_MONTHS, MIN_STAY_MIN_MONTHS, bathroomUsePolicyOptions, buildRoomListingDetailsFromForm, cleaningPolicyOptions, contractAvailableOptions, depositMonthsOptions, emptyRoomListingDetailsForm, formatMinStayLabel, getMinStaySliderValue, homeEnvironmentOptions, homeFloorOptions, homeOrientationOptions, householdGenderMixOptions, householdOccupationOptions, kitchenEquipmentOptions, kitchenUsePolicyOptions, livingRoomUsePolicyOptions, nearbyServiceOptions, noticePeriodOptions, occupancyPolicyOptions, partyPolicyOptions, preferredGenderOptions, quietHoursPolicyOptions, registrationAllowedOptions, remoteWorkPolicyOptions, roomBathroomOptions, roomFurnitureOptions, roomFurnishingStatusOptions, roomLockOptions, roomNaturalLightOptions, roomOrientationOptions, roomWindowOptions, visitsPolicyOptions, type RoomListingDetailsForm } from '@/lib/listingDetails';
 import { AUTONOMOUS_COMMUNITIES, PROVINCES } from '@/lib/profileOptions';
 import { toast } from 'sonner';
 import { useSEO } from '@/hooks/useSEO';
 
 const listingTypes = [
-  { value: 'offer_room', rpcType: 'room', label: 'Ofrezco habitación', icon: Home, description: 'Tengo una habitación disponible' },
-  { value: 'seek_flatmate', rpcType: 'flatmate', label: 'Busco compañero/a', icon: Users, description: 'Busco compañero/a para alquilar juntos' },
+  { value: 'offer_room', rpcType: 'room', label: 'Ofrezco habitación', icon: Key, description: 'Publica una habitación concreta que tienes disponible' },
+  { value: 'seek_room', rpcType: null, label: 'Busco habitación', icon: Search, description: 'Prepara una búsqueda de habitación sin mezclarla con una oferta' },
 ] as const;
 
 type ListingKind = typeof listingTypes[number]['value'];
 
 const getListingKindFromParam = (value: string | null): ListingKind | null =>
-  listingTypes.some((type) => type.value === value) ? value as ListingKind : null;
+  value === 'offer_room' || value === 'seek_room' ? value : null;
 
 const TITLE_MIN_LENGTH = 10;
 const TITLE_MAX_LENGTH = 80;
@@ -218,6 +218,66 @@ const mapRemoteWorkPolicy = (remoteWork: string | null | undefined) => {
   }
 };
 
+const syncOfferRoomIntention = async (
+  userId: string,
+  listingId: string,
+  formData: FormData
+) => {
+  const details = {
+    source: 'listing_created',
+    listing_id: listingId,
+    city: formData.city || null,
+    province: formData.province || null,
+    price_monthly: formData.price ? Number(formData.price) : null,
+    available_from: formData.availableDate || null,
+    min_stay_months: formData.minStay ? Number(formData.minStay) : null,
+  };
+
+  const { error: intentionError } = await supabase.rpc('convinter_set_intention', {
+    p_intention_type: 'offer_room',
+    p_is_primary: true,
+    p_urgency: 'flexible',
+    p_details: details,
+  });
+
+  if (intentionError) {
+    console.warn('Could not sync offer_room intention after listing creation:', intentionError);
+  }
+
+  const { error: profileError } = await supabase
+    .from('profiles')
+    .update({ user_type: 'offering_room' })
+    .eq('id', userId);
+
+  if (profileError) {
+    console.warn('Could not sync profile user_type after listing creation:', profileError);
+  }
+};
+
+const syncSeekRoomIntention = async (userId: string) => {
+  const { error: intentionError } = await supabase.rpc('convinter_set_intention', {
+    p_intention_type: 'seek_room',
+    p_is_primary: true,
+    p_urgency: 'flexible',
+    p_details: {
+      source: 'create_listing_seek_room_path',
+    },
+  });
+
+  if (intentionError) {
+    console.warn('Could not sync seek_room intention from create listing:', intentionError);
+  }
+
+  const { error: profileError } = await supabase
+    .from('profiles')
+    .update({ user_type: 'seeking_room' })
+    .eq('id', userId);
+
+  if (profileError) {
+    console.warn('Could not sync profile user_type for seek_room:', profileError);
+  }
+};
+
 export default function CreateListing() {
   useSEO({ page: 'createListing', noIndex: true });
 
@@ -227,6 +287,7 @@ export default function CreateListing() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const hasUserEditedFormRef = useRef(false);
   const [step, setStep] = useState(requestedListingType ? 2 : 1);
+  const [typeStepSkipped, setTypeStepSkipped] = useState(Boolean(requestedListingType));
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [profilePrefillApplied, setProfilePrefillApplied] = useState(false);
   const [photoFiles, setPhotoFiles] = useState<File[]>([]);
@@ -248,7 +309,8 @@ export default function CreateListing() {
   });
 
   const selectedType = listingTypes.find((type) => type.value === formData.type);
-  const isFlatmateListing = selectedType?.rpcType === 'flatmate';
+  const isFlatmateListing = false;
+  const progressSteps = typeStepSkipped ? [2, 3] : [1, 2, 3];
 
   const previews = useMemo(() => photoFiles.map((file) => ({
     file,
@@ -271,6 +333,7 @@ export default function CreateListing() {
       };
     });
     setStep((current) => Math.max(current, 2));
+    setTypeStepSkipped(true);
   }, [requestedListingType]);
 
   useEffect(() => {
@@ -344,7 +407,7 @@ export default function CreateListing() {
             roomDetails: nextRoomDetails,
           };
 
-          if (hasOfferGoal && !next.type) {
+          if (requestedListingType === 'offer_room' && hasOfferGoal && !next.type) {
             next.type = 'offer_room';
             applied = true;
           }
@@ -387,6 +450,11 @@ export default function CreateListing() {
 
           return next;
         });
+
+        if (requestedListingType === 'offer_room' && hasOfferGoal) {
+          setTypeStepSkipped(true);
+          setStep((current) => Math.max(current, 2));
+        }
       } catch (error) {
         console.warn('Unexpected error preloading listing form from profile:', error);
       }
@@ -397,10 +465,11 @@ export default function CreateListing() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [requestedListingType]);
 
   const handleTypeSelect = (type: ListingKind) => {
     hasUserEditedFormRef.current = true;
+    setTypeStepSkipped(false);
     setFormData({
       ...formData,
       type,
@@ -410,6 +479,20 @@ export default function CreateListing() {
       },
     });
     setStep(2);
+  };
+
+  const handleBack = () => {
+    if (step > 2) {
+      setStep((current) => current - 1);
+      return;
+    }
+
+    if (step === 2 && !typeStepSkipped) {
+      setStep(1);
+      return;
+    }
+
+    navigate('/listings');
   };
 
   const handlePhotosSelected = (event: ChangeEvent<HTMLInputElement>) => {
@@ -554,7 +637,7 @@ export default function CreateListing() {
   };
 
   const handleSubmit = async () => {
-    if (!selectedType || !validateStepTwo() || !validateDetails()) return;
+    if (!selectedType || selectedType.rpcType !== 'room' || !validateStepTwo() || !validateDetails()) return;
 
     setIsSubmitting(true);
 
@@ -600,6 +683,10 @@ export default function CreateListing() {
         return;
       }
 
+      if (formData.type === 'offer_room') {
+        await syncOfferRoomIntention(user.id, result.listing_id, formData);
+      }
+
       toast.success('Anuncio creado correctamente', {
         description: 'Tu anuncio ya está visible para otros usuarios.',
       });
@@ -607,6 +694,32 @@ export default function CreateListing() {
     } catch (error) {
       console.error('Error creating listing:', error);
       toast.error('No se pudo crear el anuncio');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleSeekRoomDiscovery = async () => {
+    setIsSubmitting(true);
+
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      const user = userData.user;
+
+      if (!user) {
+        toast.error('Inicia sesión para guardar tu búsqueda');
+        navigate('/login');
+        return;
+      }
+
+      await syncSeekRoomIntention(user.id);
+      toast.success('Búsqueda guardada', {
+        description: 'Ya puedes encontrar personas afines que buscan habitación.',
+      });
+      navigate('/discover');
+    } catch (error) {
+      console.error('Error syncing seek room intention:', error);
+      toast.error('No se pudo guardar la búsqueda');
     } finally {
       setIsSubmitting(false);
     }
@@ -626,15 +739,15 @@ export default function CreateListing() {
         <Button
           variant="ghost"
           className="mb-6"
-          onClick={() => step > 1 ? setStep(step - 1) : navigate('/listings')}
+          onClick={handleBack}
           disabled={isSubmitting}
         >
           <ArrowLeft className="mr-2 h-4 w-4" />
-          {step > 1 ? 'Anterior' : 'Volver a anuncios'}
+          {step > 1 && !typeStepSkipped ? 'Anterior' : 'Volver a anuncios'}
         </Button>
 
         <div className="flex gap-2 mb-8">
-          {[1, 2, 3].map((currentStep) => (
+          {progressSteps.map((currentStep) => (
             <div
               key={currentStep}
               className={`h-2 flex-1 rounded-full transition-colors ${currentStep <= step ? 'bg-primary' : 'bg-muted'}`}
@@ -642,7 +755,7 @@ export default function CreateListing() {
           ))}
         </div>
 
-        {profilePrefillApplied && (
+        {profilePrefillApplied && step > 1 && formData.type === 'offer_room' && (
           <div className="mb-6 rounded-xl border border-primary/20 bg-primary/5 p-4 text-sm text-muted-foreground">
             Hemos usado algunos datos de tu perfil para ahorrar tiempo. Puedes cambiarlos para este anuncio.
           </div>
@@ -651,9 +764,9 @@ export default function CreateListing() {
         {step === 1 && (
           <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}>
             <h1 className="text-3xl font-bold mb-2">Crear anuncio</h1>
-            <p className="text-muted-foreground mb-8">¿Qué tipo de anuncio quieres publicar?</p>
+            <p className="text-muted-foreground mb-8">Elige qué vas a publicar ahora.</p>
             <p className="mb-4 rounded-xl border border-border bg-muted/30 p-4 text-sm text-muted-foreground">
-              Tu perfil puede tener varias intenciones, pero cada anuncio debe tener un objetivo claro para que los filtros y las búsquedas funcionen bien.
+              Tu perfil de convivencia queda separado. Aquí eliges si vas a ofrecer una habitación concreta o preparar una búsqueda de habitación.
             </p>
 
             <div className="grid gap-4">
@@ -678,15 +791,50 @@ export default function CreateListing() {
           </motion.div>
         )}
 
-        {step === 2 && (
+        {step === 2 && formData.type === 'seek_room' && (
+          <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}>
+            <h1 className="text-3xl font-bold mb-2">Busco habitación</h1>
+            <p className="text-muted-foreground mb-8">
+              Esta opción debe ser un anuncio de búsqueda, distinto del formulario para ofrecer una habitación.
+            </p>
+
+            <div className="space-y-5 rounded-2xl border border-border bg-background p-6">
+              <div className="flex items-start gap-4">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+                  <Search className="h-6 w-6" />
+                </div>
+                <div className="space-y-2">
+                  <h2 className="text-xl font-semibold">Siguiente microtarea: formulario de búsqueda</h2>
+                  <p className="text-sm text-muted-foreground">
+                    Para no mezclar conceptos, este camino no abre el formulario de "ofrezco habitación". Aquí construiremos los campos propios de quien busca: zona, presupuesto, disponibilidad, tipo de casa y preferencias.
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Button variant="outline" onClick={() => setStep(1)}>
+                  Elegir otra opción
+                </Button>
+                <Button variant="hero" onClick={handleSeekRoomDiscovery} disabled={isSubmitting}>
+                  {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                  Guardar búsqueda y conocer personas
+                </Button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {step === 2 && formData.type === 'offer_room' && (
           <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}>
             <h1 className="text-3xl font-bold mb-2">Información básica</h1>
-            <p className="text-muted-foreground mb-8">{isFlatmateListing ? 'Cuéntanos qué tipo de compañero/a buscas para alquilar juntos' : 'Cuéntanos más sobre tu habitación disponible'}</p>
+            <p className="text-muted-foreground mb-8">Cuéntanos más sobre tu habitación disponible</p>
 
             <div className="space-y-6">
               <div className="space-y-4 rounded-xl border border-border p-4">
                 <div>
-                  <h2 className="font-semibold">Información del anuncio</h2>
+                  <h2 className="font-semibold">
+                    Información del anuncio
+                  </h2>
                   <p className="text-sm text-muted-foreground">
                     Resume la habitación y su ubicación. No hace falta publicar una dirección exacta.
                   </p>
@@ -696,7 +844,7 @@ export default function CreateListing() {
                   <Label htmlFor="title">Título del anuncio</Label>
                   <Input
                     id="title"
-                    placeholder={isFlatmateListing ? 'Ej: Busco compañero/a tranquilo/a para alquilar juntos en Madrid' : 'Ej: Habitación luminosa cerca del metro'}
+                    placeholder="Ej: Habitación luminosa cerca del metro"
                     value={formData.title}
                     maxLength={TITLE_MAX_LENGTH}
                     onChange={(event) => setFormData({ ...formData, title: event.target.value })}
@@ -710,7 +858,7 @@ export default function CreateListing() {
                   <Label htmlFor="description">Descripción general</Label>
                   <Textarea
                     id="description"
-                    placeholder={isFlatmateListing ? 'Describe qué tipo de convivencia buscas, presupuesto, zonas y tiempos para alquilar juntos...' : 'Cuenta brevemente qué hace especial la habitación, el piso o la convivencia.'}
+                    placeholder="Cuenta brevemente qué hace especial la habitación, el piso o la convivencia."
                     rows={5}
                     value={formData.description}
                     maxLength={DESCRIPTION_MAX_LENGTH}
@@ -788,27 +936,25 @@ export default function CreateListing() {
                     </p>
                   </div>
 
-                  {!isFlatmateListing && (
-                    <div className="space-y-2 sm:col-span-2">
-                      <Label htmlFor="addressHint">Dirección aproximada del inmueble</Label>
-                      <Input
-                        id="addressHint"
-                        placeholder="Ej: cerca del metro Puente de Vallecas, zona avenida de la Albufera"
-                        value={formData.roomDetails.addressHint}
-                        maxLength={ADDRESS_HINT_MAX_LENGTH}
-                        onChange={(event) => setFormData({
-                          ...formData,
-                          roomDetails: { ...formData.roomDetails, addressHint: event.target.value },
-                        })}
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        Evita portal, piso o datos demasiado exactos. Se mostrará como referencia aproximada.
-                      </p>
-                      <p className="text-xs text-muted-foreground text-right">
-                        {formData.roomDetails.addressHint.length}/{ADDRESS_HINT_MAX_LENGTH}
-                      </p>
-                    </div>
-                  )}
+                  <div className="space-y-2 sm:col-span-2">
+                    <Label htmlFor="addressHint">Dirección aproximada del inmueble</Label>
+                    <Input
+                      id="addressHint"
+                      placeholder="Ej: cerca del metro Puente de Vallecas, zona avenida de la Albufera"
+                      value={formData.roomDetails.addressHint}
+                      maxLength={ADDRESS_HINT_MAX_LENGTH}
+                      onChange={(event) => setFormData({
+                        ...formData,
+                        roomDetails: { ...formData.roomDetails, addressHint: event.target.value },
+                      })}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Evita portal, piso o datos demasiado exactos. Se mostrará como referencia aproximada.
+                    </p>
+                    <p className="text-xs text-muted-foreground text-right">
+                      {formData.roomDetails.addressHint.length}/{ADDRESS_HINT_MAX_LENGTH}
+                    </p>
+                  </div>
                 </div>
               </div>
 
@@ -821,8 +967,12 @@ export default function CreateListing() {
 
         {step === 3 && (
           <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}>
-            <h1 className="text-3xl font-bold mb-2">Detalles y fotos</h1>
-            <p className="text-muted-foreground mb-8">Añade los últimos detalles</p>
+            <h1 className="text-3xl font-bold mb-2">
+              Detalles y fotos
+            </h1>
+            <p className="text-muted-foreground mb-8">
+              Añade los últimos detalles
+            </p>
 
             <div className="space-y-6">
               {!isFlatmateListing && (
@@ -890,21 +1040,26 @@ export default function CreateListing() {
                       />
                     </div>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="minStay">Estancia mínima</Label>
-                      <Select value={formData.minStay} onValueChange={(value) => setFormData({ ...formData, minStay: value })}>
-                        <SelectTrigger id="minStay">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="1">1 mes</SelectItem>
-                          <SelectItem value="2">2 meses</SelectItem>
-                          <SelectItem value="3">3 meses</SelectItem>
-                          <SelectItem value="4">4 meses</SelectItem>
-                          <SelectItem value="5">5 meses</SelectItem>
-                          <SelectItem value="6">6 meses</SelectItem>
-                        </SelectContent>
-                      </Select>
+                    <div className="space-y-4 rounded-xl border border-border/70 p-4">
+                      <div className="flex items-center justify-between gap-4">
+                        <Label htmlFor="minStay">Estancia mínima</Label>
+                        <span className="text-sm font-medium">
+                          {formatMinStayLabel(getMinStaySliderValue(formData.minStay))}
+                        </span>
+                      </div>
+                      <Slider
+                        id="minStay"
+                        min={MIN_STAY_MIN_MONTHS}
+                        max={MIN_STAY_INDEFINITE_VALUE}
+                        step={1}
+                        value={[getMinStaySliderValue(formData.minStay)]}
+                        onValueChange={([value]) => setFormData({ ...formData, minStay: String(value) })}
+                      />
+                      <div className="flex justify-between text-xs text-muted-foreground">
+                        <span>{MIN_STAY_MIN_MONTHS} mes</span>
+                        <span>{MIN_STAY_MAX_MONTHS} meses</span>
+                        <span>Indefinido</span>
+                      </div>
                     </div>
 
                     <div className="space-y-2">
@@ -1048,13 +1203,19 @@ export default function CreateListing() {
 
               <div className="space-y-4 rounded-xl border border-border p-4">
                 <div>
-                  <h2 className="font-semibold">Precio y gastos</h2>
-                  <p className="text-sm text-muted-foreground">Define el coste principal del anuncio.</p>
+                  <h2 className="font-semibold">
+                    Precio y gastos
+                  </h2>
+                  <p className="text-sm text-muted-foreground">
+                    Define el coste principal del anuncio.
+                  </p>
                 </div>
 
                 <div className="grid sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="price">Precio mensual (€)</Label>
+                    <Label htmlFor="price">
+                      Precio mensual (€)
+                    </Label>
                     <Input
                       id="price"
                       type="number"
@@ -1079,144 +1240,111 @@ export default function CreateListing() {
                         <SelectItem value="no">No</SelectItem>
                       </SelectContent>
                     </Select>
-                    <p className="text-sm text-muted-foreground">Agua, luz, internet...</p>
+                    <p className="text-sm text-muted-foreground">
+                      Agua, luz, internet...
+                    </p>
                   </div>
 
-                  {!isFlatmateListing && (
-                    <>
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between gap-4">
-                          <Label>Gastos estimados mensuales</Label>
-                          <span className="text-sm font-medium">{expensesEstimateValue}€/mes</span>
-                        </div>
-                        <Slider
-                          min={0}
-                          max={EXPENSES_ESTIMATE_MAX}
-                          step={5}
-                          value={[expensesEstimateValue]}
-                          onValueChange={([value]) => setFormData({
-                            ...formData,
-                            roomDetails: { ...formData.roomDetails, expensesEstimateMonthly: String(value) },
-                          })}
-                        />
-                        <div className="flex justify-between text-xs text-muted-foreground">
-                          <span>0€</span>
-                          <span>{EXPENSES_ESTIMATE_MAX}€</span>
-                        </div>
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label>Fianza</Label>
-                        <Select
-                          value={formData.roomDetails.depositMonths}
-                          onValueChange={(value) => setFormData({
-                            ...formData,
-                            roomDetails: { ...formData.roomDetails, depositMonths: value },
-                          })}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecciona una opción" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {depositMonthsOptions.map((option) => (
-                              <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label>Contrato</Label>
-                        <Select
-                          value={formData.roomDetails.contractAvailable}
-                          onValueChange={(value) => setFormData({
-                            ...formData,
-                            roomDetails: { ...formData.roomDetails, contractAvailable: value },
-                          })}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecciona una opción" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {contractAvailableOptions.map((option) => (
-                              <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label>Empadronamiento</Label>
-                        <Select
-                          value={formData.roomDetails.registrationAllowed}
-                          onValueChange={(value) => setFormData({
-                            ...formData,
-                            roomDetails: { ...formData.roomDetails, registrationAllowed: value },
-                          })}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecciona una opción" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {registrationAllowedOptions.map((option) => (
-                              <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label>Preaviso para dejar la habitación</Label>
-                        <Select
-                          value={formData.roomDetails.noticePeriod}
-                          onValueChange={(value) => setFormData({
-                            ...formData,
-                            roomDetails: { ...formData.roomDetails, noticePeriod: value },
-                          })}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecciona una opción" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {noticePeriodOptions.map((option) => (
-                              <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </>
-                  )}
-
-                  {isFlatmateListing && (
-                    <>
-                      <div className="space-y-2">
-                        <Label htmlFor="availableDate">Disponible desde</Label>
-                        <Input
-                          id="availableDate"
-                          type="date"
-                          value={formData.availableDate}
-                          onChange={(event) => setFormData({ ...formData, availableDate: event.target.value })}
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="minStay">Estancia mínima</Label>
-                        <Select value={formData.minStay} onValueChange={(value) => setFormData({ ...formData, minStay: value })}>
-                          <SelectTrigger id="minStay">
-                            <SelectValue />
-                          </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="1">1 mes</SelectItem>
-                          <SelectItem value="2">2 meses</SelectItem>
-                          <SelectItem value="3">3 meses</SelectItem>
-                          <SelectItem value="4">4 meses</SelectItem>
-                          <SelectItem value="5">5 meses</SelectItem>
-                          <SelectItem value="6">6 meses</SelectItem>
-                        </SelectContent>
-                      </Select>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between gap-4">
+                      <Label>Gastos estimados mensuales</Label>
+                      <span className="text-sm font-medium">{expensesEstimateValue}€/mes</span>
                     </div>
-                    </>
-                  )}
+                    <Slider
+                      min={0}
+                      max={EXPENSES_ESTIMATE_MAX}
+                      step={5}
+                      value={[expensesEstimateValue]}
+                      onValueChange={([value]) => setFormData({
+                        ...formData,
+                        roomDetails: { ...formData.roomDetails, expensesEstimateMonthly: String(value) },
+                      })}
+                    />
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>0€</span>
+                      <span>{EXPENSES_ESTIMATE_MAX}€</span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Fianza</Label>
+                    <Select
+                      value={formData.roomDetails.depositMonths}
+                      onValueChange={(value) => setFormData({
+                        ...formData,
+                        roomDetails: { ...formData.roomDetails, depositMonths: value },
+                      })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecciona una opción" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {depositMonthsOptions.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Contrato</Label>
+                    <Select
+                      value={formData.roomDetails.contractAvailable}
+                      onValueChange={(value) => setFormData({
+                        ...formData,
+                        roomDetails: { ...formData.roomDetails, contractAvailable: value },
+                      })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecciona una opción" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {contractAvailableOptions.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Empadronamiento</Label>
+                    <Select
+                      value={formData.roomDetails.registrationAllowed}
+                      onValueChange={(value) => setFormData({
+                        ...formData,
+                        roomDetails: { ...formData.roomDetails, registrationAllowed: value },
+                      })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecciona una opción" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {registrationAllowedOptions.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Preaviso para dejar la habitación</Label>
+                    <Select
+                      value={formData.roomDetails.noticePeriod}
+                      onValueChange={(value) => setFormData({
+                        ...formData,
+                        roomDetails: { ...formData.roomDetails, noticePeriod: value },
+                      })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecciona una opción" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {noticePeriodOptions.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
               </div>
 
@@ -2088,7 +2216,9 @@ export default function CreateListing() {
               <div className="space-y-4 rounded-xl border border-border p-4">
                 <div>
                   <h2 className="font-semibold">Fotos del anuncio</h2>
-                  <p className="text-sm text-muted-foreground">Añade imágenes claras para que otros usuarios entiendan mejor el espacio.</p>
+                  <p className="text-sm text-muted-foreground">
+                    Añade imágenes claras para que otros usuarios entiendan mejor el espacio.
+                  </p>
                 </div>
                 <input
                   ref={fileInputRef}

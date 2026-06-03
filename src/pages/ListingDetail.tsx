@@ -11,7 +11,7 @@ import { Separator } from '@/components/ui/separator';
 import { SafetyActions } from '@/components/SafetyActions';
 import { supabase } from '@/integrations/supabase/client';
 import type { Json } from '@/integrations/supabase/types';
-import { getRoomListingBedroomItems, getRoomListingDetailItems, getRoomListingHousingItems, getRoomListingLocationItems, getRoomListingMoneyItems, normalizeRoomListingDetails, occupancyPolicyOptions, preferredGenderOptions } from '@/lib/listingDetails';
+import { formatMinStayLabel, getRoomListingBedroomItems, getRoomListingDetailItems, getRoomListingHousingItems, getRoomListingLocationItems, getRoomListingMoneyItems, normalizeRoomListingDetails, occupancyPolicyOptions, preferredGenderOptions } from '@/lib/listingDetails';
 import { toast } from 'sonner';
 import { useSEO } from '@/hooks/useSEO';
 
@@ -506,7 +506,7 @@ export default function ListingDetail() {
     ? [
         preferredAgeLabel ? { label: 'Edad', value: preferredAgeLabel } : null,
         preferredGenderLabel ? { label: 'Género', value: preferredGenderLabel } : null,
-        { label: 'Estancia mínima', value: listing.min_stay_months ? `${listing.min_stay_months} meses` : 'Flexible' },
+        { label: 'Estancia mínima', value: formatMinStayLabel(listing.min_stay_months) },
         { label: 'Disponible', value: formatAvailability(listing.available_from) },
         occupancyLabel ? { label: 'Disponible para', value: occupancyLabel } : null,
         typeof roomDetails.allows_minors === 'boolean'
@@ -582,7 +582,7 @@ export default function ListingDetail() {
                     ) : (
                       <>
                         <Users className="w-3 h-3 mr-1" />
-                        Busca compañero/a para alquilar juntos
+                        Anuncio antiguo
                       </>
                     )}
                   </Badge>

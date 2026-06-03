@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+﻿import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Calendar, Check, Euro, Home, Loader2, MapPin, Plus, Search as SearchIcon, ShieldCheck, SlidersHorizontal, Users, X } from 'lucide-react';
@@ -12,14 +12,13 @@ import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import type { Json } from '@/integrations/supabase/types';
-import { getRoomListingCardHighlights, getRoomListingLocationLabel, normalizeRoomListingDetails, stripLegacyNeighborhoodFromDescription } from '@/lib/listingDetails';
+import { MIN_STAY_MAX_MONTHS, formatMinStayLabel, getRoomListingCardHighlights, getRoomListingLocationLabel, normalizeRoomListingDetails, stripLegacyNeighborhoodFromDescription } from '@/lib/listingDetails';
 import { toast } from 'sonner';
 import { useSEO } from '@/hooks/useSEO';
 
-type ListingType = 'room' | 'flatmate';
+type ListingType = 'room';
 
 type ListingOwner = {
   user_id: string;
@@ -75,7 +74,8 @@ const formatDate = (date: string | null) => {
 
 const getMinStayLabel = (months: number | null) => {
   if (!months) return 'Estancia flexible';
-  return months === 1 ? '1 mes mínimo' : `${months} meses mínimo`;
+  if (months > MIN_STAY_MAX_MONTHS) return formatMinStayLabel(months);
+  return `${formatMinStayLabel(months)} mínimo`;
 };
 
 const getOccupancyLabel = (policy: string | undefined) => {
@@ -94,7 +94,6 @@ export default function Listings() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCity, setSelectedCity] = useState<string | null>(null);
   const [priceRange, setPriceRange] = useState<[number, number]>([MIN_PRICE, MAX_PRICE]);
-  const [activeTab, setActiveTab] = useState<'all' | 'offer' | 'seek'>('all');
   const [cityOpen, setCityOpen] = useState(false);
   const [priceOpen, setPriceOpen] = useState(false);
   const [advancedOpen, setAdvancedOpen] = useState(false);
@@ -120,8 +119,6 @@ export default function Listings() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const listingType = activeTab === 'offer' ? 'room' : activeTab === 'seek' ? 'flatmate' : null;
-
   const loadListings = useCallback(async () => {
     setIsLoading(true);
     setError(null);
@@ -130,7 +127,7 @@ export default function Listings() {
 
     const { data, error: rpcError } = await supabase.rpc('convinter_search_listings', {
       p_city: selectedCity,
-      p_listing_type: listingType,
+      p_listing_type: 'room',
       p_price_min: hasCustomPriceRange ? priceRange[0] : null,
       p_price_max: hasCustomPriceRange ? priceRange[1] : null,
       p_bills_included: billsIncludedOnly ? true : null,
@@ -189,7 +186,7 @@ export default function Listings() {
     }
     setTotal(result.total ?? result.items?.length ?? 0);
     setIsLoading(false);
-  }, [billsIncludedOnly, listingType, listingVerifiedOnly, minTrustScore, ownerVerifiedOnly, priceRange, selectedCity]);
+  }, [billsIncludedOnly, listingVerifiedOnly, minTrustScore, ownerVerifiedOnly, priceRange, selectedCity]);
 
   useEffect(() => {
     loadListings();
@@ -212,7 +209,7 @@ export default function Listings() {
     today.setHours(0, 0, 0, 0);
 
     const advancedFilteredListings = searchedListings.filter((listing) => {
-      const roomDetails = normalizeRoomListingDetails(listing.listing_type === 'room' ? listing.details : null);
+      const roomDetails = normalizeRoomListingDetails(listing.details);
       const isRoomListing = listing.listing_type === 'room';
       const hasPhotos = Boolean(listing.thumbnail_url) || Boolean(listing.photos?.length);
       const availableFrom = listing.available_from ? new Date(`${listing.available_from}T00:00:00`) : null;
@@ -290,13 +287,12 @@ export default function Listings() {
     minTrustScore > 0,
   ].filter(Boolean).length;
   const hasAdvancedFilters = advancedFilterCount > 0;
-  const hasActiveFilters = searchTerm || selectedCity || priceRange[0] !== MIN_PRICE || priceRange[1] !== MAX_PRICE || activeTab !== 'all' || hasAdvancedFilters || sortMode !== 'recommended';
+  const hasActiveFilters = searchTerm || selectedCity || priceRange[0] !== MIN_PRICE || priceRange[1] !== MAX_PRICE || hasAdvancedFilters || sortMode !== 'recommended';
 
   const clearFilters = () => {
     setSearchTerm('');
     setSelectedCity(null);
     setPriceRange([MIN_PRICE, MAX_PRICE]);
-    setActiveTab('all');
     setBillsIncludedOnly(false);
     setListingVerifiedOnly(false);
     setOwnerVerifiedOnly(false);
@@ -319,26 +315,17 @@ export default function Listings() {
   const ListingCard = ({ listing }: { listing: ListingSummary }) => {
     const ownerName = getOwnerName(listing.owner);
     const image = listing.thumbnail_url || '/placeholder.svg';
-    const roomDetails = normalizeRoomListingDetails(listing.listing_type === 'room' ? listing.details : null);
-    const locationLabel = listing.listing_type === 'room'
-      ? getRoomListingLocationLabel(roomDetails, listing.city)
-      : listing.city || 'Municipio o ciudad no indicado';
+    const roomDetails = normalizeRoomListingDetails(listing.details);
+    const locationLabel = getRoomListingLocationLabel(roomDetails, listing.city);
     const cleanDescription = stripLegacyNeighborhoodFromDescription(listing.description);
-    const highlights = listing.listing_type === 'room'
-      ? getRoomListingCardHighlights(roomDetails, { billsIncluded: listing.bills_included, maxItems: 5 })
-      : [];
-    const occupancyLabel = listing.listing_type === 'room' ? getOccupancyLabel(roomDetails.occupancy_policy) : null;
-    const quickFacts = listing.listing_type === 'room'
-      ? [
+    const highlights = getRoomListingCardHighlights(roomDetails, { billsIncluded: listing.bills_included, maxItems: 5 });
+    const occupancyLabel = getOccupancyLabel(roomDetails.occupancy_policy);
+    const quickFacts = [
         { icon: Euro, label: listing.price_monthly ? `${listing.price_monthly}€/mes` : 'Precio a consultar' },
         { icon: Calendar, label: formatDate(listing.available_from) },
         { icon: Home, label: getMinStayLabel(listing.min_stay_months) },
         ...(occupancyLabel ? [{ icon: Users, label: occupancyLabel }] : []),
         ...(listing.bills_included ? [{ icon: Check, label: 'Gastos incluidos' }] : []),
-      ]
-      : [
-        { icon: MapPin, label: locationLabel },
-        { icon: Calendar, label: formatDate(listing.available_from) },
       ];
 
     return (
@@ -351,8 +338,8 @@ export default function Listings() {
           <div className="relative aspect-[4/3] bg-muted">
             <img src={image} alt={listing.title} className="w-full h-full object-cover" />
             <div className="absolute top-3 left-3 flex gap-2">
-              <Badge variant={listing.listing_type === 'room' ? 'default' : 'secondary'} className="rounded-full">
-                {listing.listing_type === 'room' ? 'Habitación disponible' : 'Busca compañero/a para alquilar juntos'}
+              <Badge variant="default" className="rounded-full">
+                Habitación disponible
               </Badge>
               {listing.listing_verified && (
                 <Badge variant="outline" className="rounded-full bg-background/90">
@@ -422,7 +409,7 @@ export default function Listings() {
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-8">
           <div>
             <h1 className="text-3xl font-bold mb-2">Anuncios</h1>
-            <p className="text-muted-foreground">Habitaciones disponibles y personas buscando compañero/a para alquilar juntos.</p>
+            <p className="text-muted-foreground">Habitaciones disponibles para encontrar una convivencia compatible.</p>
           </div>
           <div className="flex flex-wrap gap-2">
             <Button asChild variant="outline" className="gap-2">
@@ -687,23 +674,6 @@ export default function Listings() {
             </Button>
           )}
         </div>
-
-        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as typeof activeTab)} className="mb-6">
-          <TabsList className="grid grid-cols-3 w-full max-w-md">
-            <TabsTrigger value="all" className="gap-2">
-              <Home className="h-4 w-4" />
-              Todos
-            </TabsTrigger>
-            <TabsTrigger value="offer" className="gap-2">
-              <Home className="h-4 w-4" />
-              Ofrecen
-            </TabsTrigger>
-            <TabsTrigger value="seek" className="gap-2">
-              <Users className="h-4 w-4" />
-              Buscan
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
 
         <div className="mb-4 text-sm text-muted-foreground">
           {isLoading
