@@ -17,8 +17,8 @@ const faqs = [
     answer: 'Nuestro algoritmo analiza múltiples factores: horarios, hábitos de limpieza, nivel de ruido, preferencias sociales, mascotas, fumador/no fumador, y más. El test de compatibilidad genera un perfil detallado que comparamos con otros usuarios.'
   },
   {
-    question: '¿Puedo buscar habitación y compañero a la vez?',
-    answer: 'Sí, puedes configurar tu perfil para buscar habitación (si necesitas un piso), ofrecer habitación (si tienes una disponible), o buscar compañero (para alquilar juntos). Incluso puedes combinar opciones.'
+    question: '¿Puedo buscar y ofrecer habitación a la vez?',
+    answer: 'De momento Convinter se centra en dos objetivos: buscar habitación u ofrecer habitación. Puedes cambiar tu objetivo desde el perfil cuando lo necesites.'
   },
   {
     question: '¿Cómo verifico mi perfil?',

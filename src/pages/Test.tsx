@@ -2,7 +2,7 @@ import { Layout } from '@/components/layout/Layout';
 import { motion } from 'framer-motion';
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { AlertTriangle, ArrowLeft, ArrowRight, CheckCircle, Loader2 } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, ArrowRight, CheckCircle, Loader2, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
@@ -218,7 +218,20 @@ const dealbreakers = [
 ];
 
 const getListingTypeFromParam = (value: string | null) =>
-  value === 'offer_room' || value === 'seek_flatmate' ? value : null;
+  value === 'offer_room' ? value : null;
+
+const getSavedAnswerValue = (answerValue: unknown) => {
+  if (
+    answerValue &&
+    typeof answerValue === 'object' &&
+    'value' in answerValue &&
+    typeof (answerValue as { value?: unknown }).value === 'string'
+  ) {
+    return (answerValue as { value: string }).value;
+  }
+
+  return typeof answerValue === 'string' ? answerValue : null;
+};
 
 export default function Test() {
   useSEO({ page: 'test', noIndex: true });
@@ -231,6 +244,8 @@ export default function Test() {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [selectedDealbreakers, setSelectedDealbreakers] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoadingSavedTest, setIsLoadingSavedTest] = useState(true);
+  const [hasSavedTest, setHasSavedTest] = useState(false);
   const testContentRef = useRef<HTMLDivElement | null>(null);
   const hasMountedRef = useRef(false);
 
@@ -238,6 +253,66 @@ export default function Test() {
   const progress = ((currentStep + 1) / totalSteps) * 100;
   const isDealbreakerStep = currentStep === scenarioQuestions.length;
   const currentQuestion = !isDealbreakerStep ? scenarioQuestions[currentStep] : null;
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadSavedTest = async () => {
+      setIsLoadingSavedTest(true);
+
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        if (isMounted) {
+          setIsLoadingSavedTest(false);
+        }
+        return;
+      }
+
+      const [answersResult, profileResult] = await Promise.all([
+        supabase
+          .from('convinter_answers')
+          .select('question_id, answer_value')
+          .eq('user_id', session.user.id)
+          .eq('test_id', 'convinter_full'),
+        supabase
+          .from('convinter_profiles')
+          .select('dealbreakers, full_test_completed')
+          .eq('user_id', session.user.id)
+          .maybeSingle(),
+      ]);
+
+      if (!isMounted) return;
+
+      if (answersResult.error) {
+        console.warn('Error loading saved compatibility answers:', answersResult.error);
+      } else {
+        const savedAnswers = (answersResult.data ?? []).reduce<Record<string, string>>((acc, row) => {
+          const value = getSavedAnswerValue(row.answer_value);
+          if (row.question_id && value) {
+            acc[row.question_id] = value;
+          }
+          return acc;
+        }, {});
+
+        setAnswers(savedAnswers);
+        setHasSavedTest(Object.keys(savedAnswers).length > 0 || Boolean(profileResult.data?.full_test_completed));
+      }
+
+      if (profileResult.error) {
+        console.warn('Error loading saved compatibility profile data:', profileResult.error);
+      } else if (Array.isArray(profileResult.data?.dealbreakers)) {
+        setSelectedDealbreakers(profileResult.data.dealbreakers.filter((item): item is string => typeof item === 'string'));
+      }
+
+      setIsLoadingSavedTest(false);
+    };
+
+    void loadSavedTest();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (!hasMountedRef.current) {
@@ -257,6 +332,14 @@ export default function Test() {
     setSelectedDealbreakers((prev) =>
       prev.includes(id) ? prev.filter((dealbreaker) => dealbreaker !== id) : [...prev, id]
     );
+  };
+
+  const handleStartFresh = () => {
+    setAnswers({});
+    setSelectedDealbreakers([]);
+    setCurrentStep(0);
+    setHasSavedTest(false);
+    toast.info('Puedes empezar de cero. No se cambiaran tus respuestas guardadas hasta que finalices.');
   };
 
   const handleComplete = async () => {
@@ -308,7 +391,7 @@ export default function Test() {
   };
 
   const handleNext = () => {
-    if (!canProceed() || isSubmitting) return;
+    if (!canProceed() || isSubmitting || isLoadingSavedTest) return;
 
     if (currentStep < totalSteps - 1) {
       setCurrentStep((prev) => Math.min(prev + 1, totalSteps - 1));
@@ -333,11 +416,31 @@ export default function Test() {
       <div className="container max-w-3xl py-8">
         <div className="mb-8">
           <p className="text-sm text-muted-foreground">Test de compatibilidad</p>
-          <h1 className="mt-1 text-3xl font-bold text-foreground">Situaciones reales de convivencia</h1>
+          <h1 className="mt-1 text-3xl font-bold text-foreground">
+            {hasSavedTest ? 'Revisar test de compatibilidad' : 'Situaciones reales de convivencia'}
+          </h1>
           <p className="mt-3 text-muted-foreground">
             Ahora veremos cómo reaccionarías en casos reales del día a día. No hay respuestas buenas o malas: buscamos personas compatibles contigo.
           </p>
+          {hasSavedTest && (
+            <p className="mt-2 text-sm font-medium text-primary">
+              Tus respuestas actuales estan cargadas. Puedes cambiar solo lo que quieras y guardar al final.
+            </p>
+          )}
+          {hasSavedTest && (
+            <Button type="button" variant="outline" size="sm" className="mt-4 gap-2" onClick={handleStartFresh}>
+              <RotateCcw className="h-4 w-4" />
+              Empezar de cero
+            </Button>
+          )}
         </div>
+
+        {isLoadingSavedTest && (
+          <div className="mb-6 flex items-center gap-2 rounded-xl border border-border bg-card p-4 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Cargando tus respuestas guardadas...
+          </div>
+        )}
 
         <div className="mb-8">
           <div className="mb-2 flex items-center justify-between text-sm text-muted-foreground">
@@ -432,7 +535,7 @@ export default function Test() {
             <ArrowLeft className="h-4 w-4" />
             {currentStep === 0 ? 'Volver' : 'Anterior'}
           </Button>
-          <Button variant="hero" onClick={handleNext} disabled={!canProceed() || isSubmitting} className="gap-2">
+          <Button variant="hero" onClick={handleNext} disabled={!canProceed() || isSubmitting || isLoadingSavedTest} className="gap-2">
             {isSubmitting ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
