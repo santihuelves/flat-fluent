@@ -7,7 +7,6 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Camera, HeartHandshake, Loader2, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import type { Json } from '@/integrations/supabase/types';
@@ -32,14 +31,14 @@ import {
 import {
   decodeLivingTraits,
   decodeOfferDetails,
-  decodeSeekFlatmateDetails,
   decodeSeekRoomDetails,
   encodeLivingTraits,
   encodeOfferDetails,
-  encodeSeekFlatmateDetails,
   encodeSeekRoomDetails,
+  HOUSEHOLD_SIZE_OPTIONS,
+  OCCUPANCY_POLICY_OPTIONS,
   PROPERTY_CONTEXT_OPTIONS,
-  SEEKER_GOAL_OPTIONS,
+  SEEK_ROOM_GOAL_OPTIONS,
   YES_NO_OPTIONS,
 } from '@/lib/profileTraits';
 
@@ -113,12 +112,9 @@ type FormState = {
   seek_room_accepts_smoking_home: '' | 'yes' | 'no';
   seek_room_accepts_pets_home: '' | 'yes' | 'no';
   seek_room_accepts_couples_home: '' | 'yes' | 'no';
-  seek_flatmate_goal: '' | 'need_room_now' | 'want_flatmate_then_home' | 'open_to_both';
-  seek_flatmate_accepts_smoking_home: '' | 'yes' | 'no';
-  seek_flatmate_accepts_pets_home: '' | 'yes' | 'no';
-  seek_flatmate_accepts_couples_home: '' | 'yes' | 'no';
   property_context: '' | 'shared_flat' | 'family_home' | 'owner_occupied_flat';
   current_household_count: string;
+  occupancy_policy: '' | 'single_only' | 'couple' | 'two_people' | 'to_agree';
   allows_couples: '' | 'yes' | 'no';
   allows_two_people: '' | 'yes' | 'no';
   allows_minors: '' | 'yes' | 'no';
@@ -148,7 +144,6 @@ const encodeInclusiveProfileTags = (
 const buildInitialFormData = (profile: ProfileData): FormState => {
   const livingTraits = decodeLivingTraits(profile.lifestyle_tags);
   const seekRoomDetails = decodeSeekRoomDetails(getIntention(profile.intentions, 'seek_room')?.details);
-  const seekFlatmateDetails = decodeSeekFlatmateDetails(getIntention(profile.intentions, 'seek_flatmate')?.details);
   const offerDetails = decodeOfferDetails(getIntention(profile.intentions, 'offer_room')?.details);
 
   return {
@@ -177,12 +172,9 @@ const buildInitialFormData = (profile: ProfileData): FormState => {
     seek_room_accepts_smoking_home: seekRoomDetails.acceptsSmokingHome,
     seek_room_accepts_pets_home: seekRoomDetails.acceptsPetsHome,
     seek_room_accepts_couples_home: seekRoomDetails.acceptsCouplesHome,
-    seek_flatmate_goal: seekFlatmateDetails.seekerGoal,
-    seek_flatmate_accepts_smoking_home: seekFlatmateDetails.acceptsSmokingHome,
-    seek_flatmate_accepts_pets_home: seekFlatmateDetails.acceptsPetsHome,
-    seek_flatmate_accepts_couples_home: seekFlatmateDetails.acceptsCouplesHome,
     property_context: offerDetails.propertyContext,
     current_household_count: offerDetails.currentHouseholdCount,
+    occupancy_policy: offerDetails.occupancyPolicy,
     allows_couples: offerDetails.allowsCouples,
     allows_two_people: offerDetails.allowsTwoPeople,
     allows_minors: offerDetails.allowsMinors,
@@ -209,12 +201,11 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
   const hasSeekRoomIntention = Boolean(
     profile.intentions?.some((intention) => intention.intention_type === 'seek_room')
   );
-  const hasSeekFlatmateIntention = Boolean(
-    profile.intentions?.some((intention) => intention.intention_type === 'seek_flatmate')
-  );
   const hasOfferRoomIntention = Boolean(
     profile.intentions?.some((intention) => intention.intention_type === 'offer_room')
   );
+  const isOfferOnlyProfile = hasOfferRoomIntention && !hasSeekRoomIntention;
+  const isSeekRoomProfile = hasSeekRoomIntention && !hasOfferRoomIntention;
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -298,11 +289,11 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
     const city = formData.city.trim();
     const province = formData.province_code.trim();
     const occupation = formData.occupation.trim();
-    const hasBudgetMin = formData.budget_min.trim() !== '';
-    const hasBudgetMax = formData.budget_max.trim() !== '';
-    const budgetMin = hasBudgetMin ? Number(formData.budget_min) : null;
-    const budgetMax = hasBudgetMax ? Number(formData.budget_max) : null;
-    const dateIsValid = !formData.move_in_date || formData.move_in_date >= todayIso();
+    const hasBudgetMin = false;
+    const hasBudgetMax = false;
+    const budgetMin: number | null = null;
+    const budgetMax: number | null = null;
+    const dateIsValid = true;
 
     if (displayName.length < 2) {
       return 'El nombre debe tener al menos 2 caracteres.';
@@ -313,7 +304,7 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
     }
 
     if (bio.length < MIN_BIO_LENGTH || bio.length > MAX_BIO_LENGTH) {
-      return `La sección "Sobre ti y convivencia" debe tener entre ${MIN_BIO_LENGTH} y ${MAX_BIO_LENGTH} caracteres.`;
+      return `La sección "Sobre mí" debe tener entre ${MIN_BIO_LENGTH} y ${MAX_BIO_LENGTH} caracteres.`;
     }
 
     if (!formData.autonomous_community) {
@@ -329,16 +320,22 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
     }
 
     if (hasBudgetMin !== hasBudgetMax) {
-      return 'Completa ambos importes o deja el presupuesto vacío.';
+      return isOfferOnlyProfile
+        ? 'Completa el precio mensual de la habitación o déjalo vacío.'
+        : 'Completa ambos importes o deja el presupuesto vacío.';
     }
 
     if (budgetMin !== null && budgetMax !== null) {
       if (!Number.isFinite(budgetMin) || !Number.isFinite(budgetMax) || budgetMin <= 0 || budgetMax <= 0) {
-        return 'Completa un presupuesto mínimo y máximo válidos.';
+        return isOfferOnlyProfile
+          ? 'Completa un precio mensual válido.'
+          : 'Completa un presupuesto mínimo y máximo válidos.';
       }
 
       if (budgetMin > budgetMax || budgetMax > MAX_BUDGET) {
-        return 'Revisa el presupuesto: el mínimo no puede superar al máximo.';
+        return isOfferOnlyProfile
+          ? `El precio mensual no puede superar ${MAX_BUDGET} EUR.`
+          : 'Revisa el presupuesto: el mínimo no puede superar al máximo.';
       }
     }
 
@@ -435,6 +432,7 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
             currentHouseholdCount: formData.current_household_count,
             allowsCouples: formData.allows_couples,
             allowsTwoPeople: formData.allows_two_people,
+            occupancyPolicy: formData.occupancy_policy,
             allowsMinors: formData.allows_minors,
             allowsPets: formData.allows_pets,
             allowsSmoking: formData.allows_smoking,
@@ -445,13 +443,6 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
             acceptsSmokingHome: formData.seek_room_accepts_smoking_home,
             acceptsPetsHome: formData.seek_room_accepts_pets_home,
             acceptsCouplesHome: formData.seek_room_accepts_couples_home,
-          });
-        } else if (intention.intention_type === 'seek_flatmate') {
-          detailsPayload = encodeSeekFlatmateDetails(intention.details, {
-            seekerGoal: formData.seek_flatmate_goal,
-            acceptsSmokingHome: formData.seek_flatmate_accepts_smoking_home,
-            acceptsPetsHome: formData.seek_flatmate_accepts_pets_home,
-            acceptsCouplesHome: formData.seek_flatmate_accepts_couples_home,
           });
         } else {
           continue;
@@ -497,14 +488,13 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
           <SheetDescription>{t('profile.editDescription')}</SheetDescription>
         </SheetHeader>
 
-        <Tabs defaultValue="personal" className="py-6">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="personal">Personal</TabsTrigger>
-            <TabsTrigger value="preferences">Datos</TabsTrigger>
-            <TabsTrigger value="intentions">Intenciones</TabsTrigger>
-          </TabsList>
+        <div className="space-y-8 py-6">
+          <section className="space-y-6">
+            <div>
+              <h3 className="text-base font-semibold text-foreground">Perfil personal</h3>
+              <p className="mt-1 text-sm text-muted-foreground">Foto, nombre, descripción, ocupación e idiomas. Esta parte no depende de si buscas u ofreces habitación.</p>
+            </div>
 
-          <TabsContent value="personal" className="space-y-6 pt-4">
           <div className="space-y-3">
             <div className="flex items-center justify-between gap-3">
               <Label>Foto de perfil</Label>
@@ -589,7 +579,7 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
 
           <div className="space-y-3">
             <div className="flex items-center justify-between gap-3">
-              <Label htmlFor="bio">Sobre ti</Label>
+              <Label htmlFor="bio">Sobre mí</Label>
               <span className="text-xs text-muted-foreground">
                 {formData.bio.trim().length}/{MAX_BIO_LENGTH}
               </span>
@@ -630,13 +620,98 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
               ))}
             </div>
           </div>
-          </TabsContent>
+          </section>
 
-          <TabsContent value="preferences" className="space-y-6 pt-4">
+          <section className="space-y-6">
+            <div>
+              <h3 className="text-base font-semibold text-foreground">Convivencia opcional</h3>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Estos datos ayudan a calcular compatibilidad si vas a convivir. Si solo gestionas una vivienda o no vas a vivir alli, puedes dejarlos sin completar.
+              </p>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Tabaco</Label>
+                <Select
+                  value={formData.is_smoker}
+                  onValueChange={(value) => setFormData((prev) => ({ ...prev, is_smoker: value as FormState['is_smoker'] }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecciona" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="no">No fumador</SelectItem>
+                    <SelectItem value="yes">Fuma</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Mascotas</Label>
+                <Select
+                  value={formData.has_pet}
+                  onValueChange={(value) => setFormData((prev) => ({ ...prev, has_pet: value as FormState['has_pet'] }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecciona" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="no">No convivo con mascota</SelectItem>
+                    <SelectItem value="yes">Convivo con mascota</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Unidad de convivencia</Label>
+                <Select
+                  value={formData.household_size}
+                  onValueChange={(value) => setFormData((prev) => ({ ...prev, household_size: value as FormState['household_size'] }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecciona" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {HOUSEHOLD_SIZE_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Menores en convivencia</Label>
+                <Select
+                  value={formData.includes_minor}
+                  onValueChange={(value) => setFormData((prev) => ({ ...prev, includes_minor: value as FormState['includes_minor'] }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecciona" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="no">No</SelectItem>
+                    <SelectItem value="yes">Sí</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </section>
+
+          <section className="hidden space-y-6">
+            <div>
+              <h3 className="text-base font-semibold text-foreground">Datos</h3>
+              <p className="mt-1 text-sm text-muted-foreground">Información práctica según tu objetivo de vivienda.</p>
+            </div>
+
             <div className="rounded-xl border border-border/60 bg-muted/30 p-4">
               <p className="text-sm font-medium text-foreground">Datos prácticos, no compatibilidad.</p>
               <p className="mt-1 text-sm text-muted-foreground">
-                Aquí solo van zona, presupuesto y fechas. Limpieza, horarios, visitas, ruido y tabaco se actualizan desde el test.
+                {isOfferOnlyProfile
+                  ? 'Aquí solo van zona, precio y disponibilidad. Limpieza, horarios, visitas, ruido y tabaco se actualizan desde el test.'
+                  : 'Aquí solo van zona, presupuesto y fechas. Limpieza, horarios, visitas, ruido y tabaco se actualizan desde el test.'}
               </p>
             </div>
 
@@ -690,34 +765,65 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          {isOfferOnlyProfile ? (
             <div className="space-y-2">
-              <Label>Presupuesto mínimo</Label>
+              <Label>Precio mensual de la habitación</Label>
               <Input
                 type="number"
                 min={1}
                 max={MAX_BUDGET}
-                value={formData.budget_min}
-                onChange={(e) => setFormData((prev) => ({ ...prev, budget_min: e.target.value }))}
-                placeholder="300"
+                value={formData.budget_min || formData.budget_max}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setFormData((prev) => ({ ...prev, budget_min: value, budget_max: value }));
+                }}
+                placeholder="650"
               />
             </div>
-            <div className="space-y-2">
-              <Label>Presupuesto máximo</Label>
-              <Input
-                type="number"
-                min={1}
-                max={MAX_BUDGET}
-                value={formData.budget_max}
-                onChange={(e) => setFormData((prev) => ({ ...prev, budget_max: e.target.value }))}
-                placeholder="700"
-              />
+          ) : (
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>
+                  {isSeekRoomProfile
+                    ? 'Presupuesto mínimo para habitación'
+                    : 'Presupuesto mínimo'}
+                </Label>
+                <Input
+                  type="number"
+                  min={1}
+                  max={MAX_BUDGET}
+                  value={formData.budget_min}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, budget_min: e.target.value }))}
+                  placeholder="300"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>
+                  {isSeekRoomProfile
+                    ? 'Presupuesto máximo para habitación'
+                    : 'Presupuesto máximo'}
+                </Label>
+                <Input
+                  type="number"
+                  min={1}
+                  max={MAX_BUDGET}
+                  value={formData.budget_max}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, budget_max: e.target.value }))}
+                  placeholder="700"
+                />
+              </div>
             </div>
-          </div>
+          )}
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
-              <Label>Fecha de entrada</Label>
+              <Label>
+                {isOfferOnlyProfile
+                  ? 'Disponible desde'
+                  : isSeekRoomProfile
+                    ? 'Entrada deseada'
+                    : 'Fecha de entrada'}
+              </Label>
               <Input
                 type="date"
                 min={todayIso()}
@@ -726,7 +832,7 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
               />
             </div>
             <div className="space-y-2">
-              <Label>Estancia mínima</Label>
+              <Label>{isOfferOnlyProfile ? 'Estancia mínima' : 'Duración prevista'}</Label>
               <Select
                 value={formData.min_stay_months}
                 onValueChange={(value) => setFormData((prev) => ({ ...prev, min_stay_months: value }))}
@@ -745,10 +851,15 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
             </div>
           </div>
 
-          </TabsContent>
+          </section>
 
-          <TabsContent value="intentions" className="space-y-6 pt-4">
-            {!hasSeekRoomIntention && !hasSeekFlatmateIntention && !hasOfferRoomIntention && (
+          <section className="hidden space-y-6">
+            <div>
+              <h3 className="text-base font-semibold text-foreground">Intenciones</h3>
+              <p className="mt-1 text-sm text-muted-foreground">Condiciones específicas de lo que buscas u ofreces.</p>
+            </div>
+
+            {!hasSeekRoomIntention && !hasOfferRoomIntention && (
               <div className="rounded-xl border border-dashed border-border p-4">
                 <p className="text-sm font-medium text-foreground">Aún no has definido qué buscas.</p>
                 <p className="mt-1 text-sm text-muted-foreground">
@@ -759,7 +870,7 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
 
           {hasSeekRoomIntention && (
             <div className="space-y-3 rounded-xl border border-border/60 p-4">
-              <Label>Busco habitación</Label>
+              <Label>Lo que busco</Label>
               <div className="space-y-2">
                 <Label>Objetivo</Label>
                 <Select
@@ -770,7 +881,7 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
                     <SelectValue placeholder="Selecciona objetivo" />
                   </SelectTrigger>
                   <SelectContent>
-                    {SEEKER_GOAL_OPTIONS.map((option) => (
+                    {SEEK_ROOM_GOAL_OPTIONS.map((option) => (
                       <SelectItem key={option.value} value={option.value}>
                         {option.label}
                       </SelectItem>
@@ -781,7 +892,7 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
 
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 <div className="space-y-2">
-                  <Label>Acepta fumadores</Label>
+                  <Label>Me encaja piso con fumadores</Label>
                   <Select
                     value={formData.seek_room_accepts_smoking_home}
                     onValueChange={(value) => setFormData((prev) => ({ ...prev, seek_room_accepts_smoking_home: value as FormState['seek_room_accepts_smoking_home'] }))}
@@ -799,7 +910,7 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Acepta mascotas</Label>
+                  <Label>Me encaja piso con mascotas</Label>
                   <Select
                     value={formData.seek_room_accepts_pets_home}
                     onValueChange={(value) => setFormData((prev) => ({ ...prev, seek_room_accepts_pets_home: value as FormState['seek_room_accepts_pets_home'] }))}
@@ -817,91 +928,10 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Acepta parejas</Label>
+                  <Label>Me encaja convivir con parejas</Label>
                   <Select
                     value={formData.seek_room_accepts_couples_home}
                     onValueChange={(value) => setFormData((prev) => ({ ...prev, seek_room_accepts_couples_home: value as FormState['seek_room_accepts_couples_home'] }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecciona" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {YES_NO_OPTIONS.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {hasSeekFlatmateIntention && (
-            <div className="space-y-3 rounded-xl border border-border/60 p-4">
-              <Label>Busco compañero/a para alquilar juntos</Label>
-              <div className="space-y-2">
-                <Label>Objetivo</Label>
-                <Select
-                  value={formData.seek_flatmate_goal}
-                  onValueChange={(value) => setFormData((prev) => ({ ...prev, seek_flatmate_goal: value as FormState['seek_flatmate_goal'] }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecciona objetivo" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {SEEKER_GOAL_OPTIONS.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                <div className="space-y-2">
-                  <Label>Acepta fumadores</Label>
-                  <Select
-                    value={formData.seek_flatmate_accepts_smoking_home}
-                    onValueChange={(value) => setFormData((prev) => ({ ...prev, seek_flatmate_accepts_smoking_home: value as FormState['seek_flatmate_accepts_smoking_home'] }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecciona" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {YES_NO_OPTIONS.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Acepta mascotas</Label>
-                  <Select
-                    value={formData.seek_flatmate_accepts_pets_home}
-                    onValueChange={(value) => setFormData((prev) => ({ ...prev, seek_flatmate_accepts_pets_home: value as FormState['seek_flatmate_accepts_pets_home'] }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecciona" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {YES_NO_OPTIONS.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Acepta parejas</Label>
-                  <Select
-                    value={formData.seek_flatmate_accepts_couples_home}
-                    onValueChange={(value) => setFormData((prev) => ({ ...prev, seek_flatmate_accepts_couples_home: value as FormState['seek_flatmate_accepts_couples_home'] }))}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Selecciona" />
@@ -961,34 +991,24 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
-                  <Label>Admite parejas</Label>
+                  <Label>Disponible para</Label>
                   <Select
-                    value={formData.allows_couples}
-                    onValueChange={(value) => setFormData((prev) => ({ ...prev, allows_couples: value as FormState['allows_couples'] }))}
+                    value={formData.occupancy_policy}
+                    onValueChange={(value) => {
+                      const occupancyPolicy = value as FormState['occupancy_policy'];
+                      setFormData((prev) => ({
+                        ...prev,
+                        occupancy_policy: occupancyPolicy,
+                        allows_couples: occupancyPolicy === 'couple' || occupancyPolicy === 'to_agree' ? 'yes' : 'no',
+                        allows_two_people: occupancyPolicy === 'two_people' || occupancyPolicy === 'to_agree' ? 'yes' : 'no',
+                      }));
+                    }}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Selecciona" />
                     </SelectTrigger>
                     <SelectContent>
-                      {YES_NO_OPTIONS.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Admite dos personas</Label>
-                  <Select
-                    value={formData.allows_two_people}
-                    onValueChange={(value) => setFormData((prev) => ({ ...prev, allows_two_people: value as FormState['allows_two_people'] }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecciona" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {YES_NO_OPTIONS.map((option) => (
+                      {OCCUPANCY_POLICY_OPTIONS.map((option) => (
                         <SelectItem key={option.value} value={option.value}>
                           {option.label}
                         </SelectItem>
@@ -1053,8 +1073,8 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
               </div>
             </div>
           )}
-          </TabsContent>
-        </Tabs>
+          </section>
+        </div>
 
         <div className="border-t border-border/60 bg-background py-4">
           <Button onClick={handleSave} disabled={saving} className="w-full" variant="hero">

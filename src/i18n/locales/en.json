@@ -7,6 +7,7 @@
     "listings": "Listings",
     "matches": "Matches",
     "messages": "Messages",
+    "connections": "Connections",
     "profile": "Profile",
     "login": "Log in",
     "signup": "Sign up",
@@ -147,14 +148,14 @@
     "verified": "Verified",
     "trustScore": "Trust Score",
     "trustBadges": {
-      "gold": "Gold",
-      "silver": "Silver",
-      "bronze": "Bronze"
+      "gold": "High trust",
+      "silver": "Medium trust",
+      "bronze": "Basic trust"
     },
     "testQuickCompleted": "Living profile completed",
     "testQuickPending": "Living profile pending",
-    "livingProfileCompleted": "Living profile completed",
-    "livingProfilePending": "Living profile pending",
+    "livingProfileCompleted": "Personal profile completed",
+    "livingProfilePending": "Complete your personal profile",
     "testFullCompleted": "Compatibility test completed",
     "testFullPending": "Compatibility test pending",
     "testFullRequested": "Someone invited you to complete the compatibility test",
@@ -490,10 +491,8 @@
     "types": {
       "offerRoom": "Offering room",
       "seekRoom": "Looking for room",
-      "seekRoomie": "Looking for roommate",
       "offeringRoom": "Offering room",
-      "seekingRoom": "Looking for room",
-      "seekingRoommate": "Looking for roommate"
+      "seekingRoom": "Looking for room"
     },
     "price": "€/month",
     "available": "Available from",
@@ -538,8 +537,7 @@
       "intentionTitle": "Search type",
       "intentions": {
         "seek_room": "Looking for room",
-        "offer_room": "Offering room",
-        "seek_flatmate": "Looking for flatmate"
+        "offer_room": "Offering room"
       }
     }
   },
@@ -582,8 +580,6 @@
       "seekingRoomDesc": "I want to rent a room in a shared flat",
       "offeringRoom": "Offering a room",
       "offeringRoomDesc": "I have a room available to rent",
-      "seekingRoommate": "Looking for a roommate to rent together",
-      "seekingRoommateDesc": "I want to find people to rent a complete flat together",
       "makePrimary": "Make primary"
     },
     "step2": {

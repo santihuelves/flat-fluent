@@ -1,5 +1,3 @@
-export type IntentionType = 'seek_room' | 'offer_room' | 'seek_flatmate';
-
 export const AUTONOMOUS_COMMUNITIES = [
   'Andalucía',
   'Aragón',

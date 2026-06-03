@@ -13,7 +13,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { IntentionBadges } from '@/components/IntentionBadge';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useSEO } from '@/hooks/useSEO';
 
 interface ProfileData {
@@ -54,6 +54,7 @@ interface CompatibilityData {
 }
 
 type IntentionType = NonNullable<ProfileData['intentions']>[number]['intention_type'];
+type SupportedIntentionType = Exclude<IntentionType, 'seek_flatmate'>;
 type RequestState = 'idle' | 'sending' | 'sent';
 
 interface ConsentOverviewProfile {
@@ -110,7 +111,7 @@ export default function Discover() {
   const [selectedCity, setSelectedCity] = useState<string | null>(null);
   const [priceRange, setPriceRange] = useState<[number, number]>([200, 800]);
   const [minTrustScore, setMinTrustScore] = useState(0);
-  const [selectedIntentions, setSelectedIntentions] = useState<IntentionType[]>([]);
+  const [selectedIntentions, setSelectedIntentions] = useState<SupportedIntentionType[]>([]);
   const [cityOpen, setCityOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
   const [intentionOpen, setIntentionOpen] = useState(false);
@@ -304,6 +305,11 @@ export default function Discover() {
   const filteredProfiles = useMemo(() => profiles.filter(profile => {
     if (excludedProfileIdSet.has(profile.user_id)) return false;
 
+    const supportedIntentions = profile.intentions?.filter((intention) =>
+      intention.intention_type === 'seek_room' || intention.intention_type === 'offer_room'
+    ) ?? [];
+    if (supportedIntentions.length === 0) return false;
+
     // Search term filter
     if (searchTerm) {
       const search = searchTerm.toLowerCase();
@@ -315,7 +321,7 @@ export default function Discover() {
     
     // Intentions filter
     if (selectedIntentions.length > 0) {
-      const profileIntentionTypes = profile.intentions?.map(i => i.intention_type) || [];
+      const profileIntentionTypes = supportedIntentions.map(i => i.intention_type);
       const hasMatchingIntention = selectedIntentions.some(selected => 
         profileIntentionTypes.includes(selected)
       );
@@ -428,7 +434,7 @@ export default function Discover() {
     }, 300);
   };
 
-  const handleIntentionToggle = (intentionType: IntentionType) => {
+  const handleIntentionToggle = (intentionType: SupportedIntentionType) => {
     setSelectedIntentions(prev => 
       prev.includes(intentionType)
         ? prev.filter(i => i !== intentionType)
@@ -563,8 +569,7 @@ export default function Discover() {
                   {([
                     { type: 'seek_room', icon: Home, label: t('discover.filters.intentions.seek_room') },
                     { type: 'offer_room', icon: Key, label: t('discover.filters.intentions.offer_room') },
-                    { type: 'seek_flatmate', icon: Users, label: t('discover.filters.intentions.seek_flatmate') },
-                  ] satisfies Array<{ type: IntentionType; icon: LucideIcon; label: string }>).map(({ type, icon: Icon, label }) => (
+                  ] satisfies Array<{ type: SupportedIntentionType; icon: LucideIcon; label: string }>).map(({ type, icon: Icon, label }) => (
                     <label
                       key={type}
                       className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
@@ -727,7 +732,7 @@ export default function Discover() {
                   ) : (
                     <div className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-muted text-muted-foreground font-semibold">
                       <Lock className="h-4 w-4" />
-                      Oculto
+                      Compatibilidad privada
                     </div>
                   )}
                 </div>
@@ -735,10 +740,10 @@ export default function Discover() {
                 {/* Trust Badge */}
                 {currentProfile.trust_badge !== 'none' && (
                   <div className={`absolute top-4 left-4 px-2 py-1 rounded-full text-xs font-medium ${getTrustBadgeColor(currentProfile.trust_badge)}`}>
-                    {currentProfile.trust_badge === 'verified' && '✓ Verificado'}
-                    {currentProfile.trust_badge === 'gold' && '🏆 Gold'}
-                    {currentProfile.trust_badge === 'silver' && '🥈 Silver'}
-                    {currentProfile.trust_badge === 'bronze' && '🥉 Bronze'}
+                    {currentProfile.trust_badge === 'verified' && 'Perfil verificado'}
+                    {currentProfile.trust_badge === 'gold' && 'Confianza alta'}
+                    {currentProfile.trust_badge === 'silver' && 'Confianza media'}
+                    {currentProfile.trust_badge === 'bronze' && 'Confianza básica'}
                   </div>
                 )}
 
@@ -794,6 +799,12 @@ export default function Discover() {
                     {currentProfile.bio}
                   </p>
                 )}
+
+                <Button asChild variant="outline" size="sm" className="w-full">
+                  <Link to={`/u/${currentProfile.user_id}`}>
+                    Ver perfil completo
+                  </Link>
+                </Button>
 
                 {/* Compatibility Details or Request */}
                 {currentCompatibility?.hasConsent ? (

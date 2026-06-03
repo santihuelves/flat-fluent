@@ -83,6 +83,49 @@ const getCompatibilityDetailLevel = (consentLevel?: number | null) => (
   Number(consentLevel ?? 0) >= 2 ? 2 : 1
 );
 
+const compatibilityQuestionLabels: Record<string, string> = {
+  scenario_late_call: 'Ruido tarde por la noche',
+  scenario_unplanned_visit: 'Visitas sin avisar',
+  scenario_pet_in_common_area: 'Mascotas y zonas comunes',
+  scenario_smoking_balcony: 'Tabaco y olores',
+  scenario_kitchen_mess: 'Cocina sin recoger',
+  scenario_social_energy: 'Planes sociales en casa',
+  scenario_cleaning_turn: 'Turnos de limpieza',
+  scenario_shared_order: 'Orden en zonas comunes',
+  scenario_remote_study: 'Ruido durante reuniones o estudio',
+  scenario_expenses_delay: 'Retrasos con gastos comunes',
+  scenario_conflict_message: 'Como hablar temas incomodos',
+  scenario_boundaries: 'Cambios en normas acordadas',
+  scenario_bathroom_peak: 'Uso del bano en horas punta',
+  scenario_partner_sleepover: 'Parejas o invitados a dormir',
+  scenario_food_without_permission: 'Uso de comida o productos personales',
+  scenario_room_privacy: 'Privacidad de habitacion y pertenencias',
+};
+
+const compatibilityAnswerLabels: Record<string, string> = {
+  clear_limit: 'prefiere limites claros',
+  system: 'prefiere acordar una norma',
+  occasional_flex: 'puede ser flexible si es puntual',
+  high_tolerance: 'tiene alta tolerancia',
+};
+
+const formatCompatibilityQuestion = (questionId?: string) => (
+  questionId ? compatibilityQuestionLabels[questionId] ?? 'Tema de convivencia' : 'Tema de convivencia'
+);
+
+const formatCompatibilityAnswer = (answer?: string) => (
+  answer ? compatibilityAnswerLabels[answer] ?? answer : 'No indicado'
+);
+
+const getSimilarityLabel = (similarity?: number) => {
+  if (typeof similarity !== 'number') return null;
+
+  const percent = Math.round(similarity * 100);
+  if (percent >= 80) return `${percent}% de encaje`;
+  if (percent >= 50) return `${percent}% de encaje, conviene hablarlo`;
+  return `${percent}% de encaje, posible punto de friccion`;
+};
+
 const getErrorMessage = (code?: string) => {
   if (code === 'NOT_AUTHENTICATED') return 'Inicia sesión para ver este perfil.';
   if (code === 'NOT_FOUND') return 'Este perfil no existe.';
@@ -558,10 +601,17 @@ export default function PublicProfile() {
                         </Button>
                       </>
                     ) : (
-                      <Button className="flex-1" onClick={handleRequestConsent} disabled={!canRequestConsent}>
-                        {consentRequestState === 'sending' || isLoadingConsentState ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Heart className="mr-2 h-4 w-4" />}
-                        {requestButtonLabel}
-                      </Button>
+                      hasActiveConsent ? (
+                        <div className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-primary/20 bg-primary/10 px-4 py-2 text-sm font-semibold text-primary">
+                          <CheckCircle className="h-4 w-4" />
+                          {requestButtonLabel}
+                        </div>
+                      ) : (
+                        <Button className="flex-1" onClick={handleRequestConsent} disabled={!canRequestConsent}>
+                          {consentRequestState === 'sending' || isLoadingConsentState ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Heart className="mr-2 h-4 w-4" />}
+                          {requestButtonLabel}
+                        </Button>
+                      )
                     )}
                     <Button variant="outline" className="flex-1" onClick={handleMessage} disabled={isBlocked || isOpeningChat}>
                       {isOpeningChat ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <MessageCircle className="mr-2 h-4 w-4" />}
@@ -622,11 +672,13 @@ export default function PublicProfile() {
                       <p className="text-sm font-medium">Puntos a hablar</p>
                       {mismatches.slice(0, 4).map((item, index) => (
                         <div key={`${item.question_id ?? 'mismatch'}-${index}`} className="rounded-xl border border-border p-3 text-sm text-muted-foreground">
-                          <p className="font-medium text-foreground">{item.question_id ?? 'Diferencia detectada'}</p>
+                          <p className="font-medium text-foreground">{formatCompatibilityQuestion(item.question_id)}</p>
                           <p>
-                            Respuestas: {item.a ?? 'No indicado'} / {item.b ?? 'No indicado'}
-                            {typeof item.sim === 'number' ? ` · similitud ${Math.round(item.sim * 100)}%` : ''}
+                            Tu respuesta: {formatCompatibilityAnswer(item.a)}. La otra persona: {formatCompatibilityAnswer(item.b)}.
                           </p>
+                          {getSimilarityLabel(item.sim) && (
+                            <p className="mt-1 text-xs">{getSimilarityLabel(item.sim)}</p>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -634,7 +686,7 @@ export default function PublicProfile() {
 
                   {reasons.length === 0 && !compatibility.breakdown?.friction && mismatches.length === 0 && (
                     <p className="text-sm text-muted-foreground">
-                      Compatibilidad calculada. Aun no hay desglose disponible para este nivel de detalle.
+                      Compatibilidad calculada con {commonQuestions ?? 'las'} respuestas comunes. El desglose se actualizara al recalcular la compatibilidad.
                     </p>
                   )}
                 </div>
@@ -685,7 +737,12 @@ export default function PublicProfile() {
                     {profile.selfie_verified ? 'Selfie verificado' : 'Selfie pendiente'}
                   </Badge>
                   {profile.trust_badge && profile.trust_badge !== 'none' && (
-                    <Badge variant="outline">{profile.trust_badge}</Badge>
+                    <Badge variant="outline">
+                      {profile.trust_badge === 'gold' && 'Confianza alta'}
+                      {profile.trust_badge === 'silver' && 'Confianza media'}
+                      {profile.trust_badge === 'bronze' && 'Confianza básica'}
+                      {profile.trust_badge === 'verified' && 'Perfil verificado'}
+                    </Badge>
                   )}
                 </div>
               </CardContent>

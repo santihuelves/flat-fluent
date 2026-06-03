@@ -122,7 +122,7 @@ export default function Matches() {
               </div>
               <div className="flex items-start gap-2 text-sm">
                 <CheckCircle className="h-4 w-4 text-primary mt-0.5" />
-                <span>Desde cada tarjeta podras abrir el chat directamente.</span>
+                <span>Desde cada tarjeta podras abrir el perfil publico o el chat.</span>
               </div>
             </div>
           )}
@@ -198,8 +198,8 @@ export default function Matches() {
                 transition={{ delay: index * 0.05 }}
                 className="glass-card rounded-2xl p-4 card-hover"
               >
-                <Link to={`/chat/${match.user_id}`} className="flex items-start gap-4">
-                  <div className="relative">
+                <div className="flex items-start gap-4">
+                  <Link to={`/u/${match.user_id}`} className="relative shrink-0">
                     <img
                       src={match.photo_url || '/placeholder.svg'}
                       alt={name}
@@ -211,18 +211,22 @@ export default function Matches() {
                         {score}
                       </div>
                     )}
-                  </div>
+                  </Link>
 
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2 mb-1">
-                      <h3 className="font-semibold truncate">{name}</h3>
+                      <Link to={`/u/${match.user_id}`} className="min-w-0">
+                        <h3 className="font-semibold truncate hover:text-primary">{name}</h3>
+                      </Link>
                       <span className="shrink-0 text-xs text-muted-foreground">
                         {formatRelativeTime(lastMessage?.created_at || match.matched_at)}
                       </span>
                     </div>
-                    <p className={unread > 0 ? 'text-sm font-semibold text-foreground line-clamp-1 mb-2' : 'text-sm text-muted-foreground line-clamp-1 mb-2'}>
-                      {lastMessage ? `${lastMessage.is_mine ? 'Tu: ' : ''}${lastMessage.body}` : match.city || 'Conversacion reciente'}
-                    </p>
+                    <Link to={`/chat/${match.user_id}`}>
+                      <p className={unread > 0 ? 'text-sm font-semibold text-foreground line-clamp-1 mb-2 hover:text-primary' : 'text-sm text-muted-foreground line-clamp-1 mb-2 hover:text-primary'}>
+                        {lastMessage ? `${lastMessage.is_mine ? 'Tu: ' : ''}${lastMessage.body}` : match.city || 'Conversacion reciente'}
+                      </p>
+                    </Link>
                     <div className="flex flex-wrap gap-1">
                       {reasons.slice(0, 2).map((reason, reasonIndex) => (
                         <Badge key={`${reason}-${reasonIndex}`} variant="secondary" className="text-xs rounded-full">
@@ -235,6 +239,14 @@ export default function Matches() {
                         </Badge>
                       )}
                     </div>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <Button asChild variant="outline" size="sm">
+                        <Link to={`/u/${match.user_id}`}>Ver perfil</Link>
+                      </Button>
+                      <Button asChild variant="secondary" size="sm">
+                        <Link to={`/chat/${match.user_id}`}>Mensaje</Link>
+                      </Button>
+                    </div>
                   </div>
 
                   <div className="flex items-center gap-2">
@@ -245,7 +257,7 @@ export default function Matches() {
                     )}
                     <ArrowRight className="h-5 w-5 text-muted-foreground" />
                   </div>
-                </Link>
+                </div>
               </motion.div>
             );
           })}

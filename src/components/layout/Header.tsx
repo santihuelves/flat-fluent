@@ -2,7 +2,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
-import { Home, Search, MessageCircle, User, Menu, X, LogOut } from 'lucide-react';
+import { Home, Search, MessageCircle, User, Menu, X, LogOut, Users } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
@@ -63,6 +63,7 @@ export function Header({ unreadMessages = 0, notifications }: HeaderProps) {
     { href: '/discover', label: t('nav.discover'), icon: Search },
     { href: '/listings', label: t('nav.listings'), icon: Home },
     { href: '/matches', label: t('nav.messages'), icon: MessageCircle, badge: unreadMessages },
+    { href: '/connections', label: t('nav.connections'), icon: Users },
     { href: '/profile', label: t('nav.profile'), icon: User },
   ];
 

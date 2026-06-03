@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Search, Home, Heart, User } from 'lucide-react';
+import { Search, Home, MessageCircle, User, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface MobileNavProps {
@@ -14,7 +14,8 @@ export function MobileNav({ unreadMessages = 0 }: MobileNavProps) {
   const navItems = [
     { href: '/discover', label: t('nav.discover'), icon: Search },
     { href: '/listings', label: t('nav.listings'), icon: Home },
-    { href: '/matches', label: t('nav.messages'), icon: Heart, badge: unreadMessages },
+    { href: '/matches', label: t('nav.messages'), icon: MessageCircle, badge: unreadMessages },
+    { href: '/connections', label: t('nav.connections'), icon: Users },
     { href: '/profile', label: t('nav.profile'), icon: User },
   ];
 
@@ -22,13 +23,13 @@ export function MobileNav({ unreadMessages = 0 }: MobileNavProps) {
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden border-t border-border/40 bg-background/95 backdrop-blur-xl safe-area-pb">
-      <div className="flex items-center justify-around h-16">
+      <div className="grid h-16 grid-cols-5 items-center">
         {navItems.map((item) => (
           <Link
             key={item.href}
             to={item.href}
             className={cn(
-              "flex flex-col items-center gap-1 px-4 py-2 rounded-lg transition-all",
+              "relative flex min-w-0 flex-col items-center gap-1 rounded-lg px-1 py-2 transition-all",
               isActive(item.href)
                 ? "text-primary"
                 : "text-muted-foreground hover:text-foreground"

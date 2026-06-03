@@ -7,6 +7,7 @@
     "listings": "Anuncios",
     "matches": "Matches",
     "messages": "Mensajes",
+    "connections": "Conexiones",
     "profile": "Perfil",
     "login": "Iniciar sesión",
     "signup": "Registrarse",
@@ -147,14 +148,14 @@
     "verified": "Verificado",
     "trustScore": "Puntuación de Confianza",
     "trustBadges": {
-      "gold": "Gold",
-      "silver": "Silver",
-      "bronze": "Bronze"
+      "gold": "Confianza alta",
+      "silver": "Confianza media",
+      "bronze": "Confianza básica"
     },
     "testQuickCompleted": "Perfil de convivencia completado",
     "testQuickPending": "Perfil de convivencia pendiente",
-    "livingProfileCompleted": "Perfil de convivencia completado",
-    "livingProfilePending": "Perfil de convivencia pendiente",
+    "livingProfileCompleted": "Perfil personal completado",
+    "livingProfilePending": "Completa tu perfil personal",
     "testFullCompleted": "Test de compatibilidad completado",
     "testFullPending": "Test de compatibilidad pendiente",
     "testFullRequested": "Alguien te ha invitado a completar el test de compatibilidad",
@@ -490,10 +491,8 @@
     "types": {
       "offerRoom": "Ofrezco habitación",
       "seekRoom": "Busco habitación",
-      "seekRoomie": "Busco compañero/a",
       "offeringRoom": "Ofrezco habitación",
-      "seekingRoom": "Busco habitación",
-      "seekingRoommate": "Busco compañero/a"
+      "seekingRoom": "Busco habitación"
     },
     "price": "€/mes",
     "available": "Disponible desde",
@@ -538,8 +537,7 @@
       "intentionTitle": "Tipo de búsqueda",
       "intentions": {
         "seek_room": "Busca habitación",
-        "offer_room": "Ofrece habitación",
-        "seek_flatmate": "Busca compañero"
+        "offer_room": "Ofrece habitación"
       }
     }
   },
@@ -582,8 +580,6 @@
       "seekingRoomDesc": "Quiero alquilar una habitación en un piso compartido",
       "offeringRoom": "Ofrezco habitación",
       "offeringRoomDesc": "Tengo una habitación disponible para alquilar",
-      "seekingRoommate": "Busco compañero/a para alquilar piso",
-      "seekingRoommateDesc": "Quiero encontrar personas para alquilar un piso completo juntos",
       "makePrimary": "Marcar como principal"
     },
     "step2": {

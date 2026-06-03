@@ -2,6 +2,7 @@ type YesNoValue = 'yes' | 'no' | '';
 type HouseholdSizeValue = 'solo' | 'pair' | 'group_3_plus' | '';
 type PropertyContextValue = 'shared_flat' | 'family_home' | 'owner_occupied_flat' | '';
 type SeekerGoalValue = 'need_room_now' | 'want_flatmate_then_home' | 'open_to_both' | '';
+type OccupancyPolicyValue = 'single_only' | 'couple' | 'two_people' | 'to_agree' | '';
 
 export type LivingTraitsForm = {
   isSmoker: YesNoValue;
@@ -18,11 +19,11 @@ export type SeekerDetailsForm = {
 };
 
 export type SeekRoomDetailsForm = SeekerDetailsForm;
-export type SeekFlatmateDetailsForm = SeekerDetailsForm;
 
 export type OfferDetailsForm = {
   propertyContext: PropertyContextValue;
   currentHouseholdCount: string;
+  occupancyPolicy: OccupancyPolicyValue;
   allowsCouples: YesNoValue;
   allowsTwoPeople: YesNoValue;
   allowsMinors: YesNoValue;
@@ -41,16 +42,23 @@ export const HOUSEHOLD_SIZE_OPTIONS = [
   { value: 'group_3_plus', label: 'Somos 3 o más' },
 ] as const;
 
-export const SEEKER_GOAL_OPTIONS = [
-  { value: 'need_room_now', label: 'Necesito habitación ya' },
-  { value: 'want_flatmate_then_home', label: 'Quiero encontrar compañero y luego piso' },
-  { value: 'open_to_both', label: 'Abierto a buscar habitación o compañero' },
+export const SEEK_ROOM_GOAL_OPTIONS = [
+  { value: 'need_room_now', label: 'Necesito habitación cuanto antes' },
+  { value: 'want_flatmate_then_home', label: 'Busco habitación para mudarme pronto' },
+  { value: 'open_to_both', label: 'Estoy mirando opciones con flexibilidad' },
 ] as const;
 
 export const PROPERTY_CONTEXT_OPTIONS = [
   { value: 'shared_flat', label: 'Piso compartido' },
   { value: 'family_home', label: 'Casa familiar' },
   { value: 'owner_occupied_flat', label: 'Piso con propietario viviendo' },
+] as const;
+
+export const OCCUPANCY_POLICY_OPTIONS = [
+  { value: 'single_only', label: 'Solo una persona' },
+  { value: 'couple', label: 'Pareja' },
+  { value: 'two_people', label: 'Dos personas' },
+  { value: 'to_agree', label: 'A valorar según el caso' },
 ] as const;
 
 const MANAGED_TRAIT_PREFIXES = [
@@ -126,11 +134,19 @@ export const decodeSeekerDetails = (value: unknown): SeekerDetailsForm => {
 export const decodeSeekRoomDetails = (value: unknown): SeekRoomDetailsForm =>
   decodeSeekerDetails(value);
 
-export const decodeSeekFlatmateDetails = (value: unknown): SeekFlatmateDetailsForm =>
-  decodeSeekerDetails(value);
-
 export const decodeOfferDetails = (value: unknown): OfferDetailsForm => {
   const details = asRecord(value);
+  const allowsCouples = readBooleanString(details.allows_couples);
+  const allowsTwoPeople = readBooleanString(details.allows_two_people);
+  const occupancyPolicy =
+    readString(details.occupancy_policy, ['single_only', 'couple', 'two_people', 'to_agree']) ||
+    (allowsCouples === 'yes'
+      ? 'couple'
+      : allowsTwoPeople === 'yes'
+        ? 'two_people'
+        : allowsCouples === 'no' && allowsTwoPeople === 'no'
+          ? 'single_only'
+          : '');
 
   return {
     propertyContext: readString(details.property_context, ['shared_flat', 'family_home', 'owner_occupied_flat']),
@@ -138,8 +154,9 @@ export const decodeOfferDetails = (value: unknown): OfferDetailsForm => {
       typeof details.current_household_count === 'number'
         ? String(details.current_household_count)
         : '',
-    allowsCouples: readBooleanString(details.allows_couples),
-    allowsTwoPeople: readBooleanString(details.allows_two_people),
+    occupancyPolicy,
+    allowsCouples,
+    allowsTwoPeople,
     allowsMinors: readBooleanString(details.allows_minors),
     allowsPets: readBooleanString(details.allows_pets),
     allowsSmoking: readBooleanString(details.allows_smoking),
@@ -166,24 +183,36 @@ export const encodeSeekRoomDetails = (
   details: SeekRoomDetailsForm
 ) => encodeSeekerDetails(existingValue, details);
 
-export const encodeSeekFlatmateDetails = (
-  existingValue: unknown,
-  details: SeekFlatmateDetailsForm
-) => encodeSeekerDetails(existingValue, details);
-
 export const encodeOfferDetails = (
   existingValue: unknown,
   details: OfferDetailsForm
 ) => {
   const existing = asRecord(existingValue);
   const householdCount = Number(details.currentHouseholdCount);
+  const allowsCouples =
+    details.occupancyPolicy === 'couple' || details.occupancyPolicy === 'to_agree'
+      ? true
+      : details.occupancyPolicy
+        ? false
+        : details.allowsCouples
+          ? details.allowsCouples === 'yes'
+          : null;
+  const allowsTwoPeople =
+    details.occupancyPolicy === 'two_people' || details.occupancyPolicy === 'to_agree'
+      ? true
+      : details.occupancyPolicy
+        ? false
+        : details.allowsTwoPeople
+          ? details.allowsTwoPeople === 'yes'
+          : null;
 
   return {
     ...existing,
     property_context: details.propertyContext || null,
     current_household_count: Number.isFinite(householdCount) && householdCount >= 0 ? householdCount : null,
-    allows_couples: details.allowsCouples ? details.allowsCouples === 'yes' : null,
-    allows_two_people: details.allowsTwoPeople ? details.allowsTwoPeople === 'yes' : null,
+    occupancy_policy: details.occupancyPolicy || null,
+    allows_couples: allowsCouples,
+    allows_two_people: allowsTwoPeople,
     allows_minors: details.allowsMinors ? details.allowsMinors === 'yes' : null,
     allows_pets: details.allowsPets ? details.allowsPets === 'yes' : null,
     allows_smoking: details.allowsSmoking ? details.allowsSmoking === 'yes' : null,
@@ -206,7 +235,12 @@ export const getPropertyContextLabel = (value: PropertyContextValue) => {
   return option?.label ?? null;
 };
 
-export const getSeekerGoalLabel = (value: SeekerGoalValue) => {
-  const option = SEEKER_GOAL_OPTIONS.find((item) => item.value === value);
+export const getOccupancyPolicyLabel = (value: OccupancyPolicyValue) => {
+  const option = OCCUPANCY_POLICY_OPTIONS.find((item) => item.value === value);
+  return option?.label ?? null;
+};
+
+export const getSeekRoomGoalLabel = (value: SeekerGoalValue) => {
+  const option = SEEK_ROOM_GOAL_OPTIONS.find((item) => item.value === value);
   return option?.label ?? null;
 };

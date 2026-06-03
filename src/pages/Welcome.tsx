@@ -1,4 +1,4 @@
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowRight, Eye, Sparkles, UserRoundCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -91,12 +91,6 @@ export default function Welcome() {
                 <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
               </span>
             </button>
-          </div>
-
-          <div className="mt-6 text-center text-sm text-muted-foreground">
-            <Link to="/profile" className="font-medium text-primary hover:underline">
-              Ir a mi perfil
-            </Link>
           </div>
         </motion.section>
       </main>

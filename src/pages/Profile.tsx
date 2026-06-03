@@ -1,22 +1,19 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { motion } from 'framer-motion';
-import { User, Camera, MapPin, FileText, Edit2, CheckCircle, AlertCircle, Loader2, Home, Briefcase, Calendar, Wallet, Clock3, ShieldCheck, HeartHandshake } from 'lucide-react';
+import { User, Camera, MapPin, FileText, Edit2, CheckCircle, AlertCircle, Loader2, Home, Briefcase, ShieldCheck, HeartHandshake, RotateCcw, Key, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { EditProfileSheet } from '@/components/profile/EditProfileSheet';
-import { IntentionBadges } from '@/components/IntentionBadge';
 import { toast } from 'sonner';
 import { useSEO } from '@/hooks/useSEO';
 import { getLanguageLabel } from '@/lib/profileOptions';
 import {
-  decodeOfferDetails,
-  decodeSeekerDetails,
-  getPropertyContextLabel,
-  getSeekerGoalLabel,
+  decodeLivingTraits,
+  getHouseholdSizeLabel,
   getYesNoLabel,
 } from '@/lib/profileTraits';
 
@@ -194,69 +191,31 @@ export default function Profile() {
     profile.photos?.find((photo): photo is string => typeof photo === 'string' && photo.length > 0) ||
     profile.photo_url ||
     null;
-  const hasPracticalDetails = Boolean(
-    profile.autonomous_community ||
-      profile.province_code ||
-      profile.budget_min ||
-      profile.budget_max ||
-      profile.move_in_date ||
-      profile.min_stay_months ||
-      profile.occupation
-  );
-  const hasLivingProfile = lifestyleTags.length > 0 || hasPracticalDetails || Boolean(profile.bio);
-
-  const budgetLabel =
-    profile.budget_min && profile.budget_max
-      ? `${profile.budget_min} - ${profile.budget_max} EUR/mes`
-      : profile.budget_min
-        ? `Desde ${profile.budget_min} EUR/mes`
-        : profile.budget_max
-          ? `Hasta ${profile.budget_max} EUR/mes`
-          : null;
-
-  const moveInLabel = profile.move_in_date
-    ? new Date(profile.move_in_date).toLocaleDateString()
-    : null;
-
-  const minStayLabel = profile.min_stay_months
-    ? `${profile.min_stay_months} ${profile.min_stay_months === 1 ? 'mes' : 'meses'}`
-    : null;
-
   const locationBits = [profile.city, profile.province_code, profile.autonomous_community].filter(Boolean);
+  const locationLabel = locationBits.length > 0 ? locationBits.join(' - ') : null;
+  const livingTraits = decodeLivingTraits(lifestyleTags);
+
   const automaticCompatibilityTags = lifestyleTags
     .filter((tag) => tag.startsWith('auto_'))
     .map((tag) => tag.replace('auto_', '').replace(/_/g, ' '))
     .map((tag) => tag.charAt(0).toUpperCase() + tag.slice(1));
-  const primarySeekingIntention =
-    profile.intentions?.find((intention) => intention.is_primary && intention.intention_type !== 'offer_room') ??
-    profile.intentions?.find((intention) => intention.intention_type !== 'offer_room') ??
-    null;
-  const offerIntention = profile.intentions?.find((intention) => intention.intention_type === 'offer_room') ?? null;
-  const seekerDetails = primarySeekingIntention ? decodeSeekerDetails(primarySeekingIntention.details) : null;
-  const offerDetails = offerIntention ? decodeOfferDetails(offerIntention.details) : null;
-  const seekerLabels = seekerDetails
-    ? [
-        getSeekerGoalLabel(seekerDetails.seekerGoal),
-        getYesNoLabel(seekerDetails.acceptsSmokingHome, 'Acepta piso con fumadores', 'No quiere piso con fumadores'),
-        getYesNoLabel(seekerDetails.acceptsPetsHome, 'Acepta mascotas', 'Prefiere sin mascotas'),
-        getYesNoLabel(seekerDetails.acceptsCouplesHome, 'Acepta parejas', 'Prefiere no convivir con parejas'),
-      ].filter((label): label is string => Boolean(label))
-    : [];
-  const offerLabels = offerDetails
-    ? [
-        getPropertyContextLabel(offerDetails.propertyContext),
-        offerDetails.currentHouseholdCount
-          ? `${offerDetails.currentHouseholdCount} persona${offerDetails.currentHouseholdCount === '1' ? '' : 's'} viviendo ya en casa`
-          : null,
-        getYesNoLabel(offerDetails.allowsCouples, 'Admite parejas', 'No admite parejas'),
-        getYesNoLabel(offerDetails.allowsTwoPeople, 'Admite dos personas', 'No admite dos personas'),
-        getYesNoLabel(offerDetails.allowsMinors, 'Admite menores', 'No admite menores'),
-        getYesNoLabel(offerDetails.allowsPets, 'Admite mascotas', 'No admite mascotas'),
-        getYesNoLabel(offerDetails.allowsSmoking, 'Se puede fumar', 'No se puede fumar'),
-      ].filter((label): label is string => Boolean(label))
-    : [];
+  const livingTraitLabels = [
+    getYesNoLabel(livingTraits.isSmoker, 'Fuma', 'No fumador'),
+    getYesNoLabel(livingTraits.hasPet, 'Convive con mascota', 'Sin mascota'),
+    getHouseholdSizeLabel(livingTraits.householdSize),
+    getYesNoLabel(livingTraits.includesMinor, 'Convive con menor', 'Sin menores en convivencia'),
+  ].filter((label): label is string => Boolean(label));
+  const visibleCompatibilityTags = Array.from(new Set([...automaticCompatibilityTags, ...livingTraitLabels])).slice(0, 8);
 
-  const infoCards = [
+  const hasLivingProfile = Boolean(
+    profile.bio ||
+      profile.occupation ||
+      profile.languages?.length ||
+      locationLabel ||
+      visibleCompatibilityTags.length > 0
+  );
+
+  const basicInfoCards = [
     {
       key: 'occupation',
       icon: Briefcase,
@@ -264,22 +223,10 @@ export default function Profile() {
       value: profile.occupation,
     },
     {
-      key: 'budget',
-      icon: Wallet,
-      label: 'Presupuesto',
-      value: budgetLabel,
-    },
-    {
-      key: 'move-in',
-      icon: Calendar,
-      label: 'Fecha de entrada',
-      value: moveInLabel,
-    },
-    {
-      key: 'stay',
-      icon: Clock3,
-      label: 'Estancia mínima',
-      value: minStayLabel,
+      key: 'location',
+      icon: MapPin,
+      label: 'Ubicación aproximada',
+      value: locationLabel,
     },
   ].filter((item) => Boolean(item.value));
 
@@ -289,7 +236,7 @@ export default function Profile() {
         <div className="max-w-2xl mx-auto">
           {/* Header */}
           <div className="flex items-center justify-between mb-8">
-            <h1 className="text-3xl font-bold">{t('profile.title')}</h1>
+            <h1 className="text-3xl font-bold">Mi perfil</h1>
             <div className="flex flex-wrap justify-end gap-2">
               <Button asChild variant="outline" className="gap-2">
                 <Link to="/my-listings">
@@ -342,14 +289,14 @@ export default function Profile() {
                 <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
                   {profile.selfie_verified && (
                     <Badge variant="secondary" className="rounded-full">
-                      ✓ {t('profile.verified')}
+                      {t('profile.verified')}
                     </Badge>
                   )}
                   {profile.trust_badge && profile.trust_badge !== 'none' && (
                     <Badge variant="outline" className="rounded-full">
-                      {profile.trust_badge === 'gold' && `🏆 ${t('profile.trustBadges.gold')}`}
-                      {profile.trust_badge === 'silver' && `🥈 ${t('profile.trustBadges.silver')}`}
-                      {profile.trust_badge === 'bronze' && `🥉 ${t('profile.trustBadges.bronze')}`}
+                      {profile.trust_badge === 'gold' && t('profile.trustBadges.gold')}
+                      {profile.trust_badge === 'silver' && t('profile.trustBadges.silver')}
+                      {profile.trust_badge === 'bronze' && t('profile.trustBadges.bronze')}
                     </Badge>
                   )}
                   {showInclusiveBadge && (
@@ -361,14 +308,50 @@ export default function Profile() {
                 </div>
               </div>
 
-              <div className="rounded-xl border border-border/60 bg-background/70 p-4">
-                <h3 className="text-sm font-semibold text-muted-foreground mb-1">Perfil visible públicamente</h3>
-                <p className="text-sm text-muted-foreground">
-                  Foto, nombre, idiomas, descripción e intención principal. No mostramos documentación ni datos sensibles al empezar.
-                </p>
-              </div>
+              {visibleCompatibilityTags.length > 0 && (
+                <div className="rounded-xl border border-border/60 bg-background/70 p-4">
+                  <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground mb-3">
+                    <ShieldCheck className="h-4 w-4" />
+                    Convivencia opcional
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {visibleCompatibilityTags.map((tag) => (
+                      <Badge key={tag} variant="secondary" className="rounded-full">
+                        {tag}
+                      </Badge>
+                    ))}
+                  </div>
+                  <p className="mt-3 text-sm text-muted-foreground">
+                    Estos rasgos solo se usan para orientar compatibilidad si quieres convivir o conocer personas afines.
+                  </p>
+                </div>
+              )}
 
-              {/* Languages */}
+              {/* Bio */}
+              {profile.bio && (
+                <div>
+                  <h3 className="text-sm font-semibold text-muted-foreground mb-2">Sobre mí</h3>
+                  <p className="text-sm">{profile.bio}</p>
+                </div>
+              )}
+
+              {basicInfoCards.length > 0 && (
+                <div>
+                  <h3 className="text-sm font-semibold text-muted-foreground mb-2">Datos básicos</h3>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {basicInfoCards.map(({ key, icon: Icon, label, value }) => (
+                      <div key={key} className="rounded-xl border border-border/60 bg-background/70 p-4">
+                        <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground mb-2">
+                          <Icon className="h-4 w-4" />
+                          {label}
+                        </div>
+                        <p className="text-sm font-medium text-foreground">{value}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {profile.languages && profile.languages.length > 0 && (
                 <div>
                   <h3 className="text-sm font-semibold text-muted-foreground mb-2">{t('profile.languagesLabel')}</h3>
@@ -382,134 +365,6 @@ export default function Profile() {
                 </div>
               )}
 
-              {/* Intentions */}
-              {profile.intentions && profile.intentions.length > 0 ? (
-                <div>
-                  <h3 className="text-sm font-semibold text-muted-foreground mb-2">Busco / ofrezco</h3>
-                  <IntentionBadges intentions={profile.intentions} variant="default" />
-                </div>
-              ) : (
-                <div className="rounded-xl border border-dashed border-border p-4">
-                  <h3 className="text-sm font-semibold mb-1">Aun no has definido que buscas</h3>
-                  <p className="text-sm text-muted-foreground mb-3">
-                    Completar tus intenciones ayuda a que Discover y los anuncios encajen mejor contigo.
-                  </p>
-                  <Button asChild variant="outline" size="sm">
-                    <Link to="/onboarding">Completar preferencias</Link>
-                  </Button>
-                </div>
-              )}
-
-              {/* Practical Details */}
-              {hasPracticalDetails && (
-                <div className="space-y-4">
-                  <div>
-                    <h3 className="text-sm font-semibold text-muted-foreground mb-2">Datos visibles solo para matches</h3>
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      {infoCards.map(({ key, icon: Icon, label, value }) => (
-                        <div key={key} className="rounded-xl border border-border/60 bg-background/70 p-4">
-                          <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground mb-2">
-                            <Icon className="h-4 w-4" />
-                            {label}
-                          </div>
-                          <p className="text-sm font-medium text-foreground">{value}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {locationBits.length > 0 && (
-                    <div className="rounded-xl border border-border/60 bg-background/70 p-4">
-                      <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground mb-2">
-                        <MapPin className="h-4 w-4" />
-                        Ubicación
-                      </div>
-                      <p className="text-sm font-medium text-foreground">{locationBits.join(' - ')}</p>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Intention Specific Conditions */}
-              {(seekerLabels.length > 0 || offerLabels.length > 0) && (
-                <div className="space-y-4">
-                  {seekerLabels.length > 0 && (
-                    <div className="rounded-xl border border-border/60 bg-background/70 p-4">
-                      <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground mb-3">
-                        <ShieldCheck className="h-4 w-4" />
-                        Lo que busco
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        {seekerLabels.map((label) => (
-                          <Badge key={label} variant="secondary" className="rounded-full">
-                            {label}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {offerLabels.length > 0 && (
-                    <div className="rounded-xl border border-border/60 bg-background/70 p-4">
-                      <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground mb-3">
-                        <Home className="h-4 w-4" />
-                        Lo que ofrezco
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        {offerLabels.map((label) => (
-                          <Badge key={label} variant="secondary" className="rounded-full">
-                            {label}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {automaticCompatibilityTags.length > 0 && (
-                <div className="rounded-xl border border-border/60 bg-background/70 p-4">
-                  <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground mb-3">
-                    <ShieldCheck className="h-4 w-4" />
-                    Datos privados usados solo para compatibilidad
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {automaticCompatibilityTags.map((tag) => (
-                      <Badge key={tag} variant="secondary" className="rounded-full">
-                        {tag}
-                      </Badge>
-                    ))}
-                  </div>
-                  <p className="mt-3 text-sm text-muted-foreground">
-                    Estas etiquetas ayudan al cálculo de compatibilidad. No sustituyen al test avanzado ni obligan a mostrar información sensible.
-                  </p>
-                </div>
-              )}
-
-              {/* Bio */}
-              {profile.bio && (
-                <div>
-                  <h3 className="text-sm font-semibold text-muted-foreground mb-2">Sobre ti y convivencia</h3>
-                  <p className="text-sm">{profile.bio}</p>
-                </div>
-              )}
-
-              {/* Trust Score */}
-              <div>
-                <h3 className="text-sm font-semibold text-muted-foreground mb-1">Verificación opcional</h3>
-                <p className="mb-3 text-sm text-muted-foreground">
-                  Puedes aumentar confianza progresivamente. DNI, nómina o ingresos exactos no son obligatorios al empezar.
-                </p>
-                <div className="flex items-center gap-2">
-                  <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-primary transition-all duration-300" 
-                      style={{ width: `${profile.trust_score}%` }}
-                    />
-                  </div>
-                  <span className="text-sm font-medium">{profile.trust_score}/100</span>
-                </div>
-              </div>
             </div>
           </motion.div>
 
@@ -584,7 +439,14 @@ export default function Profile() {
 
                 {/* Action Buttons */}
                 <div className="flex gap-2 mt-3">
-                  {!profile.full_test_completed && (
+                  {profile.full_test_completed ? (
+                    <Link to="/test">
+                      <Button variant="outline" size="sm" className="gap-2">
+                        <RotateCcw className="h-4 w-4" />
+                        Repetir test
+                      </Button>
+                    </Link>
+                  ) : (
                     <Link to="/test">
                       <Button variant="hero" size="sm" className="gap-2">
                         <FileText className="h-4 w-4" />
@@ -592,6 +454,45 @@ export default function Profile() {
                       </Button>
                     </Link>
                   )}
+                </div>
+              </div>
+            </div>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="glass-card rounded-2xl p-6 mb-6"
+          >
+            <div className="flex items-start gap-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                <Home className="h-6 w-6" />
+              </div>
+              <div className="flex-1 space-y-4">
+                <div>
+                  <h3 className="font-semibold">Anuncios</h3>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Tus anuncios van separados del perfil personal. Puedes ofrecer una habitación, preparar una búsqueda o gestionar lo que ya tienes publicado.
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  <Button asChild variant="outline" size="sm">
+                    <Link to="/my-listings">Ver mis anuncios</Link>
+                  </Button>
+                  <Button asChild variant="outline" size="sm" className="gap-2">
+                    <Link to="/create-listing?type=offer_room">
+                      <Key className="h-4 w-4" />
+                      Ofrezco habitación
+                    </Link>
+                  </Button>
+                  <Button asChild variant="hero" size="sm" className="gap-2">
+                    <Link to="/create-listing?type=seek_room">
+                      <Search className="h-4 w-4" />
+                      Busco habitación
+                    </Link>
+                  </Button>
                 </div>
               </div>
             </div>

@@ -16,7 +16,6 @@ import {
   MapPin,
   ShieldCheck,
   Sparkles,
-  Users,
   X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -45,7 +44,7 @@ import {
   todayIso,
 } from '@/lib/profileOptions';
 
-type BackendIntentionType = 'seek_room' | 'offer_room' | 'seek_flatmate';
+type BackendIntentionType = 'seek_room' | 'offer_room';
 type GoalType = BackendIntentionType;
 type MoveInPreference = 'asap' | 'weeks' | 'month' | 'specific' | 'flexible' | '';
 
@@ -78,7 +77,7 @@ type OnboardingData = {
 };
 
 const PROFILE_PHOTO_LIMIT = 1;
-const totalSteps = 5;
+const totalSteps = 4;
 
 const goalOptions: Array<{
   value: GoalType;
@@ -100,13 +99,6 @@ const goalOptions: Array<{
     description: 'Tengo una habitación disponible para alquilar.',
     icon: Key,
     backendType: 'offer_room',
-  },
-  {
-    value: 'seek_flatmate',
-    title: 'Busco compañero/a para alquilar piso juntos',
-    description: 'Quiero encontrar personas compatibles y luego buscar piso.',
-    icon: Users,
-    backendType: 'seek_flatmate',
   },
 ];
 
@@ -243,8 +235,6 @@ const Onboarding = () => {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [data, setData] = useState<OnboardingData>(emptyData);
 
-  const selectedGoal = goalOptions.find((goal) => goal.value === data.goal);
-  const backendIntention = selectedGoal?.backendType ?? null;
   const progress = (currentStep / totalSteps) * 100;
 
   useEffect(() => {
@@ -269,35 +259,65 @@ const Onboarding = () => {
   }, [navigate]);
 
   const automaticTags = useMemo(() => {
-    const tags = new Set<string>();
+    const tags = [
+      {
+        relaxed: 'Limpieza flexible',
+        balanced: 'Limpieza equilibrada',
+        organized: 'Persona ordenada',
+      }[data.cleaning],
+      {
+        quiet: 'Prefiere tranquilidad',
+        balanced: 'Ambiente normal',
+        lively: 'Tolera ambiente animado',
+      }[data.noise],
+      {
+        early: 'Persona madrugadora',
+        regular: 'Horario regular',
+        night: 'Persona nocturna',
+      }[data.schedule],
+      {
+        rare: 'Pocas visitas',
+        planned: 'Visitas avisando',
+        frequent: 'Visitas frecuentes',
+      }[data.visits],
+      {
+        no: 'Prefiere sin mascotas',
+        flexible: 'Flexible con mascotas',
+        yes: 'Pet friendly',
+      }[data.pets],
+      {
+        no: 'No fumador',
+        outside: 'Fuma solo fuera',
+        inside: 'Flexible con fumadores',
+      }[data.smoking],
+      {
+        light: 'Cocina ligera',
+        normal: 'Cocina habitual',
+        often: 'Cocina frecuente',
+      }[data.cooking],
+      {
+        independent: 'Va a su aire',
+        balanced: 'Vida común equilibrada',
+        social: 'Casa sociable',
+      }[data.social],
+      {
+        no: 'Sin teletrabajo',
+        some: 'Teletrabajo ocasional',
+        often: 'Teletrabajo frecuente',
+      }[data.remoteWork],
+    ].filter((tag): tag is string => Boolean(tag));
 
-    if (data.noise === 'quiet') tags.add('Tranquilo');
-    if (data.cleaning === 'organized') tags.add('Ordenado');
-    if (data.schedule === 'early') tags.add('Madrugador');
-    if (data.smoking === 'no') tags.add('No fumador');
-    if (data.pets === 'yes' || data.pets === 'flexible') tags.add('Pet friendly');
-    if (data.social === 'social' || data.visits === 'frequent') tags.add('Sociable');
-    if (data.social === 'independent') tags.add('Independiente');
-    if (data.remoteWork === 'some' || data.remoteWork === 'often') tags.add('Teletrabajador');
-    if (data.noise === 'quiet' && data.visits !== 'frequent') tags.add('Ambiente tranquilo');
-    if (data.social === 'social' || data.visits === 'frequent') tags.add('Ambiente social');
-
-    return Array.from(tags);
-  }, [data.cleaning, data.noise, data.pets, data.remoteWork, data.schedule, data.smoking, data.social, data.visits]);
+    return Array.from(new Set(tags));
+  }, [data.cleaning, data.cooking, data.noise, data.pets, data.remoteWork, data.schedule, data.smoking, data.social, data.visits]);
+  const visibleAutomaticTags = automaticTags.slice(0, 6);
 
   const completionPercent = useMemo(() => {
     const fields = [
-      data.goal,
       data.displayName,
       data.age,
       data.autonomousCommunity,
       data.province,
       data.city,
-      data.budgetMin,
-      data.budgetMax,
-      data.moveInPreference,
-      data.minStayMonths,
-      ...styleQuestions.map((question) => data[question.key]),
       data.languages.length > 0 ? 'ok' : '',
       data.occupation,
       data.bio,
@@ -374,17 +394,9 @@ const Onboarding = () => {
 
   const canProceed = (step = currentStep) => {
     const age = Number(data.age);
-    const budgetMin = toNumberOrNull(data.budgetMin);
-    const budgetMax = toNumberOrNull(data.budgetMax);
-    const hasBudgetPair = budgetMin !== null && budgetMax !== null;
-    const budgetIsValid =
-      hasBudgetPair && Number.isFinite(budgetMin) && Number.isFinite(budgetMax) && budgetMin > 0 && budgetMin <= budgetMax && budgetMax <= MAX_BUDGET;
-    const dateIsValid = data.moveInPreference !== 'specific' || Boolean(data.moveInDate && data.moveInDate >= todayIso());
 
     switch (step) {
       case 1:
-        return Boolean(data.goal);
-      case 2:
         return (
           data.displayName.trim().length >= 2 &&
           data.displayName.trim().length <= MAX_DISPLAY_NAME_LENGTH &&
@@ -394,14 +406,11 @@ const Onboarding = () => {
           data.autonomousCommunity !== '' &&
           data.province !== '' &&
           data.city.trim().length >= 2 &&
-          data.city.trim().length <= MAX_CITY_LENGTH &&
-          budgetIsValid &&
-          data.moveInPreference !== '' &&
-          dateIsValid
+          data.city.trim().length <= MAX_CITY_LENGTH
         );
+      case 2:
+        return true;
       case 3:
-        return styleQuestions.every((question) => Boolean(data[question.key]));
-      case 4:
         return (
           data.languages.length > 0 &&
           data.occupation.trim().length <= MAX_OCCUPATION_LENGTH &&
@@ -414,6 +423,10 @@ const Onboarding = () => {
   };
 
   const getStepValidationMessage = () => {
+    if (currentStep === 1) return 'Completa nombre, edad y ubicacion aproximada.';
+    if (currentStep === 2) return 'Puedes completar o saltar el estilo de convivencia.';
+    if (currentStep === 3) return 'Añade idiomas y una descripcion corta de al menos 20 caracteres.';
+
     switch (currentStep) {
       case 1:
         return 'Elige qué quieres hacer ahora.';
@@ -449,27 +462,11 @@ const Onboarding = () => {
     data.inclusiveProfile ? 'inclusive_lgtbiq_friendly' : null,
   ].filter((tag): tag is string => Boolean(tag));
 
-  const getCreateListingPath = () => {
-    if (backendIntention === 'offer_room' || backendIntention === 'seek_flatmate') {
-      return `/create-listing?type=${backendIntention}`;
-    }
+  const getCreateListingPath = (listingType: BackendIntentionType) => `/create-listing?type=${listingType}`;
 
-    return '/create-listing';
-  };
-
-  const getAdvancedTestPath = () => {
-    if (backendIntention === 'offer_room' || backendIntention === 'seek_flatmate') {
-      const params = new URLSearchParams({
-        next: 'create-listing',
-        type: backendIntention,
-      });
-      return `/test?${params.toString()}`;
-    }
-
-    return '/test';
-  };
-
-  const handleComplete = async (goToAdvancedTest: boolean, destination?: 'discover' | 'create-listing') => {
+  const handleComplete = async (destination: 'discover' | 'offer_room' | 'seek_room') => {
+    const selectedBackend: BackendIntentionType | null =
+      destination === 'offer_room' || destination === 'seek_room' ? destination : null;
     const invalidStep = Array.from({ length: totalSteps - 1 }, (_, index) => index + 1)
       .find((step) => !canProceed(step));
 
@@ -491,13 +488,11 @@ const Onboarding = () => {
       const budgetMin = toNumberOrNull(data.budgetMin);
       const budgetMax = toNumberOrNull(data.budgetMax);
       const minStayMonths = data.minStayMonths ? Number(data.minStayMonths) : null;
-      const profileUserType = backendIntention === 'seek_room'
+      const profileUserType = selectedBackend === 'seek_room'
         ? 'seeking_room'
-        : backendIntention === 'offer_room'
+        : selectedBackend === 'offer_room'
           ? 'offering_room'
-          : backendIntention === 'seek_flatmate'
-            ? 'seeking_roommate'
-            : undefined;
+          : undefined;
 
       const { error: convinterError } = await supabase
         .from('convinter_profiles')
@@ -538,13 +533,13 @@ const Onboarding = () => {
         console.warn('Error updating base profile:', profilesError);
       }
 
-      if (backendIntention) {
+      if (selectedBackend) {
         const { data: intentionResult, error: intentionError } = await supabase.rpc('convinter_set_intention', {
-          p_intention_type: backendIntention,
+          p_intention_type: selectedBackend,
           p_is_primary: true,
           p_urgency: data.moveInPreference === 'asap' ? 'urgent' : 'flexible',
           p_details: {
-            selected_goal: data.goal,
+            selected_goal: selectedBackend,
             age: Number(data.age),
             city: data.city.trim() || null,
             province: data.province || null,
@@ -578,10 +573,10 @@ const Onboarding = () => {
 
       toast.success('Perfil actualizado.');
 
-      if (destination === 'create-listing') {
-        navigate(getCreateListingPath());
+      if (selectedBackend) {
+        navigate(getCreateListingPath(selectedBackend));
       } else {
-        navigate(goToAdvancedTest ? getAdvancedTestPath() : '/discover');
+        navigate('/discover');
       }
     } catch (error) {
       console.error('Error completing onboarding:', error);
@@ -628,6 +623,7 @@ const Onboarding = () => {
 
   const renderBasicStep = () => {
     const isOfferRoom = data.goal === 'offer_room';
+    const showListingFields = false;
 
     return (
       <div className="space-y-5">
@@ -662,7 +658,11 @@ const Onboarding = () => {
       <div className="space-y-3">
         <Label className="flex items-center gap-2">
           <MapPin className="h-4 w-4" />
-          {isOfferRoom ? 'Ubicación de la habitación' : 'Ubicación'}
+          {isOfferRoom
+            ? 'Ubicación de la habitación'
+            : data.goal === 'seek_room'
+              ? 'Zona donde buscas'
+              : 'Ubicación'}
         </Label>
         <Select
           value={data.autonomousCommunity}
@@ -712,7 +712,7 @@ const Onboarding = () => {
         </div>
       </div>
 
-      {isOfferRoom ? (
+      {showListingFields && (isOfferRoom ? (
         <div className="space-y-2">
           <Label>Precio mensual de la habitación</Label>
           <Input
@@ -730,7 +730,11 @@ const Onboarding = () => {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
-            <Label>Presupuesto mínimo</Label>
+            <Label>
+              {data.goal === 'seek_room'
+                ? 'Presupuesto mínimo para habitación'
+                : 'Presupuesto mínimo'}
+            </Label>
             <Input
               type="number"
               min={1}
@@ -741,7 +745,11 @@ const Onboarding = () => {
             />
           </div>
           <div className="space-y-2">
-            <Label>Presupuesto máximo</Label>
+            <Label>
+              {data.goal === 'seek_room'
+                ? 'Presupuesto máximo para habitación'
+                : 'Presupuesto máximo'}
+            </Label>
             <Input
               type="number"
               min={1}
@@ -752,13 +760,18 @@ const Onboarding = () => {
             />
           </div>
         </div>
-      )}
+      ))}
 
+      {showListingFields && (
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
           <Label className="flex items-center gap-2">
             <Calendar className="h-4 w-4" />
-            {isOfferRoom ? 'Disponibilidad de la habitación' : 'Fecha de entrada'}
+            {isOfferRoom
+              ? 'Disponibilidad de la habitación'
+              : data.goal === 'seek_room'
+                ? 'Entrada deseada'
+                : 'Fecha de entrada'}
           </Label>
           <Select
             value={data.moveInPreference}
@@ -808,6 +821,7 @@ const Onboarding = () => {
           </Select>
         </div>
       </div>
+      )}
       </div>
     );
   };
@@ -815,9 +829,9 @@ const Onboarding = () => {
   const renderStyleStep = () => (
     <div className="space-y-5">
       <div className="text-center">
-        <h2 className="text-2xl font-bold text-foreground">Tu estilo de convivencia</h2>
+        <h2 className="text-2xl font-bold text-foreground">Estilo de convivencia</h2>
         <p className="mt-2 text-muted-foreground">
-          Elige la opción que más se parezca a ti. Esto nos ayuda a crear tus primeras compatibilidades.
+          Opcional. Si vas a convivir, estos datos ayudan a calcular compatibilidad. Si solo gestionas una vivienda o no vas a vivir alli, puedes dejarlos sin responder.
         </p>
       </div>
 
@@ -981,11 +995,11 @@ const Onboarding = () => {
         </p>
       </div>
 
-      {automaticTags.length > 0 && (
+      {visibleAutomaticTags.length > 0 && (
         <div className="rounded-xl border border-border/70 p-4 text-left">
-          <p className="mb-3 text-sm font-medium text-foreground">Etiquetas automáticas</p>
+          <p className="mb-3 text-sm font-medium text-foreground">Resumen de convivencia</p>
           <div className="flex flex-wrap gap-2">
-            {automaticTags.map((tag) => (
+            {visibleAutomaticTags.map((tag) => (
               <span key={tag} className="rounded-full bg-primary/10 px-3 py-1 text-sm font-medium text-primary">
                 {tag}
               </span>
@@ -995,16 +1009,31 @@ const Onboarding = () => {
       )}
 
       <div className="grid gap-3">
-        <Button variant="hero" onClick={() => handleComplete(true)} disabled={isLoading}>
+        <Button variant="hero" onClick={() => handleComplete('discover')} disabled={isLoading}>
+          {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+          Conoce personas afines
+        </Button>
+        <Button variant="outline" onClick={() => handleComplete('offer_room')} disabled={isLoading}>
+          <Key className="mr-2 h-4 w-4" />
+          Ofrezco habitación
+        </Button>
+        <Button variant="outline" onClick={() => handleComplete('seek_room')} disabled={isLoading}>
+          <Home className="mr-2 h-4 w-4" />
+          Busco habitación
+        </Button>
+      </div>
+
+      <div className="hidden">
+        <Button variant="hero" onClick={() => handleComplete('discover')} disabled={isLoading}>
           {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
           Hacer test ahora
         </Button>
-        {(data.goal === 'offer_room' || data.goal === 'seek_flatmate') && (
-          <Button variant="outline" onClick={() => handleComplete(false, 'create-listing')} disabled={isLoading}>
+        {data.goal === 'offer_room' && (
+          <Button variant="outline" onClick={() => handleComplete('offer_room')} disabled={isLoading}>
             Crear anuncio
           </Button>
         )}
-        <Button variant="outline" onClick={() => handleComplete(false, 'discover')} disabled={isLoading}>
+        <Button variant="outline" onClick={() => handleComplete('discover')} disabled={isLoading}>
           Completar más tarde
         </Button>
       </div>
@@ -1013,15 +1042,15 @@ const Onboarding = () => {
 
   const renderStep = () => {
     switch (currentStep) {
-      case 1:
+      case 0:
         return renderGoalStep();
-      case 2:
+      case 1:
         return renderBasicStep();
-      case 3:
+      case 2:
         return renderStyleStep();
-      case 4:
+      case 3:
         return renderPublicProfileStep();
-      case 5:
+      case 4:
         return renderProgressStep();
       default:
         return null;
