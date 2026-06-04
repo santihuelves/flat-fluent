@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from 'react';
-import { useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 
 type MatchWithUnread = {
@@ -12,7 +11,6 @@ type MatchesResponse = {
 };
 
 export function useUnreadMessages() {
-  const location = useLocation();
   const [unreadCount, setUnreadCount] = useState(0);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
@@ -81,10 +79,6 @@ export function useUnreadMessages() {
       void supabase.removeChannel(channel);
     };
   }, [isAuthenticated, loadUnreadCount]);
-
-  useEffect(() => {
-    void loadUnreadCount();
-  }, [loadUnreadCount, location.pathname]);
 
   useEffect(() => {
     const refresh = () => {

@@ -87,26 +87,12 @@ export default function Profile() {
         .select('*')
         .eq('user_id', user.id)
         .maybeSingle();
-      let data = profileData;
+      const data = profileData;
 
-      // Si no existe perfil, crearlo automáticamente
+      // Si hay sesion de auth pero no perfil de producto, empezar desde onboarding.
       if (!data && !error) {
-        const { data: newProfile, error: insertError } = await supabase
-          .from('convinter_profiles')
-          .insert({
-            user_id: user.id,
-            display_name: user.email?.split('@')[0] || t('profile.noName')
-          })
-          .select()
-          .single();
-        
-        if (insertError) {
-          console.error('Error creating profile:', insertError);
-          toast.error(t('profile.errorCreating'));
-          throw insertError;
-        }
-        
-        data = newProfile;
+        navigate('/onboarding');
+        return;
       }
 
       if (error) {
