@@ -1,0 +1,21 @@
+TRUNCATE TABLE
+  public.convinter_messages,
+  public.convinter_chat_reads,
+  public.convinter_chats,
+  public.convinter_notifications,
+  public.convinter_consent_requests,
+  public.convinter_pair_consent,
+  public.convinter_compat_cache,
+  public.convinter_answers,
+  public.convinter_profile_intentions,
+  public.convinter_listing_verification_requests,
+  public.convinter_verification_requests,
+  public.convinter_reports,
+  public.convinter_blocks,
+  public.convinter_rate_limits,
+  public.convinter_user_restrictions,
+  public.convinter_deletion_queue,
+  public.convinter_listings,
+  public.convinter_profiles,
+  public.profiles
+RESTART IDENTITY CASCADE;
