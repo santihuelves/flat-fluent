@@ -979,6 +979,10 @@ export type Database = {
         Args: { p_answer_value: Json; p_question_id: string; p_test_id: string }
         Returns: Json
       }
+      convinter_score_profile_pair: {
+        Args: { a_user: string; b_user: string }
+        Returns: Json
+      }
       convinter_search_listings: {
         Args: {
           p_bills_included?: boolean
