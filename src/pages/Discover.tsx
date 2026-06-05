@@ -467,13 +467,33 @@ export default function Discover() {
     }
   };
 
-  const handleLike = () => {
+  const handleLike = async () => {
     if (filteredProfiles.length === 0) return;
+    const target = filteredProfiles[currentIndex];
     setDirection('right');
     setTimeout(() => {
       setDirection(null);
       setCurrentIndex((prev) => (prev + 1) % filteredProfiles.length);
     }, 300);
+
+    if (!target) return;
+    try {
+      const { data, error } = await supabase.rpc('convinter_like_profile', {
+        p_target: target.user_id,
+      });
+      if (error) throw error;
+      const result = data as { ok?: boolean; matched?: boolean; other_name?: string | null } | null;
+      if (result?.ok && result.matched) {
+        const name = result.other_name || target.display_name || 'tu nuevo match';
+        toast.success(`¡Match con ${name}!`, {
+          description: 'Ya podéis hablar en Mensajes.',
+          action: { label: 'Abrir', onClick: () => navigate('/matches') },
+        });
+        loadConnectionOverview();
+      }
+    } catch (err) {
+      console.error('Error al dar like:', err);
+    }
   };
 
   const handlePass = () => {
