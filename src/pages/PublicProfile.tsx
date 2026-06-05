@@ -941,7 +941,12 @@ export default function PublicProfile() {
                     {compatibilityScore !== null && (
                       <Badge className="rounded-full">{compatibilityScore}% compatibilidad</Badge>
                     )}
-                    {commonQuestions !== null && (
+                    {compatibilitySourceLabel && (
+                      <Badge variant="outline" className="rounded-full">
+                        {compatibilitySourceLabel}
+                      </Badge>
+                    )}
+                    {!isProfileOnly && commonQuestions !== null && commonQuestions > 0 && (
                       <Badge variant="outline" className="rounded-full">
                         {commonQuestions} respuestas comparadas
                       </Badge>
@@ -950,6 +955,17 @@ export default function PublicProfile() {
                       <Badge variant="secondary" className="rounded-full">Calculado previamente</Badge>
                     )}
                   </div>
+
+                  {isProfileOnly && (
+                    <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 text-sm">
+                      <p className="font-medium text-foreground">
+                        Esta compatibilidad se calcula con los datos del perfil.
+                      </p>
+                      <p className="mt-1 text-muted-foreground">
+                        Para un análisis más detallado y un porcentaje más preciso, podéis rellenar el test exhaustivo de compatibilidad.
+                      </p>
+                    </div>
+                  )}
 
                   {reasons.length > 0 && (
                     <div className="space-y-2">
@@ -969,7 +985,7 @@ export default function PublicProfile() {
                     </div>
                   )}
 
-                  {mismatches.length > 0 && (
+                  {!isProfileOnly && mismatches.length > 0 && (
                     <div className="space-y-2">
                       <p className="text-sm font-medium">Puntos a hablar</p>
                       {mismatches.slice(0, 4).map((item, index) => (
@@ -986,26 +1002,21 @@ export default function PublicProfile() {
                     </div>
                   )}
 
-                  {reasons.length === 0 && !compatibility.breakdown?.friction && mismatches.length === 0 && (
+                  {!isProfileOnly && reasons.length === 0 && !compatibility.breakdown?.friction && mismatches.length === 0 && (
                     <p className="text-sm text-muted-foreground">
-                      Compatibilidad calculada con {commonQuestions ?? 'las'} respuestas comunes. El desglose se actualizara al recalcular la compatibilidad.
+                      Compatibilidad calculada con {commonQuestions ?? 'las'} respuestas comunes. El desglose se actualizará al recalcular la compatibilidad.
                     </p>
                   )}
                 </div>
               ) : hasCompatibilityError ? (
                 <div className="space-y-2">
                   <p className="text-sm text-muted-foreground">
-                    {hasInsufficientCommonAnswers
-                      ? compatibility.message || 'No hay suficientes respuestas comunes para calcular la compatibilidad detallada.'
-                      : 'Compatibilidad activa, pero todavia no se ha podido calcular el porcentaje.'}
+                    {hasInsufficientProfileData
+                      ? compatibility.message || 'Aún no hay datos suficientes en los perfiles para calcular la compatibilidad.'
+                      : 'Compatibilidad activa, pero todavía no se ha podido calcular el porcentaje.'}
                   </p>
-                  {hasInsufficientCommonAnswers && commonQuestions !== null && (
-                    <p className="text-xs text-muted-foreground">
-                      {commonQuestions} respuestas comunes encontradas.
-                    </p>
-                  )}
                   {compatibility?.code && (
-                    <p className="text-xs text-muted-foreground">Codigo: {compatibility.code}</p>
+                    <p className="text-xs text-muted-foreground">Código: {compatibility.code}</p>
                   )}
                 </div>
               ) : hasActiveConsent && (isLoadingCompatibility || compatibility === null) ? (
