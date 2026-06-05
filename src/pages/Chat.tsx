@@ -163,6 +163,8 @@ export default function Chat() {
         if (result?.code === 'BLOCKED') {
           setIsBlocked(true);
           setError('Has bloqueado a este usuario. No puedes enviarle mensajes.');
+        } else if (result?.code === 'NO_MATCH') {
+          setError('Aún no tenéis match. Para abrir el chat, ambos tenéis que daros al corazón en Descubrir, o uno de los dos tiene que aceptar una petición de compatibilidad.');
         } else {
           setError(`No se pudo crear/abrir el chat: ${result?.code ?? 'unknown'}`);
         }
