@@ -15,6 +15,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Link, useNavigate } from 'react-router-dom';
 import { useSEO } from '@/hooks/useSEO';
+import { AUTONOMOUS_COMMUNITIES, PROVINCES } from '@/lib/profileOptions';
 
 interface ProfileData {
   user_id: string;
@@ -55,7 +56,13 @@ interface CompatibilityData {
 
 type IntentionType = NonNullable<ProfileData['intentions']>[number]['intention_type'];
 type SupportedIntentionType = Exclude<IntentionType, 'seek_flatmate'>;
+type ProfileTypeFilter = SupportedIntentionType | 'without_listing';
 type RequestState = 'idle' | 'sending' | 'sent';
+type LocationFilter =
+  | { kind: 'all'; label: 'Toda España' }
+  | { kind: 'city'; label: string }
+  | { kind: 'province'; label: string }
+  | { kind: 'community'; label: string };
 
 interface ConsentOverviewProfile {
   user_id?: string;
@@ -80,11 +87,13 @@ interface ConsentOverviewResponse {
   code?: string;
 }
 
-// Spanish cities for filter
-const spanishCities = [
+const defaultLocationFilter: LocationFilter = { kind: 'all', label: 'Toda España' };
+
+const baseCityOptions = [
   'Madrid', 'Barcelona', 'Valencia', 'Sevilla', 'Zaragoza',
   'Málaga', 'Murcia', 'Palma', 'Bilbao', 'Alicante',
-  'A Coruña', 'Granada', 'San Sebastián', 'Valladolid', 'Vitoria'
+  'A Coruña', 'Granada', 'San Sebastián', 'Valladolid', 'Vitoria',
+  'Ciudad Real', 'Las Palmas de Gran Canaria', 'Santa Cruz de Tenerife', 'Telde', 'La Laguna',
 ];
 
 export default function Discover() {
@@ -108,10 +117,10 @@ export default function Discover() {
   
   // Filter states
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCity, setSelectedCity] = useState<string | null>(null);
+  const [selectedLocation, setSelectedLocation] = useState<LocationFilter>(defaultLocationFilter);
   const [priceRange, setPriceRange] = useState<[number, number]>([200, 800]);
   const [minTrustScore, setMinTrustScore] = useState(0);
-  const [selectedIntentions, setSelectedIntentions] = useState<SupportedIntentionType[]>([]);
+  const [selectedIntentions, setSelectedIntentions] = useState<ProfileTypeFilter[]>([]);
   const [cityOpen, setCityOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
   const [intentionOpen, setIntentionOpen] = useState(false);
@@ -119,17 +128,35 @@ export default function Discover() {
   const loadProfiles = useCallback(async () => {
     setIsLoading(true);
     try {
-      const { data, error } = await supabase.rpc('convinter_search_profiles', {
-        p_city: selectedCity,
-        p_trust_min: minTrustScore > 0 ? minTrustScore : null,
-        p_limit: 50
+      const provinceFilters =
+        selectedLocation.kind === 'community'
+          ? PROVINCES[selectedLocation.label] ?? []
+          : selectedLocation.kind === 'province'
+            ? [selectedLocation.label]
+            : [null];
+
+      const profileResponses = await Promise.all(
+        provinceFilters.map((province) => supabase.rpc('convinter_search_profiles', {
+          p_city: selectedLocation.kind === 'city' ? selectedLocation.label : null,
+          p_province_code: province,
+          p_trust_min: minTrustScore > 0 ? minTrustScore : null,
+          p_limit: 50
+        }))
+      );
+
+      const firstError = profileResponses.find((response) => response.error)?.error;
+      if (firstError) throw firstError;
+
+      const resultItems = profileResponses.flatMap((response) => {
+        const result = response.data as unknown as { ok: boolean; items?: ProfileData[] };
+        return result.ok && result.items ? result.items : [];
       });
+      const uniqueItems = Array.from(
+        new Map(resultItems.map((profile) => [profile.user_id, profile])).values()
+      );
 
-      if (error) throw error;
-
-      const result = data as unknown as { ok: boolean; items: ProfileData[] };
-      if (result.ok && result.items) {
-        const profileIds = result.items.map((profile) => profile.user_id);
+      if (uniqueItems.length > 0) {
+        const profileIds = uniqueItems.map((profile) => profile.user_id);
 
         if (profileIds.length === 0) {
           setProfiles([]);
@@ -145,7 +172,7 @@ export default function Discover() {
 
         if (intentionsError) {
           console.warn('Error loading profile intentions:', intentionsError);
-          setProfiles(result.items);
+          setProfiles(uniqueItems);
           setCurrentIndex(0);
           return;
         }
@@ -161,10 +188,13 @@ export default function Discover() {
           intentionsByProfile.set(intention.profile_id, currentIntentions);
         });
 
-        setProfiles(result.items.map((profile) => ({
+        setProfiles(uniqueItems.map((profile) => ({
           ...profile,
           intentions: intentionsByProfile.get(profile.user_id) ?? [],
         })));
+        setCurrentIndex(0);
+      } else {
+        setProfiles([]);
         setCurrentIndex(0);
       }
     } catch (error) {
@@ -173,7 +203,7 @@ export default function Discover() {
     } finally {
       setIsLoading(false);
     }
-  }, [minTrustScore, selectedCity]);
+  }, [minTrustScore, selectedLocation]);
 
   // Load profiles from backend
   useEffect(() => {
@@ -260,6 +290,26 @@ export default function Discover() {
 
   const excludedProfileIdSet = useMemo(() => new Set(excludedProfileIds), [excludedProfileIds]);
 
+  const locationOptions = useMemo<LocationFilter[]>(() => {
+    const cityOptions = new Set([
+      ...baseCityOptions,
+      ...profiles
+        .map((profile) => profile.city?.trim())
+        .filter((city): city is string => Boolean(city)),
+    ]);
+    const provinceOptions = new Set(Object.values(PROVINCES).flat());
+
+    return [
+      ...AUTONOMOUS_COMMUNITIES.map((label) => ({ kind: 'community' as const, label })),
+      ...Array.from(provinceOptions)
+        .sort((a, b) => a.localeCompare(b, 'es'))
+        .map((label) => ({ kind: 'province' as const, label })),
+      ...Array.from(cityOptions)
+        .sort((a, b) => a.localeCompare(b, 'es'))
+        .map((label) => ({ kind: 'city' as const, label })),
+    ];
+  }, [profiles]);
+
   // Load compatibility for current profile
   const loadCompatibility = useCallback(async (userId: string) => {
     if (compatibilityCache[userId]) return;
@@ -308,23 +358,24 @@ export default function Discover() {
     const supportedIntentions = profile.intentions?.filter((intention) =>
       intention.intention_type === 'seek_room' || intention.intention_type === 'offer_room'
     ) ?? [];
-    if (supportedIntentions.length === 0) return false;
 
     // Search term filter
     if (searchTerm) {
       const search = searchTerm.toLowerCase();
       const matchesSearch = profile.display_name?.toLowerCase().includes(search) ||
                            profile.handle?.toLowerCase().includes(search) ||
-                           profile.city?.toLowerCase().includes(search);
+                           profile.city?.toLowerCase().includes(search) ||
+                           profile.province_code?.toLowerCase().includes(search);
       if (!matchesSearch) return false;
     }
     
     // Intentions filter
     if (selectedIntentions.length > 0) {
       const profileIntentionTypes = supportedIntentions.map(i => i.intention_type);
-      const hasMatchingIntention = selectedIntentions.some(selected => 
-        profileIntentionTypes.includes(selected)
-      );
+      const hasMatchingIntention = selectedIntentions.some((selected) => {
+        if (selected === 'without_listing') return supportedIntentions.length === 0;
+        return profileIntentionTypes.includes(selected);
+      });
       if (!hasMatchingIntention) return false;
     }
     
@@ -434,7 +485,7 @@ export default function Discover() {
     }, 300);
   };
 
-  const handleIntentionToggle = (intentionType: SupportedIntentionType) => {
+  const handleIntentionToggle = (intentionType: ProfileTypeFilter) => {
     setSelectedIntentions(prev => 
       prev.includes(intentionType)
         ? prev.filter(i => i !== intentionType)
@@ -442,15 +493,20 @@ export default function Discover() {
     );
   };
 
+  const getProfileTypeFilterLabel = (filter: ProfileTypeFilter) => {
+    if (filter === 'without_listing') return 'Sin anuncio';
+    return t(`discover.filters.intentions.${filter}`);
+  };
+
   const clearFilters = () => {
     setSearchTerm('');
-    setSelectedCity(null);
+    setSelectedLocation(defaultLocationFilter);
     setPriceRange([200, 800]);
     setMinTrustScore(0);
     setSelectedIntentions([]);
   };
 
-  const hasActiveFilters = searchTerm || selectedCity || priceRange[0] !== 200 || priceRange[1] !== 800 || minTrustScore > 0 || selectedIntentions.length > 0;
+  const hasActiveFilters = searchTerm || selectedLocation.kind !== 'all' || priceRange[0] !== 200 || priceRange[1] !== 800 || minTrustScore > 0 || selectedIntentions.length > 0;
   const resultCounterText = hasActiveFilters
     ? filteredProfiles.length > 0
       ? `Mostrando ${currentIndex + 1} de ${filteredProfiles.length} perfiles nuevos`
@@ -509,34 +565,38 @@ export default function Discover() {
                 <Button variant="outline" className="gap-2 min-w-[120px] justify-between">
                   <div className="flex items-center gap-2">
                     <MapPin className="h-4 w-4" />
-                    <span>{selectedCity || 'Toda España'}</span>
+                    <span>{selectedLocation.label}</span>
                   </div>
                   <ChevronDown className="h-4 w-4 opacity-50" />
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-[200px] p-0 bg-popover z-50" align="start">
                 <Command>
-                  <CommandInput placeholder="Buscar municipio o ciudad..." />
+                  <CommandInput placeholder="Buscar municipio, provincia o comunidad..." />
                   <CommandList>
                     <CommandEmpty>No encontrada</CommandEmpty>
                     <CommandGroup>
                       <CommandItem
                         onSelect={() => {
-                          setSelectedCity(null);
+                          setSelectedLocation(defaultLocationFilter);
                           setCityOpen(false);
                         }}
                       >
                         Toda España
                       </CommandItem>
-                      {spanishCities.map((city) => (
+                      {locationOptions.map((location) => (
                         <CommandItem
-                          key={city}
+                          key={`${location.kind}-${location.label}`}
+                          value={`${location.label} ${location.kind}`}
                           onSelect={() => {
-                            setSelectedCity(city);
+                            setSelectedLocation(location);
                             setCityOpen(false);
                           }}
                         >
-                          {city}
+                          <span>{location.label}</span>
+                          <span className="ml-auto text-xs text-muted-foreground">
+                            {location.kind === 'community' ? 'Comunidad' : location.kind === 'province' ? 'Provincia' : 'Ciudad'}
+                          </span>
                         </CommandItem>
                       ))}
                     </CommandGroup>
@@ -555,7 +615,7 @@ export default function Discover() {
                       {selectedIntentions.length === 0 
                         ? t('discover.filters.allIntentions')
                         : selectedIntentions.length === 1
-                          ? t(`discover.filters.intentions.${selectedIntentions[0]}`)
+                          ? getProfileTypeFilterLabel(selectedIntentions[0])
                           : `${selectedIntentions.length} ${t('discover.filters.selected')}`
                       }
                     </span>
@@ -569,7 +629,8 @@ export default function Discover() {
                   {([
                     { type: 'seek_room', icon: Home, label: t('discover.filters.intentions.seek_room') },
                     { type: 'offer_room', icon: Key, label: t('discover.filters.intentions.offer_room') },
-                  ] satisfies Array<{ type: SupportedIntentionType; icon: LucideIcon; label: string }>).map(({ type, icon: Icon, label }) => (
+                    { type: 'without_listing', icon: Users, label: 'Sin anuncio' },
+                  ] satisfies Array<{ type: ProfileTypeFilter; icon: LucideIcon; label: string }>).map(({ type, icon: Icon, label }) => (
                     <label
                       key={type}
                       className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"

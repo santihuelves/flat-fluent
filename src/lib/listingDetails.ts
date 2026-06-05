@@ -37,9 +37,9 @@ export const preferredGenderOptions = [
 ] as const;
 
 export const contractAvailableOptions = [
-  { value: 'yes', label: 'Sí, contrato escrito' },
-  { value: 'no', label: 'No' },
-  { value: 'to_agree', label: 'A concretar' },
+  { value: 'yes', label: 'Contrato o acuerdo por escrito' },
+  { value: 'no', label: 'Pendiente de preparar antes de entrar' },
+  { value: 'to_agree', label: 'A consultar' },
 ] as const;
 
 export const registrationAllowedOptions = [
@@ -69,6 +69,11 @@ export const depositMonthsOptions = [
 export const MIN_STAY_MIN_MONTHS = 1;
 export const MIN_STAY_MAX_MONTHS = 24;
 export const MIN_STAY_INDEFINITE_VALUE = 25;
+export const DEFAULT_HOME_SIZE_SQM = 90;
+export const DEFAULT_BEDROOM_COUNT = 3;
+export const DEFAULT_BATHROOM_COUNT = 1;
+export const DEFAULT_ROOM_SIZE_SQM = 12;
+export const DEFAULT_TRANSPORT_WALK_MINUTES = 0;
 
 export const formatMinStayLabel = (months: number | null | undefined, fallback = 'Flexible') => {
   if (!months) return fallback;
@@ -139,6 +144,12 @@ export const householdOccupationOptions = [
   { value: 'workers_students', label: 'Trabajan y estudian' },
   { value: 'mixed', label: 'Mixto' },
   { value: 'to_agree', label: 'A concretar' },
+] as const;
+
+export const householdContextOptions = [
+  { value: 'lives_here', label: 'Sí, vivo aquí' },
+  { value: 'manages_only', label: 'No, solo gestiono o publico la habitación' },
+  { value: 'knows_household', label: 'No, pero conozco bien la convivencia' },
 ] as const;
 
 export const homeFloorOptions = [
@@ -260,6 +271,7 @@ const livingRoomUsePolicyValues = new Set<string>(livingRoomUsePolicyOptions.map
 const bathroomUsePolicyValues = new Set<string>(bathroomUsePolicyOptions.map((option) => option.value));
 const householdGenderMixValues = new Set<string>(householdGenderMixOptions.map((option) => option.value));
 const householdOccupationValues = new Set<string>(householdOccupationOptions.map((option) => option.value));
+const householdContextValues = new Set<string>(householdContextOptions.map((option) => option.value));
 const homeFloorValues = new Set<string>(homeFloorOptions.map((option) => option.value));
 const homeOrientationValues = new Set<string>(homeOrientationOptions.map((option) => option.value));
 const kitchenEquipmentValues = new Set<string>(kitchenEquipmentOptions.map((option) => option.value));
@@ -292,6 +304,7 @@ export type RoomListingDetails = {
   allows_minors?: boolean;
   current_household_count?: number;
   owner_lives_here?: boolean;
+  household_context?: 'lives_here' | 'manages_only' | 'knows_household';
   lgtbiq_friendly?: boolean;
   home_environment?: 'quiet' | 'family' | 'students' | 'workers' | 'mixed';
   cleaning_policy?: 'shared' | 'schedule' | 'included' | 'to_agree';
@@ -349,6 +362,7 @@ export type RoomListingDetailsForm = {
   allowsMinors: '' | 'yes' | 'no';
   currentHouseholdCount: string;
   ownerLivesHere: '' | 'yes' | 'no';
+  householdContext: string;
   lgtbiqFriendly: '' | 'yes' | 'no';
   homeEnvironment: string;
   cleaningPolicy: string;
@@ -406,6 +420,7 @@ export const emptyRoomListingDetailsForm = (): RoomListingDetailsForm => ({
   allowsMinors: '',
   currentHouseholdCount: '',
   ownerLivesHere: '',
+  householdContext: '',
   lgtbiqFriendly: '',
   homeEnvironment: '',
   cleaningPolicy: '',
@@ -545,6 +560,10 @@ export const normalizeRoomListingDetails = (value: Json | null | undefined): Roo
 
   if (typeof value.owner_lives_here === 'boolean') {
     details.owner_lives_here = value.owner_lives_here;
+  }
+
+  if (typeof value.household_context === 'string' && householdContextValues.has(value.household_context)) {
+    details.household_context = value.household_context as RoomListingDetails['household_context'];
   }
 
   if (typeof value.lgtbiq_friendly === 'boolean') {
@@ -740,6 +759,7 @@ export const roomListingDetailsFormFromDetails = (value: Json | null | undefined
     allowsMinors: getBooleanFormValue(details.allows_minors),
     currentHouseholdCount: details.current_household_count?.toString() ?? '',
     ownerLivesHere: getBooleanFormValue(details.owner_lives_here),
+    householdContext: details.household_context ?? (details.owner_lives_here === true ? 'lives_here' : details.owner_lives_here === false ? 'manages_only' : ''),
     lgtbiqFriendly: getBooleanFormValue(details.lgtbiq_friendly),
     homeEnvironment: details.home_environment ?? '',
     cleaningPolicy: details.cleaning_policy ?? '',
@@ -856,6 +876,11 @@ export const buildRoomListingDetailsFromForm = (form: RoomListingDetailsForm): R
     details.owner_lives_here = ownerLivesHere;
   }
 
+  if (householdContextValues.has(form.householdContext)) {
+    details.household_context = form.householdContext as RoomListingDetails['household_context'];
+    details.owner_lives_here = form.householdContext === 'lives_here';
+  }
+
   const lgtbiqFriendly = parseBooleanField(form.lgtbiqFriendly);
   if (typeof lgtbiqFriendly === 'boolean') {
     details.lgtbiq_friendly = lgtbiqFriendly;
@@ -913,9 +938,7 @@ export const buildRoomListingDetailsFromForm = (form: RoomListingDetailsForm): R
   }
 
   const homeSizeSqm = form.homeSizeSqm.trim();
-  if (homeSizeSqm !== '') {
-    details.home_size_sqm = Number(homeSizeSqm);
-  }
+  details.home_size_sqm = homeSizeSqm !== '' ? Number(homeSizeSqm) : DEFAULT_HOME_SIZE_SQM;
 
   if (homeFloorValues.has(form.homeFloor)) {
     details.home_floor = form.homeFloor as RoomListingDetails['home_floor'];
@@ -931,14 +954,10 @@ export const buildRoomListingDetailsFromForm = (form: RoomListingDetailsForm): R
   }
 
   const bedroomCount = form.bedroomCount.trim();
-  if (bedroomCount !== '') {
-    details.bedroom_count = Number(bedroomCount);
-  }
+  details.bedroom_count = bedroomCount !== '' ? Number(bedroomCount) : DEFAULT_BEDROOM_COUNT;
 
   const bathroomCount = form.bathroomCount.trim();
-  if (bathroomCount !== '') {
-    details.bathroom_count = Number(bathroomCount);
-  }
+  details.bathroom_count = bathroomCount !== '' ? Number(bathroomCount) : DEFAULT_BATHROOM_COUNT;
 
   const hasInternet = parseBooleanField(form.hasInternet);
   if (typeof hasInternet === 'boolean') {
@@ -982,9 +1001,7 @@ export const buildRoomListingDetailsFromForm = (form: RoomListingDetailsForm): R
   }
 
   const roomSizeSqm = form.roomSizeSqm.trim();
-  if (roomSizeSqm !== '') {
-    details.room_size_sqm = Number(roomSizeSqm);
-  }
+  details.room_size_sqm = roomSizeSqm !== '' ? Number(roomSizeSqm) : DEFAULT_ROOM_SIZE_SQM;
 
   if (roomWindowValues.has(form.roomWindow)) {
     details.room_window = form.roomWindow as RoomListingDetails['room_window'];
@@ -1023,9 +1040,7 @@ export const buildRoomListingDetailsFromForm = (form: RoomListingDetailsForm): R
   }
 
   const transportWalkMinutes = form.transportWalkMinutes.trim();
-  if (transportWalkMinutes !== '') {
-    details.transport_walk_minutes = Number(transportWalkMinutes);
-  }
+  details.transport_walk_minutes = transportWalkMinutes !== '' ? Number(transportWalkMinutes) : DEFAULT_TRANSPORT_WALK_MINUTES;
 
   const nearbyServices = form.nearbyServices.filter((item): item is (typeof nearbyServiceOptions)[number]['value'] => {
     return nearbyServiceValues.has(item);
@@ -1066,8 +1081,16 @@ export const getRoomListingDetailItems = (details: RoomListingDetails) => {
     });
   }
 
-  if (typeof details.owner_lives_here === 'boolean') {
-    items.push({ label: 'Propietario vive en la vivienda', value: details.owner_lives_here ? 'Sí' : 'No' });
+  if (details.household_context) {
+    const label = householdContextOptions.find((option) => option.value === details.household_context)?.label;
+    if (label) {
+      items.push({ label: 'Relación con la vivienda', value: label });
+    }
+  } else if (typeof details.owner_lives_here === 'boolean') {
+    items.push({
+      label: 'Relación con la vivienda',
+      value: details.owner_lives_here ? 'Sí, vive aquí' : 'No vive aquí',
+    });
   }
 
   if (details.lgtbiq_friendly === true) {
@@ -1320,6 +1343,152 @@ export const getRoomListingLocationLabel = (details: RoomListingDetails, city: s
   return parts.length > 0 ? parts.join(' · ') : 'Municipio o ciudad no indicado';
 };
 
+export type RoomListingCardFactIcon =
+  | 'room'
+  | 'size'
+  | 'homeSize'
+  | 'bathroom'
+  | 'window'
+  | 'floor'
+  | 'elevator'
+  | 'transport'
+  | 'bills'
+  | 'contract'
+  | 'internet'
+  | 'lock'
+  | 'furnished'
+  | 'laundry'
+  | 'storage'
+  | 'cleaning'
+  | 'quiet'
+  | 'visits'
+  | 'party'
+  | 'smoking'
+  | 'pets'
+  | 'registration';
+
+export type RoomListingCardFact = {
+  icon: RoomListingCardFactIcon;
+  label: string;
+};
+
+export const getRoomListingCardFacts = (
+  details: RoomListingDetails,
+  options: {
+    billsIncluded?: boolean | null;
+    includeHomeSize?: boolean;
+    maxItems?: number;
+  } = {},
+) => {
+  const facts: RoomListingCardFact[] = [];
+  const add = (icon: RoomListingCardFactIcon, label: string | null | undefined) => {
+    if (!label || facts.some((fact) => fact.label === label)) return;
+    facts.push({ icon, label });
+  };
+
+  add('room', 'Habitación privada');
+
+  if (typeof details.room_size_sqm === 'number') {
+    add('size', `${details.room_size_sqm} m² habitación`);
+  }
+
+  if (options.includeHomeSize && typeof details.home_size_sqm === 'number') {
+    add('homeSize', `${details.home_size_sqm} m² vivienda`);
+  }
+
+  if (details.room_bathroom === 'private') {
+    add('bathroom', 'Baño propio');
+  } else if (details.room_bathroom === 'preferred_use') {
+    add('bathroom', 'Baño preferente');
+  } else if (details.room_bathroom === 'shared') {
+    add('bathroom', 'Baño compartido');
+  }
+
+  if (details.room_furnishing_status) {
+    const label = roomFurnishingStatusOptions.find((option) => option.value === details.room_furnishing_status)?.label;
+    add('furnished', label);
+  }
+
+  if (details.room_orientation) {
+    const label = roomOrientationOptions.find((option) => option.value === details.room_orientation)?.label;
+    add('window', label);
+  } else if (details.room_window === 'balcony') {
+    add('window', 'Balcón');
+  } else if (details.room_window === 'terrace') {
+    add('window', 'Terraza');
+  } else if (details.room_window === 'window') {
+    add('window', 'Con ventana');
+  } else if (details.room_natural_light === 'high') {
+    add('window', 'Mucha luz');
+  } else if (details.room_natural_light === 'medium') {
+    add('window', 'Luz media');
+  }
+
+  if (details.home_floor) {
+    const label = homeFloorOptions.find((option) => option.value === details.home_floor)?.label;
+    add('floor', label);
+  }
+
+  if (details.has_elevator) {
+    add('elevator', 'Con ascensor');
+  }
+
+  if (details.nearest_transport || details.nearby_services?.some((service) => ['metro', 'bus', 'train'].includes(service))) {
+    add('transport', 'Transporte cerca');
+  }
+
+  if (options.billsIncluded) {
+    add('bills', 'Gastos incluidos');
+  }
+
+  if (details.contract_available === 'yes') {
+    add('contract', 'Acuerdo escrito');
+  }
+
+  if (details.registration_allowed === 'yes') {
+    add('registration', 'Empadronamiento');
+  }
+
+  if (details.has_internet) {
+    add('internet', 'Internet');
+  }
+
+  if (details.washing_machine === true) {
+    add('laundry', 'Lavadora');
+  }
+
+  if (details.luggage_storage === true || details.storage_room_available === true) {
+    add('storage', 'Espacio para guardar');
+  }
+
+  if (details.room_lock === 'yes') {
+    add('lock', 'Cerradura');
+  }
+
+  if (details.cleaning_policy) {
+    const label = cleaningPolicyOptions.find((option) => option.value === details.cleaning_policy)?.label;
+    add('cleaning', label);
+  }
+
+  if (details.quiet_hours_policy === 'strict') {
+    add('quiet', 'Descanso estricto');
+  } else if (details.quiet_hours_policy === 'reasonable') {
+    add('quiet', 'Ruido moderado');
+  }
+
+  if (details.visits_policy === 'no') {
+    add('visits', 'Sin visitas');
+  } else if (details.visits_policy === 'with_notice') {
+    add('visits', 'Visitas avisando');
+  }
+
+  if (details.party_policy === 'no_parties') {
+    add('party', 'No fiestas');
+  }
+
+  return facts.slice(0, options.maxItems ?? 6);
+};
+
 export const getRoomListingCardHighlights = (
   details: RoomListingDetails,
   options: {
@@ -1362,7 +1531,7 @@ export const getRoomListingCardHighlights = (
   }
 
   if (details.contract_available === 'yes') {
-    add('Contrato');
+    add('Acuerdo escrito');
   }
 
   if (details.has_elevator) {
@@ -1399,7 +1568,7 @@ export const getRoomListingMoneyItems = (details: RoomListingDetails) => {
   if (details.contract_available) {
     const label = contractAvailableOptions.find((option) => option.value === details.contract_available)?.label;
     if (label) {
-      items.push({ label: 'Contrato', value: label });
+      items.push({ label: 'Formalización', value: label });
     }
   }
 

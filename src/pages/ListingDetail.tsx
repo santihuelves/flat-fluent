@@ -1,7 +1,7 @@
 ﻿import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { AlertCircle, ArrowLeft, CheckCircle, Edit2, Euro, Home, Loader2, MapPin, MessageCircle, Send, ShieldCheck, UserCheck, Users } from 'lucide-react';
+import { AlertCircle, ArrowLeft, Bath, BedDouble, Building2, Calendar, CheckCircle, DoorClosed, Edit2, Euro, FileText, Home, Loader2, MapPin, MessageCircle, Receipt, Ruler, Send, ShieldCheck, TrainFront, UserCheck, Users, Wifi, type LucideIcon } from 'lucide-react';
 import { Layout } from '@/components/layout/Layout';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -11,7 +11,7 @@ import { Separator } from '@/components/ui/separator';
 import { SafetyActions } from '@/components/SafetyActions';
 import { supabase } from '@/integrations/supabase/client';
 import type { Json } from '@/integrations/supabase/types';
-import { formatMinStayLabel, getRoomListingBedroomItems, getRoomListingDetailItems, getRoomListingHousingItems, getRoomListingLocationItems, getRoomListingMoneyItems, normalizeRoomListingDetails, occupancyPolicyOptions, preferredGenderOptions } from '@/lib/listingDetails';
+import { formatMinStayLabel, getRoomListingBedroomItems, getRoomListingCardFacts, getRoomListingDetailItems, getRoomListingHousingItems, getRoomListingLocationItems, getRoomListingMoneyItems, normalizeRoomListingDetails, occupancyPolicyOptions, preferredGenderOptions, type RoomListingCardFactIcon } from '@/lib/listingDetails';
 import { toast } from 'sonner';
 import { useSEO } from '@/hooks/useSEO';
 
@@ -125,6 +125,97 @@ const getListingPhotos = (listing: ListingDetailData) => {
   const photos = listing.photos?.filter(Boolean) ?? [];
   if (photos.length > 0) return photos;
   return [listing.thumbnail_url || '/placeholder.svg'];
+};
+
+const roomFactIconMap: Record<RoomListingCardFactIcon, LucideIcon> = {
+  room: BedDouble,
+  size: Ruler,
+  homeSize: Ruler,
+  bathroom: Bath,
+  window: Home,
+  floor: Building2,
+  elevator: Building2,
+  transport: TrainFront,
+  bills: Receipt,
+  contract: CheckCircle,
+  internet: Wifi,
+  lock: DoorClosed,
+  furnished: BedDouble,
+  laundry: CheckCircle,
+  storage: DoorClosed,
+  cleaning: CheckCircle,
+  quiet: Home,
+  visits: Users,
+  party: Users,
+  smoking: CheckCircle,
+  pets: Users,
+  registration: CheckCircle,
+};
+
+type CompactDetailItem = {
+  label: string;
+  value: string;
+  icon: LucideIcon;
+  wide?: boolean;
+};
+
+const CompactInfoPanel = ({ title, items }: { title: string; items: CompactDetailItem[] }) => {
+  if (items.length === 0) return null;
+
+  return (
+    <div className="rounded-2xl border border-primary/15 bg-primary/5 p-4">
+      <h2 className="mb-3 text-sm font-semibold text-foreground">{title}</h2>
+      <div className="grid gap-3 sm:grid-cols-2">
+        {items.map(({ label, value, icon: Icon, wide }) => (
+          <div
+            key={`${label}-${value}`}
+            className={`flex items-center gap-3 rounded-xl bg-background/80 px-3 py-2.5 text-sm ${wide ? 'sm:col-span-2' : ''}`}
+          >
+            <Icon className="h-4 w-4 shrink-0 text-primary" />
+            <div className="min-w-0">
+              <p className="text-xs text-muted-foreground">{label}</p>
+              <p className="font-medium leading-tight text-foreground">{value}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const LongDetailList = ({ items }: { items: Array<{ label: string; value: string }> }) => {
+  if (items.length === 0) return null;
+
+  return (
+    <div className="grid gap-3">
+      {items.map((item) => (
+        <div key={item.label} className="rounded-xl border border-border bg-card p-4">
+          <p className="text-sm text-muted-foreground">{item.label}</p>
+          <p className="font-medium leading-relaxed">{item.value}</p>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+const splitDetailItems = (
+  items: Array<{ label: string; value: string }>,
+  icon: LucideIcon,
+  longLabels: string[] = [],
+) => {
+  const compact: CompactDetailItem[] = [];
+  const long: Array<{ label: string; value: string }> = [];
+
+  items.forEach((item) => {
+    if (longLabels.includes(item.label) || item.value.length > 80) {
+      long.push(item);
+      return;
+    }
+
+    compact.push({ ...item, icon });
+  });
+
+  return { compact, long };
 };
 
 const getErrorMessage = (code?: string) => {
@@ -480,6 +571,9 @@ export default function ListingDetail() {
   const ownerAction = getOwnerAction();
   const OwnerActionIcon = ownerAction.icon;
   const roomDetails = normalizeRoomListingDetails(listing.details);
+  const roomFacts = listing.listing_type === 'room'
+    ? getRoomListingCardFacts(roomDetails, { includeHomeSize: true, maxItems: 8 })
+    : [];
   const roomDetailItems = listing.listing_type === 'room'
     ? getRoomListingDetailItems(roomDetails)
     : [];
@@ -504,21 +598,58 @@ export default function ListingDetail() {
     : null;
   const buscandoItems = listing.listing_type === 'room'
     ? [
-        preferredAgeLabel ? { label: 'Edad', value: preferredAgeLabel } : null,
-        preferredGenderLabel ? { label: 'Género', value: preferredGenderLabel } : null,
-        { label: 'Estancia mínima', value: formatMinStayLabel(listing.min_stay_months) },
-        { label: 'Disponible', value: formatAvailability(listing.available_from) },
-        occupancyLabel ? { label: 'Disponible para', value: occupancyLabel } : null,
+        preferredAgeLabel ? { label: 'Edad', value: preferredAgeLabel, icon: UserCheck } : null,
+        preferredGenderLabel ? { label: 'Género', value: preferredGenderLabel, icon: Users } : null,
+        { label: 'Estancia mínima', value: formatMinStayLabel(listing.min_stay_months), icon: Home },
+        { label: 'Disponible', value: formatAvailability(listing.available_from), icon: Calendar },
+        occupancyLabel ? { label: 'Disponible para', value: occupancyLabel, icon: Users } : null,
         typeof roomDetails.allows_minors === 'boolean'
-          ? { label: 'Menores', value: roomDetails.allows_minors ? 'Se aceptan' : 'No se aceptan' }
+          ? { label: 'Menores', value: roomDetails.allows_minors ? 'Se aceptan' : 'No se aceptan', icon: UserCheck }
           : null,
-      ].filter((item): item is { label: string; value: string } => Boolean(item))
+      ].filter((item): item is CompactDetailItem => Boolean(item))
     : [];
-  const convivenciaItems = [
-    { label: 'Fumar', value: listing.smoking_allowed ? 'Permite fumar' : 'No permite fumar' },
-    { label: 'Mascotas', value: listing.pets_allowed ? 'Permite mascotas' : 'No permite mascotas' },
-    ...roomDetailItems,
+  const moneyItems: CompactDetailItem[] = [
+    {
+      label: 'Precio mensual',
+      value: listing.price_monthly ? `${listing.price_monthly}€/mes` : 'A consultar',
+      icon: Euro,
+    },
+    {
+      label: 'Gastos',
+      value: listing.bills_included ? 'Incluidos' : 'No incluidos',
+      icon: Receipt,
+    },
+    ...roomMoneyItems.map((item): CompactDetailItem => {
+      const icon = item.label === 'Formalización'
+        ? FileText
+        : item.label === 'Empadronamiento'
+          ? CheckCircle
+          : item.label === 'Preaviso'
+            ? Calendar
+            : item.label === 'Fianza'
+              ? Euro
+              : Receipt;
+
+      return {
+        ...item,
+        icon,
+        wide: item.value.length > 38,
+      };
+    }),
   ];
+  const convivenciaItems = [
+    typeof listing.smoking_allowed === 'boolean'
+      ? { label: 'Fumar', value: listing.smoking_allowed ? 'Permite fumar' : 'No permite fumar' }
+      : null,
+    typeof listing.pets_allowed === 'boolean'
+      ? { label: 'Mascotas', value: listing.pets_allowed ? 'Permite mascotas' : 'No permite mascotas' }
+      : null,
+    ...roomDetailItems,
+  ].filter((item): item is { label: string; value: string } => Boolean(item));
+  const locationDetailGroups = splitDetailItems(roomLocationItems, MapPin, ['Servicios y entorno cercano', 'Notas de ubicación']);
+  const housingDetailGroups = splitDetailItems(roomHousingItems, Building2, ['Equipamiento de cocina']);
+  const bedroomDetailGroups = splitDetailItems(roomBedroomItems, BedDouble, ['Mobiliario']);
+  const convivenciaDetailGroups = splitDetailItems(convivenciaItems, Users);
   const descriptionWithoutLegacyNeighborhood = (listing.description ?? '').replace(/\n*\s*Barrio\/Zona:\s*(.+?)\s*$/i, '').trimEnd();
 
   return (
@@ -631,6 +762,23 @@ export default function ListingDetail() {
                     <span>Referencia: {roomDetails.address_hint}</span>
                   </div>
                 )}
+
+                {roomFacts.length > 0 && (
+                  <div className="mt-5 rounded-2xl border border-primary/15 bg-primary/5 p-4">
+                    <h2 className="mb-3 text-sm font-semibold text-foreground">Resumen de la habitación</h2>
+                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                      {roomFacts.map((fact) => {
+                        const Icon = roomFactIconMap[fact.icon];
+                        return (
+                          <div key={`${fact.icon}-${fact.label}`} className="flex items-center gap-2 rounded-xl bg-background/80 px-3 py-2 text-sm">
+                            <Icon className="h-4 w-4 shrink-0 text-primary" />
+                            <span className="font-medium leading-tight">{fact.label}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </motion.div>
 
               {isOwner && (isListingPaused || isListingDeleted) && (
@@ -654,45 +802,9 @@ export default function ListingDetail() {
                 </Card>
               )}
 
-              {buscandoItems.length > 0 && (
-                <Card>
-                  <CardContent className="p-6">
-                    <h2 className="text-xl font-semibold mb-4">Buscando</h2>
-                    <div className="grid sm:grid-cols-2 gap-3">
-                      {buscandoItems.map((item) => (
-                        <div key={item.label} className="rounded-lg border border-border p-4">
-                          <p className="text-sm text-muted-foreground">{item.label}</p>
-                          <p className="font-medium">{item.value}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
+              <CompactInfoPanel title="Buscando" items={buscandoItems} />
 
-              <Card>
-                <CardContent className="p-6">
-                  <h2 className="text-xl font-semibold mb-4">Precio, gastos y contrato</h2>
-                  <div className="grid sm:grid-cols-2 gap-3">
-                    <div className="rounded-lg border border-border p-4">
-                      <Euro className="w-5 h-5 text-primary mb-2" />
-                      <p className="text-sm text-muted-foreground">Precio mensual</p>
-                      <p className="font-semibold">{listing.price_monthly ? `${listing.price_monthly}€/mes` : 'A consultar'}</p>
-                    </div>
-                    <div className="rounded-lg border border-border p-4">
-                      <CheckCircle className="w-5 h-5 text-primary mb-2" />
-                      <p className="text-sm text-muted-foreground">Gastos</p>
-                      <p className="font-semibold">{listing.bills_included ? 'Incluidos' : 'No incluidos'}</p>
-                    </div>
-                    {roomMoneyItems.map((item) => (
-                      <div key={item.label} className="rounded-lg border border-border p-4">
-                        <p className="text-sm text-muted-foreground">{item.label}</p>
-                        <p className="font-medium">{item.value}</p>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
+              <CompactInfoPanel title="Precio, gastos y contrato" items={moneyItems} />
 
               <Card>
                 <CardContent className="p-6">
@@ -703,68 +815,32 @@ export default function ListingDetail() {
                 </CardContent>
               </Card>
 
-              {roomLocationItems.length > 0 && (
-                <Card>
-                  <CardContent className="p-6">
-                    <h2 className="text-xl font-semibold mb-4">Ubicación y entorno</h2>
-                    <div className="grid sm:grid-cols-2 gap-3">
-                      {roomLocationItems.map((item) => (
-                        <div key={item.label} className="rounded-lg border border-border p-4">
-                          <p className="text-sm text-muted-foreground">{item.label}</p>
-                          <p className="font-medium">{item.value}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
+              {(locationDetailGroups.compact.length > 0 || locationDetailGroups.long.length > 0) && (
+                <div className="space-y-3">
+                  <CompactInfoPanel title="Ubicación y entorno" items={locationDetailGroups.compact} />
+                  <LongDetailList items={locationDetailGroups.long} />
+                </div>
               )}
 
-              {roomHousingItems.length > 0 && (
-                <Card>
-                  <CardContent className="p-6">
-                    <h2 className="text-xl font-semibold mb-4">Características de la vivienda</h2>
-                    <div className="grid sm:grid-cols-2 gap-3">
-                      {roomHousingItems.map((item) => (
-                        <div key={item.label} className="rounded-lg border border-border p-4">
-                          <p className="text-sm text-muted-foreground">{item.label}</p>
-                          <p className="font-medium">{item.value}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
+              {(housingDetailGroups.compact.length > 0 || housingDetailGroups.long.length > 0) && (
+                <div className="space-y-3">
+                  <CompactInfoPanel title="Características de la vivienda" items={housingDetailGroups.compact} />
+                  <LongDetailList items={housingDetailGroups.long} />
+                </div>
               )}
 
-              {roomBedroomItems.length > 0 && (
-                <Card>
-                  <CardContent className="p-6">
-                    <h2 className="text-xl font-semibold mb-4">Características de la habitación</h2>
-                    <div className="grid sm:grid-cols-2 gap-3">
-                      {roomBedroomItems.map((item) => (
-                        <div key={item.label} className="rounded-lg border border-border p-4">
-                          <p className="text-sm text-muted-foreground">{item.label}</p>
-                          <p className="font-medium">{item.value}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
+              {(bedroomDetailGroups.compact.length > 0 || bedroomDetailGroups.long.length > 0) && (
+                <div className="space-y-3">
+                  <CompactInfoPanel title="Características de la habitación" items={bedroomDetailGroups.compact} />
+                  <LongDetailList items={bedroomDetailGroups.long} />
+                </div>
               )}
 
-              {convivenciaItems.length > 0 && (
-                <Card>
-                  <CardContent className="p-6">
-                    <h2 className="text-xl font-semibold mb-4">Condiciones de convivencia</h2>
-                    <div className="grid sm:grid-cols-2 gap-3">
-                      {convivenciaItems.map((item) => (
-                        <div key={item.label} className="rounded-lg border border-border p-4">
-                          <p className="text-sm text-muted-foreground">{item.label}</p>
-                          <p className="font-medium">{item.value}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
+              {(convivenciaDetailGroups.compact.length > 0 || convivenciaDetailGroups.long.length > 0) && (
+                <div className="space-y-3">
+                  <CompactInfoPanel title="Condiciones de convivencia" items={convivenciaDetailGroups.compact} />
+                  <LongDetailList items={convivenciaDetailGroups.long} />
+                </div>
               )}
             </div>
 

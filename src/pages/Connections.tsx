@@ -265,6 +265,37 @@ export default function Connections() {
     await loadConnections();
   };
 
+  const cancelOutgoingRequest = async (requestId: number) => {
+    setRespondingId(requestId);
+
+    const { data, error: rpcError } = await rpc('convinter_cancel_consent_request', {
+      p_request_id: requestId,
+    });
+
+    if (rpcError) {
+      console.error('Error cancelling consent request:', rpcError);
+      toast.error('No se pudo cancelar la solicitud');
+      setRespondingId(null);
+      return;
+    }
+
+    const result = data as { ok: boolean; code?: string };
+    if (!result.ok) {
+      const message = result.code === 'REQUEST_NOT_FOUND'
+        ? 'La solicitud ya no existe'
+        : result.code === 'NOT_PENDING'
+          ? 'La solicitud ya fue respondida'
+          : 'No se pudo cancelar la solicitud';
+      toast.error(message);
+      setRespondingId(null);
+      return;
+    }
+
+    toast.success('Solicitud cancelada');
+    setRespondingId(null);
+    await loadConnections();
+  };
+
   if (isLoading) {
     return (
       <Layout>
@@ -396,6 +427,15 @@ export default function Connections() {
                             <UserRound className="mr-2 h-4 w-4" />
                             Ver perfil
                           </Link>
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={respondingId === request.request_id}
+                          onClick={() => void cancelOutgoingRequest(request.request_id)}
+                        >
+                          {respondingId === request.request_id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <X className="mr-2 h-4 w-4" />}
+                          Cancelar solicitud
                         </Button>
                       </div>
                     </div>

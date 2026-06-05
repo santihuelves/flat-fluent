@@ -3,7 +3,12 @@ import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   ArrowLeft,
+  Bath,
+  BedDouble,
+  Building2,
   Calendar,
+  Check,
+  DoorClosed,
   Edit2,
   Euro,
   Eye,
@@ -12,15 +17,22 @@ import {
   MapPin,
   PauseCircle,
   Plus,
+  Receipt,
   RotateCcw,
+  Ruler,
   Save,
+  TrainFront,
   Upload,
+  Users,
+  Wifi,
   X,
+  type LucideIcon,
 } from 'lucide-react';
 import { Layout } from '@/components/layout/Layout';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { RoomListingSummaryCard } from '@/components/listings/RoomListingSummaryCard';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -30,7 +42,7 @@ import { Slider } from '@/components/ui/slider';
 import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/integrations/supabase/client';
 import type { Tables } from '@/integrations/supabase/types';
-import { MIN_STAY_INDEFINITE_VALUE, MIN_STAY_MAX_MONTHS, MIN_STAY_MIN_MONTHS, bathroomUsePolicyOptions, buildRoomListingDetailsFromForm, cleaningPolicyOptions, contractAvailableOptions, depositMonthsOptions, formatMinStayLabel, getMinStaySliderValue, getRoomListingCardHighlights, getRoomListingLocationLabel, roomListingDetailsFormFromDetails, homeEnvironmentOptions, homeFloorOptions, homeOrientationOptions, householdGenderMixOptions, householdOccupationOptions, kitchenEquipmentOptions, kitchenUsePolicyOptions, livingRoomUsePolicyOptions, nearbyServiceOptions, normalizeRoomListingDetails, noticePeriodOptions, occupancyPolicyOptions, partyPolicyOptions, preferredGenderOptions, quietHoursPolicyOptions, registrationAllowedOptions, remoteWorkPolicyOptions, roomBathroomOptions, roomFurnitureOptions, roomFurnishingStatusOptions, roomLockOptions, roomNaturalLightOptions, roomOrientationOptions, roomWindowOptions, stripLegacyNeighborhoodFromDescription, visitsPolicyOptions, type RoomListingDetailsForm } from '@/lib/listingDetails';
+import { MIN_STAY_INDEFINITE_VALUE, MIN_STAY_MAX_MONTHS, MIN_STAY_MIN_MONTHS, bathroomUsePolicyOptions, buildRoomListingDetailsFromForm, cleaningPolicyOptions, contractAvailableOptions, depositMonthsOptions, formatMinStayLabel, getMinStaySliderValue, getRoomListingCardFacts, getRoomListingLocationLabel, roomListingDetailsFormFromDetails, homeEnvironmentOptions, homeFloorOptions, homeOrientationOptions, householdContextOptions, householdGenderMixOptions, householdOccupationOptions, kitchenEquipmentOptions, kitchenUsePolicyOptions, livingRoomUsePolicyOptions, nearbyServiceOptions, normalizeRoomListingDetails, noticePeriodOptions, occupancyPolicyOptions, partyPolicyOptions, preferredGenderOptions, quietHoursPolicyOptions, registrationAllowedOptions, remoteWorkPolicyOptions, roomBathroomOptions, roomFurnitureOptions, roomFurnishingStatusOptions, roomLockOptions, roomNaturalLightOptions, roomOrientationOptions, roomWindowOptions, stripLegacyNeighborhoodFromDescription, visitsPolicyOptions, type RoomListingCardFactIcon, type RoomListingDetailsForm } from '@/lib/listingDetails';
 import { AUTONOMOUS_COMMUNITIES, PROVINCES } from '@/lib/profileOptions';
 import { toast } from 'sonner';
 import { useSEO } from '@/hooks/useSEO';
@@ -58,8 +70,8 @@ type EditForm = {
   availableFrom: string;
   minStay: string;
   billsIncluded: boolean;
-  smokingAllowed: boolean;
-  petsAllowed: boolean;
+  smokingAllowed: boolean | null;
+  petsAllowed: boolean | null;
   photos: string[];
   roomDetails: RoomListingDetailsForm;
 };
@@ -87,6 +99,31 @@ const BATHROOM_COUNT_MAX = 5;
 const ROOM_SIZE_MIN = 6;
 const ROOM_SIZE_MAX = 40;
 const TRANSPORT_WALK_MINUTES_MAX = 30;
+
+const roomFactIconMap: Record<RoomListingCardFactIcon, LucideIcon> = {
+  room: BedDouble,
+  size: Ruler,
+  homeSize: Ruler,
+  bathroom: Bath,
+  window: Home,
+  floor: Building2,
+  elevator: Building2,
+  transport: TrainFront,
+  bills: Receipt,
+  contract: Check,
+  internet: Wifi,
+  lock: DoorClosed,
+  furnished: BedDouble,
+  laundry: Check,
+  storage: DoorClosed,
+  cleaning: Check,
+  quiet: Home,
+  visits: Home,
+  party: Home,
+  smoking: Check,
+  pets: Home,
+  registration: Check,
+};
 
 const statusLabels: Record<string, string> = {
   active: 'Activo',
@@ -128,6 +165,16 @@ const getErrorMessage = (code?: string) => {
 
 const booleanSelectValue = (value: boolean) => (value ? 'yes' : 'no');
 const parseBooleanSelectValue = (value: string) => value === 'yes';
+const nullableBooleanSelectValue = (value: boolean | null | undefined) => {
+  if (value === true) return 'yes';
+  if (value === false) return 'no';
+  return 'unspecified';
+};
+const parseNullableBooleanSelectValue = (value: string) => {
+  if (value === 'yes') return true;
+  if (value === 'no') return false;
+  return null;
+};
 
 const LEGACY_NEIGHBORHOOD_PATTERN = /\n*\s*Barrio\/Zona:\s*(.+?)\s*$/i;
 
@@ -169,8 +216,8 @@ const toEditForm = (listing: Listing): EditForm => {
     availableFrom: listing.available_from ?? '',
     minStay: listing.min_stay_months?.toString() ?? '',
     billsIncluded: Boolean(listing.bills_included),
-    smokingAllowed: Boolean(listing.smoking_allowed),
-    petsAllowed: Boolean(listing.pets_allowed),
+    smokingAllowed: listing.smoking_allowed,
+    petsAllowed: listing.pets_allowed,
     photos: listing.photos ?? [],
     roomDetails,
   };
@@ -475,8 +522,8 @@ export default function MyListings() {
         p_available_from: editForm.availableFrom || undefined,
         p_min_stay_months: editForm.minStay ? Number(editForm.minStay) : undefined,
         p_bills_included: editForm.billsIncluded,
-        p_smoking_allowed: editForm.smokingAllowed,
-        p_pets_allowed: editForm.petsAllowed,
+        p_smoking_allowed: editForm.smokingAllowed ?? undefined,
+        p_pets_allowed: editForm.petsAllowed ?? undefined,
         p_photos: photos,
         p_details: roomDetails,
       });
@@ -668,102 +715,72 @@ export default function MyListings() {
                 ? getRoomListingLocationLabel(roomDetails, listing.city)
                 : listing.city || 'Municipio o ciudad no indicado';
               const cleanDescription = stripLegacyNeighborhoodFromDescription(listing.description);
-              const highlights = listing.listing_type === 'room'
-                ? getRoomListingCardHighlights(roomDetails, { billsIncluded: listing.bills_included, maxItems: 5 })
+              const roomFacts = listing.listing_type === 'room'
+                ? getRoomListingCardFacts(roomDetails, { billsIncluded: listing.bills_included, maxItems: 6 })
                 : [];
+              const occupancyLabel = roomDetails.occupancy_policy
+                ? occupancyPolicyOptions.find((option) => option.value === roomDetails.occupancy_policy)?.label
+                : null;
+              const addRoomFact = (icon: RoomListingCardFactIcon, label: string) => {
+                if (roomFacts.length >= 6 || roomFacts.some((fact) => fact.label === label)) return;
+                roomFacts.push({ icon, label });
+              };
+              if (occupancyLabel) addRoomFact('visits', occupancyLabel);
+              if (listing.smoking_allowed === true) addRoomFact('smoking', 'Permite fumar');
+              if (listing.smoking_allowed === false) addRoomFact('smoking', 'No fumar');
+              if (listing.pets_allowed === false) addRoomFact('pets', 'Sin mascotas');
+              if (listing.pets_allowed === true) addRoomFact('pets', 'Mascotas permitidas');
 
               return (
-                <motion.article
+                <RoomListingSummaryCard
                   key={listing.id}
-                  initial={{ opacity: 0, y: 16 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="glass-card rounded-2xl overflow-hidden"
-                >
-                  <div className="grid sm:grid-cols-[180px_1fr]">
-                    <Link to={`/listing/${listing.id}`} className="block bg-muted">
-                      <img src={image} alt={listing.title} className="h-48 sm:h-full w-full object-cover" />
-                    </Link>
-
-                    <div className="p-5 space-y-4">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <div className="flex flex-wrap gap-2 mb-2">
-                            <Badge variant={isActive ? 'default' : 'secondary'} className="rounded-full">
-                              {statusLabels[listing.status ?? ''] ?? listing.status ?? 'Sin estado'}
-                            </Badge>
-                            <Badge variant="outline" className="rounded-full">
-                              {getListingTypeLabel(listing.listing_type)}
-                            </Badge>
-                          </div>
-                          <h2 className="font-semibold text-lg line-clamp-2">{listing.title}</h2>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            Actualizado {formatUpdatedAt(listing.updated_at)}
-                          </p>
-                          {roomDetails.address_hint && (
-                            <p className="mt-1 text-sm text-muted-foreground line-clamp-1">{roomDetails.address_hint}</p>
-                          )}
-                        </div>
-                      </div>
-
-                      {cleanDescription && (
-                        <p className="text-sm text-muted-foreground line-clamp-2">{cleanDescription}</p>
-                      )}
-
-                      {highlights.length > 0 && (
-                        <div className="flex flex-wrap gap-2">
-                          {highlights.map((highlight) => (
-                            <Badge key={highlight} variant="outline" className="rounded-full bg-background/60">
-                              {highlight}
-                            </Badge>
-                          ))}
-                        </div>
-                      )}
-
-                      <div className="grid grid-cols-2 gap-3 text-sm">
-                        <div className="flex items-center gap-2">
-                          <MapPin className="h-4 w-4 text-primary" />
-                          <span>{locationLabel}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Euro className="h-4 w-4 text-primary" />
-                          <span>{listing.price_monthly ? `${listing.price_monthly} EUR/mes` : 'Sin precio'}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Calendar className="h-4 w-4 text-primary" />
-                          <span>{formatDate(listing.available_from)}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Home className="h-4 w-4 text-primary" />
-                          <span>{formatMinStayLabel(listing.min_stay_months, 'Sin mínimo')}</span>
-                        </div>
-                      </div>
-
-                      <div className="flex flex-wrap gap-2 pt-2">
-                        <Button asChild variant="outline" size="sm" className="gap-2">
-                          <Link to={`/listing/${listing.id}`}>
-                            <Eye className="h-4 w-4" />
-                            Ver
-                          </Link>
+                  href={`/listing/${listing.id}`}
+                  image={image}
+                  title={listing.title}
+                  hover={false}
+                  badges={[
+                    { label: statusLabels[listing.status ?? ''] ?? listing.status ?? 'Sin estado', variant: isActive ? 'default' : 'secondary' },
+                    { label: getListingTypeLabel(listing.listing_type), variant: 'outline' },
+                  ]}
+                  meta={[
+                    { label: `Actualizado ${formatUpdatedAt(listing.updated_at)}`, icon: Calendar },
+                    ...(roomDetails.address_hint ? [{ label: roomDetails.address_hint, icon: MapPin }] : []),
+                  ]}
+                  description={cleanDescription}
+                  facts={roomFacts.map((fact) => ({ icon: roomFactIconMap[fact.icon], label: fact.label }))}
+                  quickFacts={[
+                    { icon: MapPin, label: locationLabel },
+                    { icon: Euro, label: listing.price_monthly ? `${listing.price_monthly} EUR/mes` : 'Sin precio' },
+                    { icon: Calendar, label: formatDate(listing.available_from) },
+                    { icon: Home, label: formatMinStayLabel(listing.min_stay_months, 'Sin mínimo') },
+                  ]}
+                  footer={null}
+                  actions={(
+                    <>
+                      <Button asChild variant="outline" size="sm" className="gap-2">
+                        <Link to={`/listing/${listing.id}`}>
+                          <Eye className="h-4 w-4" />
+                          Ver
+                        </Link>
+                      </Button>
+                      <Button variant="outline" size="sm" className="gap-2" onClick={() => openEditor(listing)}>
+                        <Edit2 className="h-4 w-4" />
+                        Editar
+                      </Button>
+                      {isActive ? (
+                        <Button variant="outline" size="sm" className="gap-2" onClick={() => setPendingAction({ listing, status: 'paused' })}>
+                          <PauseCircle className="h-4 w-4" />
+                          Pausar
                         </Button>
-                        <Button variant="outline" size="sm" className="gap-2" onClick={() => openEditor(listing)}>
-                          <Edit2 className="h-4 w-4" />
-                          Editar
+                      ) : (
+                        <Button variant="outline" size="sm" className="gap-2" onClick={() => setPendingAction({ listing, status: 'active' })}>
+                          <RotateCcw className="h-4 w-4" />
+                          Reactivar
                         </Button>
-                        {isActive ? (
-                          <Button variant="outline" size="sm" className="gap-2" onClick={() => setPendingAction({ listing, status: 'paused' })}>
-                            <PauseCircle className="h-4 w-4" />
-                            Pausar
-                          </Button>
-                        ) : (
-                          <Button variant="outline" size="sm" className="gap-2" onClick={() => setPendingAction({ listing, status: 'active' })}>
-                            <RotateCcw className="h-4 w-4" />
-                            Reactivar
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </motion.article>
+                      )}
+                    </>
+                  )}
+                />
               );
             })}
           </div>
@@ -1724,7 +1741,7 @@ export default function MyListings() {
                       </div>
 
                       <div className="space-y-2">
-                        <Label>Contrato</Label>
+                        <Label>Formalización del alquiler</Label>
                         <Select
                           value={editForm.roomDetails.contractAvailable}
                           onValueChange={(value) => setEditForm({
@@ -1742,6 +1759,9 @@ export default function MyListings() {
                             ))}
                           </SelectContent>
                         </Select>
+                        <p className="text-xs text-muted-foreground">
+                          Recomendamos dejar por escrito precio, duración, fianza, gastos, normas y uso de zonas comunes antes de entregar llaves o pagar señal.
+                        </p>
                       </div>
 
                       <div className="space-y-2">
@@ -1831,8 +1851,10 @@ export default function MyListings() {
               {isEditingRoomListing && (
                 <div className="space-y-4 rounded-xl border border-border p-4">
                   <div>
-                    <h3 className="font-semibold">Condiciones de convivencia</h3>
-                    <p className="text-sm text-muted-foreground">Aclara cómo es la convivencia diaria y qué normas debe conocer quien entre a vivir.</p>
+                    <h3 className="font-semibold">Convivencia en esta vivienda</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Estos datos describen esta vivienda, no tu perfil personal. Pueden parecer repetidos, pero ayudan si publicas varias habitaciones o si la habitación está en una casa donde no vives.
+                    </p>
                   </div>
 
                   <div className="space-y-3">
@@ -1934,12 +1956,16 @@ export default function MyListings() {
                       </div>
 
                       <div className="space-y-2">
-                        <Label>Propietario vive en la vivienda</Label>
+                        <Label>¿Vives tú en esta vivienda?</Label>
                         <Select
-                          value={editForm.roomDetails.ownerLivesHere}
+                          value={editForm.roomDetails.householdContext}
                           onValueChange={(value) => setEditForm({
                             ...editForm,
-                            roomDetails: { ...editForm.roomDetails, ownerLivesHere: value as RoomListingDetailsForm['ownerLivesHere'] },
+                            roomDetails: {
+                              ...editForm.roomDetails,
+                              householdContext: value,
+                              ownerLivesHere: value === 'lives_here' ? 'yes' : value ? 'no' : '',
+                            },
                           })}
                           disabled={saving}
                         >
@@ -1947,10 +1973,14 @@ export default function MyListings() {
                             <SelectValue placeholder="Sin especificar" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="yes">Sí</SelectItem>
-                            <SelectItem value="no">No</SelectItem>
+                            {householdContextOptions.map((option) => (
+                              <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
+                        <p className="text-xs text-muted-foreground">
+                          Si no vives aquí, rellena solo lo que sepas de la convivencia real de esa vivienda.
+                        </p>
                       </div>
 
                       <div className="space-y-2">
@@ -2054,14 +2084,15 @@ export default function MyListings() {
                       <div className="space-y-2">
                         <Label>Permite fumar</Label>
                         <Select
-                          value={booleanSelectValue(editForm.smokingAllowed)}
-                          onValueChange={(value) => setEditForm({ ...editForm, smokingAllowed: parseBooleanSelectValue(value) })}
+                          value={nullableBooleanSelectValue(editForm.smokingAllowed)}
+                          onValueChange={(value) => setEditForm({ ...editForm, smokingAllowed: parseNullableBooleanSelectValue(value) })}
                           disabled={saving}
                         >
                           <SelectTrigger>
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
+                            <SelectItem value="unspecified">Sin especificar</SelectItem>
                             <SelectItem value="yes">Sí</SelectItem>
                             <SelectItem value="no">No</SelectItem>
                           </SelectContent>
@@ -2071,14 +2102,15 @@ export default function MyListings() {
                       <div className="space-y-2">
                         <Label>Permite mascotas</Label>
                         <Select
-                          value={booleanSelectValue(editForm.petsAllowed)}
-                          onValueChange={(value) => setEditForm({ ...editForm, petsAllowed: parseBooleanSelectValue(value) })}
+                          value={nullableBooleanSelectValue(editForm.petsAllowed)}
+                          onValueChange={(value) => setEditForm({ ...editForm, petsAllowed: parseNullableBooleanSelectValue(value) })}
                           disabled={saving}
                         >
                           <SelectTrigger>
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
+                            <SelectItem value="unspecified">Sin especificar</SelectItem>
                             <SelectItem value="yes">Sí</SelectItem>
                             <SelectItem value="no">No</SelectItem>
                           </SelectContent>

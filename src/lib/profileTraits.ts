@@ -244,3 +244,109 @@ export const getSeekRoomGoalLabel = (value: SeekerGoalValue) => {
   const option = SEEK_ROOM_GOAL_OPTIONS.find((item) => item.value === value);
   return option?.label ?? null;
 };
+
+export const PROFILE_INTEREST_TAG_PREFIX = 'interest_';
+export const PROFILE_INTEREST_TAG_LIMIT = 25;
+
+export type ProfileInterestCategory = {
+  id: string;
+  title: string;
+  helper: string;
+  options: readonly string[];
+};
+
+export const PROFILE_INTEREST_CATEGORIES: readonly ProfileInterestCategory[] = [
+  {
+    id: 'personality',
+    title: 'Cómo eres',
+    helper: 'Rasgos personales que ayudan a intuir el trato diario y la conexión con otras personas.',
+    options: [
+      'Tranquilo/a', 'Sociable', 'Reservado/a', 'Comunicativo/a', 'Empático/a', 'Flexible',
+      'Ordenado/a', 'Creativo/a', 'Optimista', 'De trato fácil', 'Puntual', 'Paciente',
+      'Resolutivo/a', 'Independiente', 'Conversador/a', 'Discreto/a', 'Cuidadoso/a',
+      'Directo/a', 'Abierto/a', 'Organizado/a', 'Respetuoso/a', 'Honesto/a',
+      'Responsable', 'Afectuoso/a', 'Observador/a', 'Colaborador/a', 'Detallista',
+      'Práctico/a', 'Curioso/a', 'Sereno/a',
+    ],
+  },
+  {
+    id: 'lifestyle',
+    title: 'Estilo de vida',
+    helper: 'Pistas sobre tu ritmo, energía y forma de disfrutar el día a día.',
+    options: [
+      'Casero/a', 'Aventurero/a', 'Vida activa', 'Rutina tranquila', 'Planes improvisados',
+      'Cuida el descanso', 'Le gusta cocinar', 'Sale los fines de semana',
+      'Prefiere planes tranquilos', 'Madrugador/a', 'Nocturno/a', 'Saludable', 'Foodie',
+      'Viajero/a', 'Deportista', 'Cultural', 'Naturaleza', 'Vida sencilla',
+      'Agenda organizada', 'Espontáneo/a', 'Le gusta desconectar', 'Muy familiar',
+      'Ambiente relajado', 'Le gusta aprender', 'Mascotas friendly',
+    ],
+  },
+  {
+    id: 'plans',
+    title: 'Planes e intereses',
+    helper: 'Temas y planes que pueden abrir conversación con personas afines.',
+    options: [
+      'Cine', 'Series', 'Lectura', 'Cocinar', 'Café tranquilo', 'Conciertos', 'Museos',
+      'Juegos de mesa', 'Fotografía', 'Tecnología', 'Terrazas', 'Naturaleza', 'Viajes',
+      'Videojuegos', 'Teatro', 'Arte', 'Pasear', 'Gastronomía', 'Voluntariado',
+      'Idiomas', 'Podcasts', 'Animales', 'Manualidades', 'Mercadillos', 'Escape rooms',
+      'Debates tranquilos', 'Planes culturales', 'Excursiones', 'Brunch', 'Karaoke',
+    ],
+  },
+  {
+    id: 'music',
+    title: 'Música',
+    helper: 'Gustos musicales si quieres mostrarlos en tu perfil.',
+    options: [
+      'Pop', 'Rock', 'Indie', 'Electrónica', 'Hip-hop', 'Latina', 'Clásica', 'Jazz',
+      'Reggae', 'Metal', 'Techno', 'House', 'Flamenco', 'Reguetón', 'R&B', 'Soul',
+      'Folk', 'Punk', 'Alternativa', 'Blues', 'Country', 'Trap', 'Salsa', 'Bachata',
+      'Funk', 'Lo-fi', 'Cantautor/a', 'Dance', 'Afrobeat', 'K-pop',
+    ],
+  },
+  {
+    id: 'sports',
+    title: 'Deportes',
+    helper: 'Actividades que practicas o te interesan.',
+    options: [
+      'Gimnasio', 'Running', 'Yoga', 'Ciclismo', 'Natación', 'Fútbol', 'Baloncesto',
+      'Pádel', 'Senderismo', 'Baile', 'Pilates', 'Crossfit', 'Boxeo', 'Tenis', 'Surf',
+      'Montaña', 'Artes marciales', 'Patinaje', 'Calistenia', 'Escalada', 'Voleibol',
+      'Rugby', 'Golf', 'Esquí', 'Snowboard', 'Skate', 'Bici urbana', 'Entreno en casa',
+      'Meditación', 'Estiramientos',
+    ],
+  },
+] as const;
+
+const normalizeInterestTag = (label: string) =>
+  label
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+
+export const toProfileInterestTag = (label: string) =>
+  `${PROFILE_INTEREST_TAG_PREFIX}${normalizeInterestTag(label)}`;
+
+export const decodeProfileInterestTags = (tags: string[] | null | undefined) => {
+  const safeTags = new Set(tags ?? []);
+  const options = PROFILE_INTEREST_CATEGORIES.flatMap((category) => category.options);
+
+  return options.filter((option) => safeTags.has(toProfileInterestTag(option)));
+};
+
+export const encodeProfileInterestTags = (
+  existingTags: string[] | null | undefined,
+  selectedLabels: string[]
+) => {
+  const preservedTags = (existingTags ?? []).filter(
+    (tag) => !tag.startsWith(PROFILE_INTEREST_TAG_PREFIX)
+  );
+  const selectedTags = selectedLabels
+    .slice(0, PROFILE_INTEREST_TAG_LIMIT)
+    .map(toProfileInterestTag);
+
+  return Array.from(new Set([...preservedTags, ...selectedTags]));
+};

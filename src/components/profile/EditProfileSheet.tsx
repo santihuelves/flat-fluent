@@ -29,11 +29,15 @@ import {
   todayIso,
 } from '@/lib/profileOptions';
 import {
+  PROFILE_INTEREST_CATEGORIES,
+  PROFILE_INTEREST_TAG_LIMIT,
   decodeLivingTraits,
   decodeOfferDetails,
   decodeSeekRoomDetails,
+  decodeProfileInterestTags,
   encodeLivingTraits,
   encodeOfferDetails,
+  encodeProfileInterestTags,
   encodeSeekRoomDetails,
   HOUSEHOLD_SIZE_OPTIONS,
   OCCUPANCY_POLICY_OPTIONS,
@@ -45,6 +49,137 @@ import {
 const PROFILE_PRIMARY_PHOTO_LIMIT = 1;
 const INCLUSIVE_PROFILE_TAG = 'inclusive_lgtbiq_friendly';
 const PRONOUNS_PREFIX = 'pronouns_';
+const AUTO_TAG_PREFIX = 'auto_';
+
+const styleQuestions = [
+  {
+    key: 'style_cleaning',
+    title: 'Limpieza',
+    options: [
+      { value: 'relaxed', label: 'Relajada', tag: 'Limpieza flexible' },
+      { value: 'balanced', label: 'Normal', tag: 'Limpieza equilibrada' },
+      { value: 'organized', label: 'Ordenada', tag: 'Persona ordenada' },
+    ],
+  },
+  {
+    key: 'style_noise',
+    title: 'Ruido',
+    options: [
+      { value: 'quiet', label: 'Silencioso', tag: 'Prefiere tranquilidad' },
+      { value: 'balanced', label: 'Normal', tag: 'Ambiente normal' },
+      { value: 'lively', label: 'Animado', tag: 'Tolera ambiente animado' },
+    ],
+  },
+  {
+    key: 'style_schedule',
+    title: 'Horarios',
+    options: [
+      { value: 'early', label: 'Madrugador', tag: 'Persona madrugadora' },
+      { value: 'regular', label: 'Regular', tag: 'Horario regular' },
+      { value: 'night', label: 'Nocturno', tag: 'Persona nocturna' },
+    ],
+  },
+  {
+    key: 'style_visits',
+    title: 'Visitas',
+    options: [
+      { value: 'rare', label: 'Pocas', tag: 'Pocas visitas' },
+      { value: 'planned', label: 'Avisando', tag: 'Visitas avisando' },
+      { value: 'frequent', label: 'Frecuentes', tag: 'Visitas frecuentes' },
+    ],
+  },
+  {
+    key: 'style_pets',
+    title: 'Mascotas',
+    options: [
+      { value: 'no', label: 'Prefiero sin', tag: 'Prefiere sin mascotas' },
+      { value: 'flexible', label: 'Me adapto', tag: 'Flexible con mascotas' },
+      { value: 'yes', label: 'Pet friendly', tag: 'Pet friendly' },
+    ],
+  },
+  {
+    key: 'style_smoking',
+    title: 'Tabaco',
+    options: [
+      { value: 'no', label: 'No fumador', tag: 'No fumador' },
+      { value: 'outside', label: 'Fumador solo exterior', tag: 'Fuma solo fuera' },
+      { value: 'inside', label: 'Flexible con fumadores', tag: 'Flexible con fumadores' },
+    ],
+  },
+  {
+    key: 'style_cooking',
+    title: 'Uso cocina',
+    options: [
+      { value: 'light', label: 'Cocina ligera', tag: 'Cocina ligera' },
+      { value: 'normal', label: 'Cocina habitual', tag: 'Cocina habitual' },
+      { value: 'often', label: 'Cocina intensiva', tag: 'Cocina frecuente' },
+    ],
+  },
+  {
+    key: 'style_social',
+    title: 'Relación en casa',
+    options: [
+      { value: 'independent', label: 'A mi aire', tag: 'Va a su aire' },
+      { value: 'balanced', label: 'Algo de vida común', tag: 'Vida común equilibrada' },
+      { value: 'social', label: 'Casa sociable', tag: 'Casa sociable' },
+    ],
+  },
+  {
+    key: 'style_remote_work',
+    title: 'Teletrabajo',
+    options: [
+      { value: 'no', label: 'No', tag: 'Sin teletrabajo' },
+      { value: 'some', label: 'Algunos días', tag: 'Teletrabajo ocasional' },
+      { value: 'often', label: 'Frecuente', tag: 'Teletrabajo frecuente' },
+    ],
+  },
+] as const;
+
+type StyleQuestionKey = typeof styleQuestions[number]['key'];
+
+const toAutoTag = (label: string) => `${AUTO_TAG_PREFIX}${label.toLowerCase().replace(/\s+/g, '_')}`;
+
+const decodeStyleValue = (tags: string[] | null | undefined, key: StyleQuestionKey) => {
+  const safeTags = tags ?? [];
+  const question = styleQuestions.find((item) => item.key === key);
+  if (!question) return '';
+
+  return question.options.find((option) => safeTags.includes(toAutoTag(option.tag)))?.value ?? '';
+};
+
+const encodeStyleTags = (existingTags: string[] | null | undefined, formData: Pick<FormState, StyleQuestionKey>) => {
+  const preservedTags = (existingTags ?? []).filter((tag) => !tag.startsWith(AUTO_TAG_PREFIX));
+  const styleTags = styleQuestions
+    .map((question) => {
+      const value = formData[question.key];
+      const selectedOption = question.options.find((option) => option.value === value);
+      return selectedOption ? toAutoTag(selectedOption.tag) : null;
+    })
+    .filter((tag): tag is string => Boolean(tag));
+
+  return Array.from(new Set([...preservedTags, ...styleTags]));
+};
+
+const getSelectedStyleLabels = (formData: Pick<FormState, StyleQuestionKey>) =>
+  styleQuestions.reduce<string[]>((labels, question) => {
+    const selectedOption = question.options.find((option) => option.value === formData[question.key]);
+    if (selectedOption) {
+      labels.push(selectedOption.tag);
+    }
+    return labels;
+  }, []);
+
+const buildCompatibilityStyle = (formData: Pick<FormState, StyleQuestionKey>) => ({
+  cleaning: formData.style_cleaning || null,
+  noise: formData.style_noise || null,
+  schedule: formData.style_schedule || null,
+  visits: formData.style_visits || null,
+  pets: formData.style_pets || null,
+  smoking: formData.style_smoking || null,
+  cooking: formData.style_cooking || null,
+  social: formData.style_social || null,
+  remote_work: formData.style_remote_work || null,
+});
 
 type ProfileIntention = {
   intention_type: 'seek_room' | 'offer_room' | 'seek_flatmate';
@@ -104,10 +239,20 @@ type FormState = {
   inclusive_profile: boolean;
   languages: string[];
   photos: string[];
+  interest_tags: string[];
   is_smoker: '' | 'yes' | 'no';
   has_pet: '' | 'yes' | 'no';
   household_size: '' | 'solo' | 'pair' | 'group_3_plus';
   includes_minor: '' | 'yes' | 'no';
+  style_cleaning: string;
+  style_noise: string;
+  style_schedule: string;
+  style_visits: string;
+  style_pets: string;
+  style_smoking: string;
+  style_cooking: string;
+  style_social: string;
+  style_remote_work: string;
   seek_room_goal: '' | 'need_room_now' | 'want_flatmate_then_home' | 'open_to_both';
   seek_room_accepts_smoking_home: '' | 'yes' | 'no';
   seek_room_accepts_pets_home: '' | 'yes' | 'no';
@@ -159,6 +304,7 @@ const buildInitialFormData = (profile: ProfileData): FormState => {
     occupation: profile.occupation || '',
     inclusive_profile: Boolean(profile.lifestyle_tags?.includes(INCLUSIVE_PROFILE_TAG)),
     languages: (profile.languages || []).map(normalizeLanguage),
+    interest_tags: decodeProfileInterestTags(profile.lifestyle_tags),
     photos: (() => {
       const firstValidPhoto = profile.photos?.find((photo): photo is string => typeof photo === 'string' && photo.length > 0);
       const primaryPhoto = firstValidPhoto || profile.photo_url || null;
@@ -168,6 +314,15 @@ const buildInitialFormData = (profile: ProfileData): FormState => {
     has_pet: livingTraits.hasPet,
     household_size: livingTraits.householdSize,
     includes_minor: livingTraits.includesMinor,
+    style_cleaning: decodeStyleValue(profile.lifestyle_tags, 'style_cleaning'),
+    style_noise: decodeStyleValue(profile.lifestyle_tags, 'style_noise'),
+    style_schedule: decodeStyleValue(profile.lifestyle_tags, 'style_schedule'),
+    style_visits: decodeStyleValue(profile.lifestyle_tags, 'style_visits'),
+    style_pets: decodeStyleValue(profile.lifestyle_tags, 'style_pets'),
+    style_smoking: decodeStyleValue(profile.lifestyle_tags, 'style_smoking'),
+    style_cooking: decodeStyleValue(profile.lifestyle_tags, 'style_cooking'),
+    style_social: decodeStyleValue(profile.lifestyle_tags, 'style_social'),
+    style_remote_work: decodeStyleValue(profile.lifestyle_tags, 'style_remote_work'),
     seek_room_goal: seekRoomDetails.seekerGoal,
     seek_room_accepts_smoking_home: seekRoomDetails.acceptsSmokingHome,
     seek_room_accepts_pets_home: seekRoomDetails.acceptsPetsHome,
@@ -283,6 +438,22 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
     }));
   };
 
+  const toggleInterestTag = (tag: string) => {
+    setFormData((prev) => {
+      const selected = prev.interest_tags.includes(tag);
+      if (!selected && prev.interest_tags.length >= PROFILE_INTEREST_TAG_LIMIT) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        interest_tags: selected
+          ? prev.interest_tags.filter((item) => item !== tag)
+          : [...prev.interest_tags, tag],
+      };
+    });
+  };
+
   const getValidationError = () => {
     const displayName = formData.display_name.trim();
     const bio = formData.bio.trim();
@@ -375,7 +546,9 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
     const cleanPhotos = cleanPrimaryPhoto ? [cleanPrimaryPhoto] : [];
     const cleanBudgetMin = formData.budget_min.trim() ? Number(formData.budget_min) : null;
     const cleanBudgetMax = formData.budget_max.trim() ? Number(formData.budget_max) : null;
-    const encodedLivingTags = encodeLivingTraits(profile.lifestyle_tags, {
+    const encodedInterestTags = encodeProfileInterestTags(profile.lifestyle_tags, formData.interest_tags);
+    const encodedStyleTags = encodeStyleTags(encodedInterestTags, formData);
+    const encodedLivingTags = encodeLivingTraits(encodedStyleTags, {
       isSmoker: formData.is_smoker,
       hasPet: formData.has_pet,
       householdSize: formData.household_size,
@@ -447,6 +620,16 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
         } else {
           continue;
         }
+
+        const baseDetails = detailsPayload && typeof detailsPayload === 'object' && !Array.isArray(detailsPayload)
+          ? (detailsPayload as Record<string, Json>)
+          : {};
+        detailsPayload = {
+          ...baseDetails,
+          compatibility_style: buildCompatibilityStyle(formData) as unknown as Json,
+          automatic_tags: getSelectedStyleLabels(formData) as unknown as Json,
+          inclusive_profile: formData.inclusive_profile,
+        } as Json;
 
         const { data: intentionResult, error: intentionError } = await supabase.rpc('convinter_set_intention', {
           p_intention_type: intention.intention_type,
@@ -579,7 +762,7 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
 
           <div className="space-y-3">
             <div className="flex items-center justify-between gap-3">
-              <Label htmlFor="bio">Sobre mí</Label>
+              <Label htmlFor="bio">Sobre ti</Label>
               <span className="text-xs text-muted-foreground">
                 {formData.bio.trim().length}/{MAX_BIO_LENGTH}
               </span>
@@ -589,9 +772,12 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
               value={formData.bio}
               maxLength={MAX_BIO_LENGTH}
               onChange={(e) => setFormData((prev) => ({ ...prev, bio: e.target.value }))}
-              placeholder="Cuéntanos quién eres, qué valoras y qué ayuda a generar confianza contigo."
+              placeholder="Cuéntanos cómo eres conviviendo."
               rows={5}
             />
+            <p className="text-xs text-muted-foreground">
+              Cuéntanos sobre tu manera de convivir y detalles que quieras que otros sepan de ti.
+            </p>
           </div>
 
           <div className="space-y-3">
@@ -624,45 +810,109 @@ export function EditProfileSheet({ open, onOpenChange, profile, onProfileUpdated
 
           <section className="space-y-6">
             <div>
-              <h3 className="text-base font-semibold text-foreground">Convivencia opcional</h3>
+              <h3 className="text-base font-semibold text-foreground">Rasgos e intereses</h3>
               <p className="mt-1 text-sm text-muted-foreground">
-                Estos datos ayudan a calcular compatibilidad si vas a convivir. Si solo gestionas una vivienda o no vas a vivir alli, puedes dejarlos sin completar.
+                Elige hasta 25 detalles que ayuden a otras personas a conocerte mejor: personalidad, planes, música o estilo de vida.
+              </p>
+            </div>
+
+            <div className="sticky top-0 z-20 rounded-xl border border-border/70 bg-background/95 p-3 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-background/80">
+              <div className="flex items-center justify-between gap-3 text-sm">
+                <span className="font-medium text-foreground">
+                  {formData.interest_tags.length}/{PROFILE_INTEREST_TAG_LIMIT} seleccionados
+                </span>
+                <span className="text-muted-foreground">
+                  {PROFILE_INTEREST_TAG_LIMIT - formData.interest_tags.length > 0
+                    ? `Te quedan ${PROFILE_INTEREST_TAG_LIMIT - formData.interest_tags.length}`
+                    : 'Límite alcanzado'}
+                </span>
+              </div>
+              <div className="mt-2 h-2 overflow-hidden rounded-full bg-muted">
+                <div
+                  className="h-full rounded-full bg-primary transition-all"
+                  style={{ width: `${Math.min(100, (formData.interest_tags.length / PROFILE_INTEREST_TAG_LIMIT) * 100)}%` }}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-5">
+              {PROFILE_INTEREST_CATEGORIES.map((category) => (
+                <div key={category.id} className="space-y-3 rounded-xl border border-border/60 p-4">
+                  <div>
+                    <Label className="text-sm font-semibold">{category.title}</Label>
+                    <p className="mt-1 text-xs text-muted-foreground">{category.helper}</p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {category.options.map((option) => {
+                      const selected = formData.interest_tags.includes(option);
+                      const disabled = !selected && formData.interest_tags.length >= PROFILE_INTEREST_TAG_LIMIT;
+
+                      return (
+                        <Badge
+                          key={option}
+                          variant={selected ? 'default' : 'outline'}
+                          className={`cursor-pointer rounded-full px-3 py-1.5 text-sm transition-colors ${disabled ? 'cursor-not-allowed opacity-45' : ''}`}
+                          onClick={() => {
+                            if (!disabled) toggleInterestTag(option);
+                          }}
+                        >
+                          {option}
+                        </Badge>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section className="space-y-6">
+            <div>
+              <h3 className="text-base font-semibold text-foreground">Tus hábitos y tu manera de convivir</h3>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Opcional. Estos datos cuentan cómo sueles convivir y se muestran como rasgos públicos para orientar compatibilidad.
+              </p>
+            </div>
+
+            <div className="space-y-4">
+              {styleQuestions.map((question) => (
+                <div key={question.key} className="space-y-2">
+                  <Label>{question.title}</Label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {question.options.map((option) => {
+                      const selected = formData[question.key] === option.value;
+
+                      return (
+                        <button
+                          key={option.value}
+                          type="button"
+                          onClick={() => setFormData((prev) => ({
+                            ...prev,
+                            [question.key]: selected ? '' : option.value,
+                          }))}
+                          className={`min-h-11 rounded-xl border px-2 text-sm font-medium transition-all ${
+                            selected
+                              ? 'border-primary bg-primary text-primary-foreground'
+                              : 'border-border bg-background hover:border-primary/50'
+                          }`}
+                        >
+                          {option.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="border-t border-border/70 pt-5">
+              <h4 className="text-sm font-medium text-foreground">Situación de convivencia</h4>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Puedes indicar si convives solo/a, en pareja, con familia o con menores. Es opcional y ayuda a entender mejor tu contexto personal.
               </p>
             </div>
 
             <div className="grid gap-3 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label>Tabaco</Label>
-                <Select
-                  value={formData.is_smoker}
-                  onValueChange={(value) => setFormData((prev) => ({ ...prev, is_smoker: value as FormState['is_smoker'] }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecciona" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="no">No fumador</SelectItem>
-                    <SelectItem value="yes">Fuma</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Mascotas</Label>
-                <Select
-                  value={formData.has_pet}
-                  onValueChange={(value) => setFormData((prev) => ({ ...prev, has_pet: value as FormState['has_pet'] }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecciona" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="no">No convivo con mascota</SelectItem>
-                    <SelectItem value="yes">Convivo con mascota</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
               <div className="space-y-2">
                 <Label>Unidad de convivencia</Label>
                 <Select

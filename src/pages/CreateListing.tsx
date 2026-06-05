@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Slider } from '@/components/ui/slider';
 import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/integrations/supabase/client';
-import { MIN_STAY_INDEFINITE_VALUE, MIN_STAY_MAX_MONTHS, MIN_STAY_MIN_MONTHS, bathroomUsePolicyOptions, buildRoomListingDetailsFromForm, cleaningPolicyOptions, contractAvailableOptions, depositMonthsOptions, emptyRoomListingDetailsForm, formatMinStayLabel, getMinStaySliderValue, homeEnvironmentOptions, homeFloorOptions, homeOrientationOptions, householdGenderMixOptions, householdOccupationOptions, kitchenEquipmentOptions, kitchenUsePolicyOptions, livingRoomUsePolicyOptions, nearbyServiceOptions, noticePeriodOptions, occupancyPolicyOptions, partyPolicyOptions, preferredGenderOptions, quietHoursPolicyOptions, registrationAllowedOptions, remoteWorkPolicyOptions, roomBathroomOptions, roomFurnitureOptions, roomFurnishingStatusOptions, roomLockOptions, roomNaturalLightOptions, roomOrientationOptions, roomWindowOptions, visitsPolicyOptions, type RoomListingDetailsForm } from '@/lib/listingDetails';
+import { MIN_STAY_INDEFINITE_VALUE, MIN_STAY_MAX_MONTHS, MIN_STAY_MIN_MONTHS, bathroomUsePolicyOptions, buildRoomListingDetailsFromForm, cleaningPolicyOptions, contractAvailableOptions, depositMonthsOptions, emptyRoomListingDetailsForm, formatMinStayLabel, getMinStaySliderValue, homeEnvironmentOptions, homeFloorOptions, homeOrientationOptions, householdContextOptions, householdGenderMixOptions, householdOccupationOptions, kitchenEquipmentOptions, kitchenUsePolicyOptions, livingRoomUsePolicyOptions, nearbyServiceOptions, noticePeriodOptions, occupancyPolicyOptions, partyPolicyOptions, preferredGenderOptions, quietHoursPolicyOptions, registrationAllowedOptions, remoteWorkPolicyOptions, roomBathroomOptions, roomFurnitureOptions, roomFurnishingStatusOptions, roomLockOptions, roomNaturalLightOptions, roomOrientationOptions, roomWindowOptions, visitsPolicyOptions, type RoomListingDetailsForm } from '@/lib/listingDetails';
 import { AUTONOMOUS_COMMUNITIES, PROVINCES } from '@/lib/profileOptions';
 import { toast } from 'sonner';
 import { useSEO } from '@/hooks/useSEO';
@@ -58,8 +58,8 @@ type FormData = {
   expensesIncluded: boolean;
   availableDate: string;
   minStay: string;
-  smokingAllowed: boolean;
-  petsAllowed: boolean;
+  smokingAllowed: boolean | null;
+  petsAllowed: boolean | null;
   roomDetails: RoomListingDetailsForm;
 };
 
@@ -77,24 +77,11 @@ type ProfilePrefillData = {
   user_type: 'seeking_room' | 'offering_room' | 'seeking_roommate' | null;
 };
 
-type CompatibilityStyle = {
-  cleaning?: string | null;
-  noise?: string | null;
-  schedule?: string | null;
-  visits?: string | null;
-  pets?: string | null;
-  smoking?: string | null;
-  cooking?: string | null;
-  social?: string | null;
-  remote_work?: string | null;
-};
-
 type ProfileIntentionPrefill = {
   intention_type?: 'seek_room' | 'offer_room' | 'seek_flatmate';
   is_primary?: boolean;
   details?: {
     selected_goal?: string | null;
-    compatibility_style?: CompatibilityStyle | null;
   } | null;
 };
 
@@ -112,111 +99,8 @@ const sanitizeFileName = (name: string) => name.toLowerCase().replace(/[^a-z0-9.
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 
-const getCompatibilityStyle = (details: unknown): CompatibilityStyle | null => {
-  if (!isRecord(details) || !isRecord(details.compatibility_style)) return null;
-  return details.compatibility_style as CompatibilityStyle;
-};
-
 const getSelectedGoal = (details: unknown) =>
   isRecord(details) && typeof details.selected_goal === 'string' ? details.selected_goal : null;
-
-const normalizeCompatibilityValue = (value: string | null | undefined) =>
-  value?.toLowerCase().replace(/\s+/g, '_') ?? '';
-
-const mapCleaningPolicy = (cleaning: string | null | undefined) => {
-  switch (normalizeCompatibilityValue(cleaning)) {
-    case 'relaxed':
-    case 'relajada':
-      return 'to_agree';
-    case 'balanced':
-    case 'normal':
-      return 'shared';
-    case 'organized':
-    case 'ordenada':
-      return 'schedule';
-    default:
-      return '';
-  }
-};
-
-const mapQuietHoursPolicy = (noise: string | null | undefined) => {
-  switch (normalizeCompatibilityValue(noise)) {
-    case 'quiet':
-    case 'silencioso':
-      return 'strict';
-    case 'balanced':
-    case 'normal':
-      return 'reasonable';
-    case 'lively':
-    case 'animado':
-      return 'flexible';
-    default:
-      return '';
-  }
-};
-
-const mapHomeEnvironment = (style: CompatibilityStyle) => {
-  const social = normalizeCompatibilityValue(style.social);
-  if (social === 'independent' || social === 'a_mi_aire') return 'quiet';
-  if (social === 'balanced' || social === 'algo_de_vida_comun') return 'mixed';
-  if (social === 'social' || social === 'casa_sociable') return 'mixed';
-
-  const noise = normalizeCompatibilityValue(style.noise);
-  if (noise === 'quiet' || noise === 'silencioso') return 'quiet';
-  if (noise === 'balanced' || noise === 'normal' || noise === 'lively' || noise === 'animado') return 'mixed';
-  return '';
-};
-
-const mapVisitsPolicy = (visits: string | null | undefined) => {
-  switch (normalizeCompatibilityValue(visits)) {
-    case 'rare':
-    case 'pocas':
-      return 'occasional';
-    case 'planned':
-    case 'avisando':
-      return 'with_notice';
-    case 'frequent':
-    case 'frecuentes':
-      return 'to_agree';
-    default:
-      return '';
-  }
-};
-
-const mapKitchenUsePolicy = (cooking: string | null | undefined) => {
-  switch (normalizeCompatibilityValue(cooking)) {
-    case 'light':
-    case 'ligera':
-    case 'cocina_ligera':
-      return 'limited';
-    case 'normal':
-    case 'habitual':
-    case 'cocina_habitual':
-      return 'to_agree';
-    case 'often':
-    case 'intensiva':
-    case 'cocina_intensiva':
-      return 'free_use';
-    default:
-      return '';
-  }
-};
-
-const mapRemoteWorkPolicy = (remoteWork: string | null | undefined) => {
-  switch (normalizeCompatibilityValue(remoteWork)) {
-    case 'often':
-    case 'frequent':
-    case 'frecuente':
-      return 'allowed';
-    case 'some':
-    case 'algunos_dias':
-      return 'occasional';
-    case 'no':
-      return 'to_agree';
-    default:
-      return '';
-  }
-};
 
 const syncOfferRoomIntention = async (
   userId: string,
@@ -303,8 +187,8 @@ export default function CreateListing() {
     expensesIncluded: false,
     availableDate: '',
     minStay: '6',
-    smokingAllowed: false,
-    petsAllowed: false,
+    smokingAllowed: null,
+    petsAllowed: null,
     roomDetails: emptyRoomListingDetailsForm(),
   });
 
@@ -368,11 +252,6 @@ export default function CreateListing() {
         const intentionsResult = intentionsData as unknown as { ok?: boolean; intentions?: ProfileIntentionPrefill[] } | null;
         const intentions = intentionsResult?.ok ? intentionsResult.intentions ?? [] : [];
         const offerIntention = intentions.find((intention) => intention.intention_type === 'offer_room') ?? null;
-        const intentionWithCompatibility =
-          offerIntention ??
-          intentions.find((intention) => Boolean(getCompatibilityStyle(intention.details))) ??
-          null;
-        const compatibilityStyle = getCompatibilityStyle(intentionWithCompatibility?.details) ?? null;
         const hasOfferGoal =
           profile?.user_type === 'offering_room' ||
           Boolean(offerIntention) ||
@@ -381,31 +260,8 @@ export default function CreateListing() {
         setFormData((current) => {
           if (hasUserEditedFormRef.current) return current;
 
-          const nextRoomDetails = { ...current.roomDetails };
           let applied = false;
-
-          const applyRoomDetail = <Key extends keyof RoomListingDetailsForm>(
-            key: Key,
-            value: RoomListingDetailsForm[Key] | ''
-          ) => {
-            if (!value || nextRoomDetails[key]) return;
-            nextRoomDetails[key] = value as RoomListingDetailsForm[Key];
-            applied = true;
-          };
-
-          if (compatibilityStyle) {
-            applyRoomDetail('cleaningPolicy', mapCleaningPolicy(compatibilityStyle.cleaning));
-            applyRoomDetail('quietHoursPolicy', mapQuietHoursPolicy(compatibilityStyle.noise));
-            applyRoomDetail('homeEnvironment', mapHomeEnvironment(compatibilityStyle));
-            applyRoomDetail('visitsPolicy', mapVisitsPolicy(compatibilityStyle.visits));
-            applyRoomDetail('kitchenUsePolicy', mapKitchenUsePolicy(compatibilityStyle.cooking));
-            applyRoomDetail('remoteWorkPolicy', mapRemoteWorkPolicy(compatibilityStyle.remote_work));
-          }
-
-          const next: FormData = {
-            ...current,
-            roomDetails: nextRoomDetails,
-          };
+          const next: FormData = { ...current };
 
           if (requestedListingType === 'offer_room' && hasOfferGoal && !next.type) {
             next.type = 'offer_room';
@@ -423,25 +279,6 @@ export default function CreateListing() {
           if (profile?.city && !next.city) {
             next.city = profile.city;
             applied = true;
-          }
-
-          if (compatibilityStyle?.smoking && !current.smokingAllowed) {
-            const smoking = normalizeCompatibilityValue(compatibilityStyle.smoking);
-            if (smoking === 'no' || smoking === 'no_fumador') {
-              next.smokingAllowed = false;
-              applied = true;
-            }
-          }
-
-          if (compatibilityStyle?.pets) {
-            const pets = normalizeCompatibilityValue(compatibilityStyle.pets);
-            if ((pets === 'no' || pets === 'prefiero_sin') && current.petsAllowed === false) {
-              next.petsAllowed = false;
-              applied = true;
-            } else if ((pets === 'yes' || pets === 'pet_friendly') && current.petsAllowed === false) {
-              next.petsAllowed = true;
-              applied = true;
-            }
           }
 
           if (applied) {
@@ -563,6 +400,16 @@ export default function CreateListing() {
 
   const booleanSelectValue = (value: boolean) => (value ? 'yes' : 'no');
   const parseBooleanSelectValue = (value: string) => value === 'yes';
+  const nullableBooleanSelectValue = (value: boolean | null | undefined) => {
+    if (value === true) return 'yes';
+    if (value === false) return 'no';
+    return 'unspecified';
+  };
+  const parseNullableBooleanSelectValue = (value: string) => {
+    if (value === 'yes') return true;
+    if (value === 'no') return false;
+    return null;
+  };
   const preferredAgeRange = [
     Number(formData.roomDetails.preferredAgeMin) || AGE_RANGE_MIN,
     Number(formData.roomDetails.preferredAgeMax) || AGE_RANGE_MAX,
@@ -669,8 +516,8 @@ export default function CreateListing() {
         p_bills_included: formData.expensesIncluded,
         p_available_from: formData.availableDate || null,
         p_min_stay_months: formData.minStay ? Number(formData.minStay) : null,
-        p_smoking_allowed: formData.smokingAllowed,
-        p_pets_allowed: formData.petsAllowed,
+        p_smoking_allowed: formData.smokingAllowed ?? undefined,
+        p_pets_allowed: formData.petsAllowed ?? undefined,
         p_photos: photos.length > 0 ? photos : null,
         p_details: details,
       });
@@ -757,7 +604,7 @@ export default function CreateListing() {
 
         {profilePrefillApplied && step > 1 && formData.type === 'offer_room' && (
           <div className="mb-6 rounded-xl border border-primary/20 bg-primary/5 p-4 text-sm text-muted-foreground">
-            Hemos usado algunos datos de tu perfil para ahorrar tiempo. Puedes cambiarlos para este anuncio.
+            Hemos usado datos básicos de ubicación de tu perfil para ahorrar tiempo. La convivencia y las normas se rellenan para esta vivienda concreta.
           </div>
         )}
 
@@ -1287,7 +1134,7 @@ export default function CreateListing() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label>Contrato</Label>
+                    <Label>Formalización del alquiler</Label>
                     <Select
                       value={formData.roomDetails.contractAvailable}
                       onValueChange={(value) => setFormData({
@@ -1304,6 +1151,9 @@ export default function CreateListing() {
                         ))}
                       </SelectContent>
                     </Select>
+                    <p className="text-sm text-muted-foreground">
+                      Recomendamos dejar por escrito precio, duración, fianza, gastos, normas y uso de zonas comunes antes de entregar llaves o pagar señal.
+                    </p>
                   </div>
 
                   <div className="space-y-2">
@@ -1828,7 +1678,7 @@ export default function CreateListing() {
                   <div>
                     <h2 className="font-semibold">Convivencia en esta vivienda</h2>
                     <p className="text-sm text-muted-foreground">
-                      Estos datos describen cómo funciona la casa. Puedes ajustarlos aunque se hayan sugerido desde tu perfil.
+                      Estos datos describen esta vivienda, no tu perfil personal. Pueden parecer repetidos, pero ayudan si publicas varias habitaciones o si la habitación está en una casa donde no vives.
                     </p>
                   </div>
 
@@ -1927,22 +1777,30 @@ export default function CreateListing() {
                       </div>
 
                       <div className="space-y-2">
-                        <Label>Propietario vive en la vivienda</Label>
+                        <Label>¿Vives tú en esta vivienda?</Label>
                         <Select
-                          value={formData.roomDetails.ownerLivesHere}
+                          value={formData.roomDetails.householdContext}
                           onValueChange={(value) => setFormData({
                             ...formData,
-                            roomDetails: { ...formData.roomDetails, ownerLivesHere: value as RoomListingDetailsForm['ownerLivesHere'] },
+                            roomDetails: {
+                              ...formData.roomDetails,
+                              householdContext: value,
+                              ownerLivesHere: value === 'lives_here' ? 'yes' : value ? 'no' : '',
+                            },
                           })}
                         >
                           <SelectTrigger>
                             <SelectValue placeholder="Sin especificar" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="yes">Sí</SelectItem>
-                            <SelectItem value="no">No</SelectItem>
+                            {householdContextOptions.map((option) => (
+                              <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
+                        <p className="text-xs text-muted-foreground">
+                          Si no vives aquí, rellena solo lo que sepas de la convivencia real de esa vivienda.
+                        </p>
                       </div>
 
                       <div className="space-y-2">
@@ -2042,13 +1900,14 @@ export default function CreateListing() {
                       <div className="space-y-2">
                         <Label>Permite fumar</Label>
                         <Select
-                          value={booleanSelectValue(formData.smokingAllowed)}
-                          onValueChange={(value) => setFormData({ ...formData, smokingAllowed: parseBooleanSelectValue(value) })}
+                          value={nullableBooleanSelectValue(formData.smokingAllowed)}
+                          onValueChange={(value) => setFormData({ ...formData, smokingAllowed: parseNullableBooleanSelectValue(value) })}
                         >
                           <SelectTrigger>
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
+                            <SelectItem value="unspecified">Sin especificar</SelectItem>
                             <SelectItem value="yes">Sí</SelectItem>
                             <SelectItem value="no">No</SelectItem>
                           </SelectContent>
@@ -2058,13 +1917,14 @@ export default function CreateListing() {
                       <div className="space-y-2">
                         <Label>Permite mascotas</Label>
                         <Select
-                          value={booleanSelectValue(formData.petsAllowed)}
-                          onValueChange={(value) => setFormData({ ...formData, petsAllowed: parseBooleanSelectValue(value) })}
+                          value={nullableBooleanSelectValue(formData.petsAllowed)}
+                          onValueChange={(value) => setFormData({ ...formData, petsAllowed: parseNullableBooleanSelectValue(value) })}
                         >
                           <SelectTrigger>
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
+                            <SelectItem value="unspecified">Sin especificar</SelectItem>
                             <SelectItem value="yes">Sí</SelectItem>
                             <SelectItem value="no">No</SelectItem>
                           </SelectContent>

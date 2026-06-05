@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { AlertCircle, ArrowLeft, Briefcase, CheckCircle, Eye, Heart, HeartHandshake, Loader2, MapPin, MessageCircle, Shield, ShieldCheck, X } from 'lucide-react';
+import { AlertCircle, ArrowLeft, Briefcase, CheckCircle, Eye, Heart, HeartHandshake, Loader2, MapPin, MessageCircle, Shield, ShieldCheck, User, X } from 'lucide-react';
 import { Layout } from '@/components/layout/Layout';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -12,7 +12,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useSEO } from '@/hooks/useSEO';
 import { getLanguageLabel } from '@/lib/profileOptions';
-import { decodeLivingTraits, getHouseholdSizeLabel, getYesNoLabel } from '@/lib/profileTraits';
+import { decodeLivingTraits, decodeProfileInterestTags, getHouseholdSizeLabel, getYesNoLabel } from '@/lib/profileTraits';
 
 type PublicProfileData = {
   user_id: string;
@@ -122,12 +122,113 @@ const compatibilityAnswerLabels: Record<string, string> = {
   high_tolerance: 'tiene alta tolerancia',
 };
 
+const compatibilityScenarioAnswerLabels: Record<string, Record<string, string>> = {
+  scenario_late_call: {
+    clear_limit: 'Le pide que baje el volumen y acordar una hora limite.',
+    system: 'Propone usar auriculares o reservar llamadas tarde en habitaciones.',
+    occasional_flex: 'Lo deja pasar si es puntual y lo comenta al dia siguiente.',
+    high_tolerance: 'No le molesta mientras pueda dormir razonablemente.',
+  },
+  scenario_unplanned_visit: {
+    clear_limit: 'Dice que necesita usar el salon y que las visitas deben avisarse.',
+    system: 'Propone una norma simple para avisar y reservar espacios comunes.',
+    occasional_flex: 'Lo acepta hoy si no se alarga y pide aviso para la proxima.',
+    high_tolerance: 'No le importa si son respetuosas y no bloquean la casa.',
+  },
+  scenario_pet_in_common_area: {
+    clear_limit: 'Pide que la persona responsable lo gestione de forma constante.',
+    system: 'Propone una rutina de limpieza y horarios de descanso claros.',
+    occasional_flex: 'Se adapta si se corrige rapido y no pasa cada dia.',
+    high_tolerance: 'No le supone un problema si la convivencia general va bien.',
+  },
+  scenario_smoking_balcony: {
+    clear_limit: 'Pide que cambie de lugar porque afecta a su espacio.',
+    system: 'Acordaria una zona y una forma de ventilar para evitar molestias.',
+    occasional_flex: 'Lo hablaria solo si se repite o llega a su habitacion.',
+    high_tolerance: 'No le molesta especialmente si se fuma fuera.',
+  },
+  scenario_kitchen_mess: {
+    clear_limit: 'Pide que la cocina quede utilizable el mismo dia.',
+    system: 'Propone una regla de recoger despues de cocinar o antes de dormir.',
+    occasional_flex: 'Si es puntual no dice nada, pero si se repite lo hablaria.',
+    high_tolerance: 'No le da mucha importancia si no impide cocinar.',
+  },
+  scenario_social_energy: {
+    clear_limit: 'Le parece demasiado fijo y pondria limites de frecuencia.',
+    system: 'Acordaria horarios, volumen y que viernes se puede hacer.',
+    occasional_flex: 'Algunos viernes se apunta y otros necesita su espacio.',
+    high_tolerance: 'Le encanta que la casa tenga vida social.',
+  },
+  scenario_cleaning_turn: {
+    clear_limit: 'Lo recuerda directamente y pide que se compense.',
+    system: 'Propone calendario visible o recordatorios compartidos.',
+    occasional_flex: 'Pregunta si necesita cambiar el turno antes de molestarse.',
+    high_tolerance: 'Lo hace esta vez para evitar tension.',
+  },
+  scenario_shared_order: {
+    clear_limit: 'Pediria que las zonas comunes queden despejadas.',
+    system: 'Propondria una cesta o zona concreta para dejar cosas.',
+    occasional_flex: 'Le da igual si no bloquea el uso del espacio.',
+    high_tolerance: 'Es bastante flexible con ese tipo de desorden.',
+  },
+  scenario_remote_study: {
+    clear_limit: 'Pide silencio en ese momento porque la reunion es importante.',
+    system: 'Avisa antes y propone franjas tranquilas para llamadas clave.',
+    occasional_flex: 'Intenta moverse y lo habla despues si le afecto.',
+    high_tolerance: 'Asume que en una casa compartida habra ruido.',
+  },
+  scenario_expenses_delay: {
+    clear_limit: 'Pregunta ese mismo dia y pide claridad.',
+    system: 'Propone llevar gastos y fechas por app u hoja compartida.',
+    occasional_flex: 'Da margen si avisan y se comprometen a una fecha.',
+    high_tolerance: 'Si es poco dinero y es puntual, no le estresa.',
+  },
+  scenario_conflict_message: {
+    clear_limit: 'Lo hablaria cara a cara cuanto antes y con respeto.',
+    system: 'Mandaria un mensaje tranquilo para abrir conversacion.',
+    occasional_flex: 'Esperaria un buen momento para hablarlo sin tension.',
+    high_tolerance: 'Solo lo sacaria si se vuelve importante.',
+  },
+  scenario_boundaries: {
+    clear_limit: 'Prefiere mantener lo acordado salvo causa clara.',
+    system: 'Revisaria la norma en conjunto y dejaria el acuerdo por escrito.',
+    occasional_flex: 'Probaria un cambio durante unas semanas.',
+    high_tolerance: 'Lo gestionaria caso por caso si hay buena comunicacion.',
+  },
+  scenario_bathroom_peak: {
+    clear_limit: 'Pide turnos o tiempos maximos en horas clave.',
+    system: 'Propone coordinar horarios de ducha entre semana.',
+    occasional_flex: 'Se adapta si es puntual y avisan cuando tardan.',
+    high_tolerance: 'No le importa reorganizar su rutina si hace falta.',
+  },
+  scenario_partner_sleepover: {
+    clear_limit: 'Pediria limitarlo si cambia el uso de la casa.',
+    system: 'Acordaria frecuencia, aviso previo y participacion en gastos si aplica.',
+    occasional_flex: 'Le parece bien si no afecta al descanso ni a espacios comunes.',
+    high_tolerance: 'No le molesta si la convivencia sigue siendo comoda.',
+  },
+  scenario_food_without_permission: {
+    clear_limit: 'Dice claramente que sus cosas no se usan sin permiso.',
+    system: 'Propone separar productos personales y comunes.',
+    occasional_flex: 'Si fue una urgencia puntual, pide que se reponga y se avise.',
+    high_tolerance: 'No le importa compartir algunas cosas si hay confianza.',
+  },
+  scenario_room_privacy: {
+    clear_limit: 'Marca un limite claro: su habitacion y sus cosas son privadas.',
+    system: 'Acordaria normas explicitas sobre habitaciones y pertenencias.',
+    occasional_flex: 'Si fue por necesidad, lo acepta, pero pide que se avise.',
+    high_tolerance: 'No le molesta si hay mucha confianza y respeto.',
+  },
+};
+
 const formatCompatibilityQuestion = (questionId?: string) => (
   questionId ? compatibilityQuestionLabels[questionId] ?? 'Tema de convivencia' : 'Tema de convivencia'
 );
 
-const formatCompatibilityAnswer = (answer?: string) => (
-  answer ? compatibilityAnswerLabels[answer] ?? answer : 'No indicado'
+const formatCompatibilityAnswer = (answer?: string, questionId?: string) => (
+  answer
+    ? compatibilityScenarioAnswerLabels[questionId ?? '']?.[answer] ?? compatibilityAnswerLabels[answer] ?? answer
+    : 'No indicado'
 );
 
 const getSimilarityLabel = (similarity?: number) => {
@@ -520,17 +621,16 @@ export default function PublicProfile() {
   const lifestyleTags = profile.lifestyle_tags ?? [];
   const showInclusiveBadge = lifestyleTags.includes('inclusive_lgtbiq_friendly');
   const livingTraits = decodeLivingTraits(lifestyleTags);
+  const visibleInterestTags = decodeProfileInterestTags(lifestyleTags).slice(0, 25);
   const automaticCompatibilityTags = lifestyleTags
     .filter((tag) => tag.startsWith('auto_'))
     .map((tag) => tag.replace('auto_', '').replace(/_/g, ' '))
     .map((tag) => tag.charAt(0).toUpperCase() + tag.slice(1));
-  const livingTraitLabels = [
-    getYesNoLabel(livingTraits.isSmoker, 'Fuma', 'No fumador'),
-    getYesNoLabel(livingTraits.hasPet, 'Convive con mascota', 'Sin mascota'),
+  const personalSituationLabels = [
     getHouseholdSizeLabel(livingTraits.householdSize),
     getYesNoLabel(livingTraits.includesMinor, 'Convive con menor', 'Sin menores en convivencia'),
   ].filter((label): label is string => Boolean(label));
-  const visibleCompatibilityTags = Array.from(new Set([...automaticCompatibilityTags, ...livingTraitLabels])).slice(0, 10);
+  const visibleCompatibilityTags = Array.from(new Set(automaticCompatibilityTags)).slice(0, 10);
   const trustBadgeLabel = getTrustBadgeLabel(profile.trust_badge);
   const locationLabel = [profile.city, profile.province_code, profile.autonomous_community].filter(Boolean).join(' - ');
   const basicInfoCards = [
@@ -738,7 +838,7 @@ export default function PublicProfile() {
               <CardContent className="p-6">
                 <div className="mb-4 flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
                   <ShieldCheck className="h-4 w-4" />
-                  Convivencia opcional
+                  Hábitos y forma de convivir
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {visibleCompatibilityTags.map((tag) => (
@@ -750,6 +850,45 @@ export default function PublicProfile() {
                 <p className="mt-4 text-sm text-muted-foreground">
                   Rasgos orientativos para saber si vuestra forma de vivir puede encajar, tanto para compartir casa como para conocer personas afines.
                 </p>
+              </CardContent>
+            </Card>
+          )}
+
+          {visibleInterestTags.length > 0 && (
+            <Card>
+              <CardContent className="p-6">
+                <div className="mb-4 flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  <User className="h-4 w-4" />
+                  Rasgos e intereses
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {visibleInterestTags.map((tag) => (
+                    <Badge key={tag} variant="outline" className="rounded-full">
+                      {tag}
+                    </Badge>
+                  ))}
+                </div>
+                <p className="mt-4 text-sm text-muted-foreground">
+                  Detalles para conocer mejor a esta persona y encontrar puntos en común.
+                </p>
+              </CardContent>
+            </Card>
+          )}
+
+          {personalSituationLabels.length > 0 && (
+            <Card>
+              <CardContent className="p-6">
+                <div className="mb-4 flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  <ShieldCheck className="h-4 w-4" />
+                  Situación de convivencia
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {personalSituationLabels.map((tag) => (
+                    <Badge key={tag} variant="outline" className="rounded-full">
+                      {tag}
+                    </Badge>
+                  ))}
+                </div>
               </CardContent>
             </Card>
           )}
@@ -825,7 +964,7 @@ export default function PublicProfile() {
                         <div key={`${item.question_id ?? 'mismatch'}-${index}`} className="rounded-xl border border-border p-3 text-sm text-muted-foreground">
                           <p className="font-medium text-foreground">{formatCompatibilityQuestion(item.question_id)}</p>
                           <p>
-                            Tu respuesta: {formatCompatibilityAnswer(item.a)}. La otra persona: {formatCompatibilityAnswer(item.b)}.
+                            Tu respuesta: {formatCompatibilityAnswer(item.a, item.question_id)}. La otra persona: {formatCompatibilityAnswer(item.b, item.question_id)}.
                           </p>
                           {getSimilarityLabel(item.sim) && (
                             <p className="mt-1 text-xs">{getSimilarityLabel(item.sim)}</p>

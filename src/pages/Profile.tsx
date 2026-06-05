@@ -13,6 +13,7 @@ import { useSEO } from '@/hooks/useSEO';
 import { getLanguageLabel } from '@/lib/profileOptions';
 import {
   decodeLivingTraits,
+  decodeProfileInterestTags,
   getHouseholdSizeLabel,
   getYesNoLabel,
 } from '@/lib/profileTraits';
@@ -180,25 +181,26 @@ export default function Profile() {
   const locationBits = [profile.city, profile.province_code, profile.autonomous_community].filter(Boolean);
   const locationLabel = locationBits.length > 0 ? locationBits.join(' - ') : null;
   const livingTraits = decodeLivingTraits(lifestyleTags);
+  const visibleInterestTags = decodeProfileInterestTags(lifestyleTags).slice(0, 25);
 
   const automaticCompatibilityTags = lifestyleTags
     .filter((tag) => tag.startsWith('auto_'))
     .map((tag) => tag.replace('auto_', '').replace(/_/g, ' '))
     .map((tag) => tag.charAt(0).toUpperCase() + tag.slice(1));
-  const livingTraitLabels = [
-    getYesNoLabel(livingTraits.isSmoker, 'Fuma', 'No fumador'),
-    getYesNoLabel(livingTraits.hasPet, 'Convive con mascota', 'Sin mascota'),
+  const personalSituationLabels = [
     getHouseholdSizeLabel(livingTraits.householdSize),
     getYesNoLabel(livingTraits.includesMinor, 'Convive con menor', 'Sin menores en convivencia'),
   ].filter((label): label is string => Boolean(label));
-  const visibleCompatibilityTags = Array.from(new Set([...automaticCompatibilityTags, ...livingTraitLabels])).slice(0, 8);
+  const visibleCompatibilityTags = Array.from(new Set(automaticCompatibilityTags)).slice(0, 8);
 
   const hasLivingProfile = Boolean(
     profile.bio ||
       profile.occupation ||
       profile.languages?.length ||
       locationLabel ||
-      visibleCompatibilityTags.length > 0
+      visibleCompatibilityTags.length > 0 ||
+      visibleInterestTags.length > 0 ||
+      personalSituationLabels.length > 0
   );
 
   const basicInfoCards = [
@@ -304,7 +306,7 @@ export default function Profile() {
                 <div className="rounded-xl border border-border/60 bg-background/70 p-4">
                   <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground mb-3">
                     <ShieldCheck className="h-4 w-4" />
-                    Convivencia opcional
+                    Hábitos y forma de convivir
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {visibleCompatibilityTags.map((tag) => (
@@ -319,10 +321,45 @@ export default function Profile() {
                 </div>
               )}
 
+              {visibleInterestTags.length > 0 && (
+                <div className="rounded-xl border border-border/60 bg-background/70 p-4">
+                  <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground mb-3">
+                    <User className="h-4 w-4" />
+                    Rasgos e intereses
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {visibleInterestTags.map((tag) => (
+                      <Badge key={tag} variant="outline" className="rounded-full">
+                        {tag}
+                      </Badge>
+                    ))}
+                  </div>
+                  <p className="mt-3 text-sm text-muted-foreground">
+                    Detalles personales para que otros usuarios te conozcan más allá de la convivencia.
+                  </p>
+                </div>
+              )}
+
+              {personalSituationLabels.length > 0 && (
+                <div className="rounded-xl border border-border/60 bg-background/70 p-4">
+                  <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground mb-3">
+                    <User className="h-4 w-4" />
+                    Situación de convivencia
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {personalSituationLabels.map((tag) => (
+                      <Badge key={tag} variant="outline" className="rounded-full">
+                        {tag}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Bio */}
               {profile.bio && (
                 <div>
-                  <h3 className="text-sm font-semibold text-muted-foreground mb-2">Sobre mí</h3>
+                  <h3 className="text-sm font-semibold text-muted-foreground mb-2">Sobre ti</h3>
                   <p className="text-sm">{profile.bio}</p>
                 </div>
               )}

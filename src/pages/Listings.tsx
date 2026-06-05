@@ -1,10 +1,10 @@
 ﻿import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { Calendar, Check, Euro, Home, Loader2, MapPin, Plus, Search as SearchIcon, ShieldCheck, SlidersHorizontal, Users, X } from 'lucide-react';
+import { Bath, BedDouble, Building2, Calendar, Check, DoorClosed, Euro, Home, Loader2, MapPin, Plus, Receipt, Ruler, Search as SearchIcon, ShieldCheck, SlidersHorizontal, TrainFront, Users, Wifi, X, type LucideIcon } from 'lucide-react';
 import { Layout } from '@/components/layout/Layout';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { RoomListingSummaryCard } from '@/components/listings/RoomListingSummaryCard';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Input } from '@/components/ui/input';
@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Slider } from '@/components/ui/slider';
 import { supabase } from '@/integrations/supabase/client';
 import type { Json } from '@/integrations/supabase/types';
-import { MIN_STAY_MAX_MONTHS, formatMinStayLabel, getRoomListingCardHighlights, getRoomListingLocationLabel, normalizeRoomListingDetails, stripLegacyNeighborhoodFromDescription } from '@/lib/listingDetails';
+import { MIN_STAY_MAX_MONTHS, formatMinStayLabel, getRoomListingCardFacts, getRoomListingLocationLabel, normalizeRoomListingDetails, stripLegacyNeighborhoodFromDescription, type RoomListingCardFactIcon } from '@/lib/listingDetails';
 import { toast } from 'sonner';
 import { useSEO } from '@/hooks/useSEO';
 
@@ -84,6 +84,31 @@ const getOccupancyLabel = (policy: string | undefined) => {
   if (policy === 'two_people') return 'Dos personas';
   if (policy === 'to_agree') return 'A valorar';
   return null;
+};
+
+const roomFactIconMap: Record<RoomListingCardFactIcon, LucideIcon> = {
+  room: BedDouble,
+  size: Ruler,
+  homeSize: Ruler,
+  bathroom: Bath,
+  window: Home,
+  floor: Building2,
+  elevator: Building2,
+  transport: TrainFront,
+  bills: Receipt,
+  contract: Check,
+  internet: Wifi,
+  lock: DoorClosed,
+  furnished: BedDouble,
+  laundry: Check,
+  storage: DoorClosed,
+  cleaning: Check,
+  quiet: Home,
+  visits: Users,
+  party: Users,
+  smoking: Check,
+  pets: Users,
+  registration: Check,
 };
 
 const getOwnerName = (owner: ListingOwner) => owner.display_name || owner.handle || 'Usuario';
@@ -318,88 +343,51 @@ export default function Listings() {
     const roomDetails = normalizeRoomListingDetails(listing.details);
     const locationLabel = getRoomListingLocationLabel(roomDetails, listing.city);
     const cleanDescription = stripLegacyNeighborhoodFromDescription(listing.description);
-    const highlights = getRoomListingCardHighlights(roomDetails, { billsIncluded: listing.bills_included, maxItems: 5 });
     const occupancyLabel = getOccupancyLabel(roomDetails.occupancy_policy);
+    const roomFacts = getRoomListingCardFacts(roomDetails, { billsIncluded: listing.bills_included, maxItems: 6 });
+    const addRoomFact = (icon: RoomListingCardFactIcon, label: string) => {
+      if (roomFacts.length >= 6 || roomFacts.some((fact) => fact.label === label)) return;
+      roomFacts.push({ icon, label });
+    };
+    if (occupancyLabel) addRoomFact('visits', occupancyLabel);
+    if (listing.smoking_allowed === true) addRoomFact('smoking', 'Permite fumar');
+    if (listing.smoking_allowed === false) addRoomFact('smoking', 'No fumar');
+    if (listing.pets_allowed === false) addRoomFact('pets', 'Sin mascotas');
+    if (listing.pets_allowed === true) addRoomFact('pets', 'Mascotas permitidas');
     const quickFacts = [
         { icon: Euro, label: listing.price_monthly ? `${listing.price_monthly}€/mes` : 'Precio a consultar' },
         { icon: Calendar, label: formatDate(listing.available_from) },
         { icon: Home, label: getMinStayLabel(listing.min_stay_months) },
-        ...(occupancyLabel ? [{ icon: Users, label: occupancyLabel }] : []),
-        ...(listing.bills_included ? [{ icon: Check, label: 'Gastos incluidos' }] : []),
       ];
 
     return (
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="glass-card rounded-2xl overflow-hidden card-hover"
-      >
-        <Link to={`/listing/${listing.id}`}>
-          <div className="relative aspect-[4/3] bg-muted">
-            <img src={image} alt={listing.title} className="w-full h-full object-cover" />
-            <div className="absolute top-3 left-3 flex gap-2">
-              <Badge variant="default" className="rounded-full">
-                Habitación disponible
-              </Badge>
-              {listing.listing_verified && (
-                <Badge variant="outline" className="rounded-full bg-background/90">
-                  <ShieldCheck className="h-3 w-3 mr-1" />
-                  Verificado
-                </Badge>
-              )}
-            </div>
-          </div>
-        </Link>
-
-        <div className="p-5 space-y-4">
-          <div>
-            <Link to={`/listing/${listing.id}`} className="hover:text-primary transition-colors">
-              <h3 className="font-semibold text-lg line-clamp-2">{listing.title}</h3>
-            </Link>
-            <div className="flex items-center gap-1 text-muted-foreground mt-1">
-              <MapPin className="h-4 w-4" />
-              <span className="text-sm">{locationLabel}</span>
-            </div>
-            {roomDetails.address_hint && (
-              <p className="mt-1 text-sm text-muted-foreground line-clamp-1">{roomDetails.address_hint}</p>
-            )}
-          </div>
-
-          {cleanDescription && (
-            <p className="text-sm text-muted-foreground line-clamp-2">{cleanDescription}</p>
-          )}
-
-          {highlights.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {highlights.map((highlight) => (
-                <Badge key={highlight} variant="outline" className="rounded-full bg-background/60">
-                  {highlight}
-                </Badge>
-              ))}
-            </div>
-          )}
-
-          <div className="grid grid-cols-2 gap-2 text-sm">
-            {quickFacts.map(({ icon: Icon, label }) => (
-              <div key={label} className="flex items-center gap-2 rounded-xl bg-muted/40 px-3 py-2">
-                <Icon className="h-4 w-4 shrink-0 text-primary" />
-                <span className="font-medium leading-tight">{label}</span>
-              </div>
-            ))}
-          </div>
-          <div className="flex items-center justify-between pt-3 border-t border-border/50">
-            <div className="min-w-0">
-              <p className="text-sm font-medium truncate">{ownerName}</p>
-              <p className="text-xs text-muted-foreground">
-                Confianza {listing.owner.trust_score ?? 0}/100
-              </p>
-            </div>
-            <Button asChild variant="outline" size="sm">
-              <Link to={`/listing/${listing.id}`}>Ver detalle</Link>
-            </Button>
-          </div>
-        </div>
-      </motion.div>
+      <RoomListingSummaryCard
+        href={`/listing/${listing.id}`}
+        image={image}
+        title={listing.title}
+        badges={[
+          { label: 'Habitación disponible', variant: 'default' },
+          ...(listing.listing_verified ? [{ label: 'Verificado', icon: ShieldCheck, variant: 'outline' as const }] : []),
+        ]}
+        meta={[
+          { label: locationLabel, icon: MapPin },
+          ...(roomDetails.address_hint ? [{ label: roomDetails.address_hint, icon: MapPin }] : []),
+        ]}
+        description={cleanDescription}
+        facts={roomFacts.map((fact) => ({ icon: roomFactIconMap[fact.icon], label: fact.label }))}
+        quickFacts={quickFacts}
+        footer={(
+          <>
+            <p className="text-sm font-medium truncate">{ownerName}</p>
+            <p className="text-xs text-muted-foreground">Confianza {listing.owner.trust_score ?? 0}/100</p>
+          </>
+        )}
+        actions={(
+          <Button asChild variant="outline" size="sm">
+            <Link to={`/listing/${listing.id}`}>Ver detalle</Link>
+          </Button>
+        )}
+      />
     );
   };
 
@@ -546,7 +534,7 @@ export default function Listings() {
                       checked={contractOnly}
                       onCheckedChange={(checked) => setContractOnly(Boolean(checked))}
                     />
-                    <span className="text-sm">Contrato escrito</span>
+                    <span className="text-sm">Acuerdo escrito</span>
                   </label>
 
                   <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-border p-3">
