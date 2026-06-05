@@ -1,66 +1,33 @@
-## Objetivo
+## Problema
 
-Hoy el corazón de `/discover` es decorativo: solo anima la tarjeta. Lo convertimos en un **like real** con detección de **match mutuo**: si A y B se dan like, se crea consent nivel 1 automático, ambos reciben notificación y aparecen en `/matches`. Mientras sea unilateral, el otro **no se entera** (coherente con el modelo de privacidad de Convinter).
+`EditProfileSheet` ya tiene el bloque "Rasgos e intereses" con 6 categorías (Cómo eres, Estilo de vida, Planes e intereses, Música, Deportes y un sexto grupo) y límite global de 25 etiquetas, usando `PROFILE_INTEREST_CATEGORIES`, `PROFILE_INTEREST_TAG_LIMIT` y `encodeProfileInterestTags` de `src/lib/profileTraits.ts`.
 
-## Comportamiento
+`Onboarding.tsx` (4 pasos) **no** lo expone. Cuando alguien crea perfil por primera vez, no puede rellenar esos rasgos — solo aparecen al editar luego. Hay que añadirlo también en el onboarding.
 
-- A pulsa ❤ sobre B → se guarda el like en backend. B no recibe ninguna notificación.
-- Si B ya había dado like a A (o lo da más tarde) → se detecta el match:
-  - Se crea/actualiza `convinter_pair_consent` a `consent_level = 1`.
-  - Se inserta notificación `match_created` para ambos.
-  - Aparecen en `/matches` y pueden ver score de compatibilidad y abrir chat.
-- ✕ (pass) sigue siendo solo visual (descartar tarjeta); opcionalmente lo guardamos para no volver a mostrar el perfil — lo dejo fuera de este plan salvo que lo pidas.
-- Si A ya tenía consent ≥ 1 con B por la vía clásica ("Solicitar contacto"), el like simplemente no hace nada nuevo.
+## Cambios
 
-## Cambios de backend (RPC + tabla, en `migrations_manual/18_discover_likes.sql`)
+### 1. `src/pages/Onboarding.tsx`
 
-Nueva tabla `convinter_likes`:
+- Importar de `@/lib/profileTraits`: `PROFILE_INTEREST_CATEGORIES`, `PROFILE_INTEREST_TAG_LIMIT`, `encodeProfileInterestTags`.
+- Añadir `interestTags: string[]` a `OnboardingData` (inicial `[]`).
+- Insertar un nuevo **paso 4 "Rasgos e intereses"** y desplazar el actual paso 4 (resumen/elegir destino) a paso 5. Subir `totalSteps` de 4 a 5.
+  - Reutilizar el mismo UI del editor: cabecera sticky con contador `X/25`, barra de progreso, tarjetas por categoría con badges togglables y deshabilitadas al llegar al límite.
+  - Helper de validación: paso opcional, `canProceed(4)` siempre `true`; mensaje "Puedes elegir hasta 25 etiquetas o saltar este paso."
+- `handleComplete`:
+  - Combinar las etiquetas seleccionadas con las automáticas usando `encodeProfileInterestTags(currentTags, data.interestTags)`.
+  - Guardar el resultado en `lifestyle_tags` tanto del `upsert` de `profiles` como añadirlo al `upsert` de `convinter_profiles` (la columna existe — `EditProfileSheet` ya la usa).
+- Ajustar índices `case` de `renderStep`, mensajes de validación, y la lógica del botón "Siguiente" / "Ver progreso" para los 5 pasos.
 
-```text
-liker_id uuid, liked_id uuid, created_at timestamptz
-PK (liker_id, liked_id)
-RLS: SELECT/INSERT/DELETE solo del propio liker_id
-GRANT a authenticated + service_role
-```
+### 2. Sin cambios de backend
 
-Nuevo RPC `convinter_like_profile(p_target uuid) returns jsonb`:
+`convinter_profiles.lifestyle_tags` y `profiles.lifestyle_tags` ya existen; el editor escribe ahí mismo. Solo unificamos el flujo de alta.
 
-1. `auth.uid()` obligatorio; `convinter_guard('like')` (rate limit).
-2. `convinter_assert_not_blocked(p_target)`.
-3. `INSERT ... ON CONFLICT DO NOTHING` en `convinter_likes`.
-4. Comprobar si existe el like recíproco (B → A).
-5. Si **sí** → match:
-   - `UPSERT` en `convinter_pair_consent` con `(least, greatest)` y `consent_level = greatest(actual, 1)`.
-   - Insertar notificación `match_created` para A y B (payload con el otro `user_id`).
-   - Invalidar / recomputar `convinter_compat_cache` si hace falta.
-   - Devolver `{ ok: true, matched: true, other_user, consent_level }`.
-6. Si **no** → devolver `{ ok: true, matched: false }`.
+### 3. Sin cambios en `EditProfileSheet`
 
-Toda la lógica vive en el RPC (regla del proyecto: business logic en server).
-
-## Cambios de frontend
-
-**`src/pages/Discover.tsx`**
-- `handleLike` async: llama `supabase.rpc('convinter_like_profile', { p_target: currentProfile.user_id })` antes de avanzar tarjeta.
-- Si `matched: true` → `toast.success('¡Match con ' + nombre + '!')` con acción "Abrir chat" que navega a `/matches` (o directo al chat si ya existe).
-- Manejo de errores: si falla, mostrar toast pero no bloquear el swipe.
-- Estado local `likedIds: Set<string>` para no permitir doble like en la misma sesión.
-
-**`src/components/layout/NotificationsMenu.tsx`** (y/o `useNotifications`)
-- Añadir render del tipo `match_created`: "Has hecho match con {nombre}" → enlaza a `/matches`.
-
-**`src/pages/Matches.tsx`**
-- Ningún cambio funcional necesario: `convinter_get_my_matches` ya lista por `pair_consent` ≥ 1.
-
-## Detalles técnicos
-
-- Tabla `convinter_likes` sin trigger; toda la detección de match va dentro del RPC para mantener transacción atómica.
-- Notificación: usar helper existente `convinter_notify(user_id, type, payload)` si está disponible; si no, INSERT directo en `convinter_notifications`.
-- Rate limit: registrar `like` en `convinter_guard` con un techo razonable (p. ej. 100/día) para evitar spam.
-- No tocar el flujo existente de "Solicitar contacto" — los dos caminos coexisten y ambos producen `consent_level ≥ 1`.
+Sigue funcionando igual — leerá esas etiquetas codificadas al abrir.
 
 ## Fuera de alcance
 
-- Guardar pasadas (✕).
-- Subir consent a nivel 2 automáticamente (sigue requiriendo solicitud explícita).
-- UI nueva de "likes recibidos" — por diseño se mantienen privados hasta que sean mutuos.
+- Cambiar `Tus hábitos y tu manera de convivir` del editor (ya está cubierto en onboarding por el paso de estilo de convivencia).
+- Tocar `PublicProfile` (ya pinta los tags decodificados).
+- Migraciones SQL.
