@@ -54,10 +54,12 @@ export const RoomListingSummaryCard = ({
     animate={{ opacity: 1, y: 0 }}
     className={`glass-card rounded-2xl overflow-hidden ${hover ? 'card-hover' : ''}`}
   >
-    <div className="grid sm:grid-cols-[180px_1fr]">
+    <div className="flex flex-col">
       <Link to={href} className="block bg-muted">
-        <img src={image} alt={imageAlt} className="h-48 sm:h-full w-full object-cover" />
+        <img src={image} alt={imageAlt} className="h-48 w-full object-cover" />
       </Link>
+
+
 
       <div className="p-5 space-y-4">
         <div className="min-w-0">
