@@ -80,10 +80,11 @@ type OnboardingData = {
   inclusiveProfile: boolean;
   bio: string;
   photos: string[];
+  interestTags: string[];
 };
 
 const PROFILE_PHOTO_LIMIT = 1;
-const totalSteps = 4;
+const totalSteps = 5;
 
 const goalOptions: Array<{
   value: GoalType;
