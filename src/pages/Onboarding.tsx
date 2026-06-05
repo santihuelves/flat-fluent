@@ -464,11 +464,29 @@ const Onboarding = () => {
 
   const handleBack = () => setCurrentStep((prev) => Math.max(prev - 1, 1));
 
-  const lifestyleTags = [
+  const toggleInterestTag = (tag: string) => {
+    setData((prev) => {
+      const selected = prev.interestTags.includes(tag);
+      if (!selected && prev.interestTags.length >= PROFILE_INTEREST_TAG_LIMIT) {
+        toast.info(`Has llegado al máximo de ${PROFILE_INTEREST_TAG_LIMIT} etiquetas.`);
+        return prev;
+      }
+      return {
+        ...prev,
+        interestTags: selected
+          ? prev.interestTags.filter((item) => item !== tag)
+          : [...prev.interestTags, tag],
+      };
+    });
+  };
+
+  const baseLifestyleTags = [
     ...automaticTags.map((tag) => `auto_${tag.toLowerCase().replace(/\s+/g, '_')}`),
     data.age ? `profile_age_${data.age}` : null,
     data.inclusiveProfile ? 'inclusive_lgtbiq_friendly' : null,
   ].filter((tag): tag is string => Boolean(tag));
+
+  const lifestyleTags = encodeProfileInterestTags(baseLifestyleTags, data.interestTags);
 
   const getCreateListingPath = (listingType: BackendIntentionType) => `/create-listing?type=${listingType}`;
 
