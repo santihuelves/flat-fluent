@@ -265,7 +265,13 @@ export default function Chat() {
 
       const result = data as unknown as SendMessageResponse;
       if (result.ok === false) {
-        toast.error(result.code === 'NOT_A_PARTICIPANT' ? 'No perteneces a este chat' : 'No se pudo enviar el mensaje');
+        let msg = 'No se pudo enviar el mensaje';
+        if (result.code === 'NOT_A_PARTICIPANT') msg = 'No perteneces a este chat';
+        else if (result.code === 'NO_MATCH') {
+          msg = 'Ya no tenéis match activo. No puedes enviar mensajes.';
+          setError('Ya no tenéis match activo. El chat queda cerrado hasta que volváis a hacer match.');
+        }
+        toast.error(msg);
         setMessages(prev => prev.filter(m => m.id !== optimisticId));
         return;
       }
