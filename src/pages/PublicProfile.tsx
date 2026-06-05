@@ -662,35 +662,40 @@ export default function PublicProfile() {
     : typeof compatibility?.breakdown?.common_questions === 'number'
     ? compatibility.breakdown.common_questions
     : null;
-  const hasEnoughCommonQuestions = typeof commonQuestions === 'number' && commonQuestions >= 8;
-  const hasDetailedCompatibilityScore =
+  const compatibilitySource = compatibility?.breakdown?.source ?? null;
+  const isProfileOnly = compatibilitySource === 'profile_only';
+  const hasCompatibilityScore =
     compatibility?.ok === true &&
     compatibility.can_show_score !== false &&
-    hasEnoughCommonQuestions &&
     typeof compatibility.score === 'number' &&
     Number.isFinite(compatibility.score);
-  const hasCompatibilityResult = hasActiveConsent && hasDetailedCompatibilityScore;
+  const hasCompatibilityResult = hasActiveConsent && hasCompatibilityScore;
   const hasCompatibilityError = hasActiveConsent && compatibility?.ok === false;
-  const hasInsufficientCommonAnswers =
-    (hasCompatibilityError && compatibility?.code === 'INSUFFICIENT_COMMON_ANSWERS') ||
-    (hasActiveConsent && compatibility?.ok === true && commonQuestions !== null && !hasEnoughCommonQuestions);
+  const hasInsufficientProfileData =
+    hasCompatibilityError && compatibility?.code === 'INSUFFICIENT_PROFILE_DATA';
   const compatibilityScore = typeof compatibility?.score === 'number' && Number.isFinite(compatibility.score)
     ? Math.round(compatibility.score)
     : null;
   const mismatches = compatibility?.breakdown?.mismatches ?? [];
   const isIncomingRequest = consentStatus === 'incoming_pending';
   const canRequestConsent = !isOwnProfile && !isBlocked && !isLoadingConsentState && consentStatus === 'none' && consentRequestState === 'idle';
+  const compatibilitySourceLabel = (() => {
+    if (compatibilitySource === 'profile+test') return 'Perfil + test exhaustivo';
+    if (compatibilitySource === 'test_only') return 'Test exhaustivo';
+    if (compatibilitySource === 'profile_only') return 'Basado en perfil';
+    return null;
+  })();
   const consentMessage = (() => {
     if (isBlocked) return 'Usuario bloqueado';
     if (isLoadingConsentState) return 'Comprobando consentimiento...';
     if (hasCompatibilityResult) return 'Compatibilidad visible';
-    if (hasInsufficientCommonAnswers) return 'No hay suficientes respuestas comunes para calcular la compatibilidad detallada.';
-    if (hasCompatibilityError) return 'Compatibilidad activa, pero todavia no se ha podido calcular el porcentaje.';
+    if (hasInsufficientProfileData) return 'Aún no hay datos suficientes en los perfiles para calcular la compatibilidad.';
+    if (hasCompatibilityError) return 'Compatibilidad activa, pero todavía no se ha podido calcular el porcentaje.';
     if (hasActiveConsent) return 'Calculando compatibilidad...';
     if (consentStatus === 'outgoing_pending') return 'Solicitud enviada';
     if (isIncomingRequest) return 'Solicitud de compatibilidad recibida';
     if (consentStatus === 'rejected') return 'Compatibilidad no disponible por ahora';
-    return 'Pide compatibilidad para comparar vuestros habitos de convivencia';
+    return 'Pide compatibilidad para comparar vuestros hábitos de convivencia';
   })();
   const requestButtonLabel = (() => {
     if (isOwnProfile) return 'Vista pública';
