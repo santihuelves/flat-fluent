@@ -19,6 +19,12 @@ import {
   X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import {
+  PROFILE_INTEREST_CATEGORIES,
+  PROFILE_INTEREST_TAG_LIMIT,
+  encodeProfileInterestTags,
+} from '@/lib/profileTraits';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
