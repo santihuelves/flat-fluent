@@ -44,6 +44,23 @@ type CompatibilityMismatch = {
   sim?: number;
 };
 
+type CompatibilityExplanation = {
+  coverage_pct?: number;
+  confidence_pct?: number;
+  max_weight?: number;
+  weight_used?: number;
+  missing_weight?: number;
+  present_blocks?: Array<{ key: string; label: string; weight: number; score: number; lost_points: number }>;
+  missing_blocks?: Array<{ key: string; label: string; weight: number }>;
+  missing_fields_a?: string[];
+  missing_fields_b?: string[];
+  dealbreaker_penalty_pts?: number;
+  raw_score?: number;
+  final_score?: number;
+  reasons?: string[];
+  reason_no_score?: string;
+};
+
 type CompatibilityData = {
   ok: boolean;
   score?: number | null;
@@ -59,13 +76,16 @@ type CompatibilityData = {
     test_score?: number | null;
     test_available?: boolean;
     profile_signals_used?: number;
+    profile_explanation?: CompatibilityExplanation;
   };
+  profile_explanation?: CompatibilityExplanation;
   code?: string;
   message?: string;
   cached?: boolean;
   detail_level?: number;
   computed_at?: string;
 };
+
 
 type RpcInvoker = (
   fn: string,
@@ -1007,18 +1027,111 @@ export default function PublicProfile() {
                       Compatibilidad calculada con {commonQuestions ?? 'las'} respuestas comunes. El desglose se actualizará al recalcular la compatibilidad.
                     </p>
                   )}
+
+                  {(() => {
+                    const exp = compatibility.breakdown?.profile_explanation;
+                    if (!exp) return null;
+                    const score = compatibilityScore ?? 0;
+                    if (score >= 100) return null;
+                    return (
+                      <div className="rounded-xl border border-border bg-muted/30 p-4 text-sm space-y-3">
+                        <p className="font-medium text-foreground">¿Por qué no es 100%?</p>
+                        {typeof exp.coverage_pct === 'number' && (
+                          <div className="space-y-1">
+                            <div className="flex justify-between text-xs text-muted-foreground">
+                              <span>Cobertura del perfil</span>
+                              <span>{exp.coverage_pct}% (factor de confianza {exp.confidence_pct ?? Math.round(60 + 0.4 * exp.coverage_pct)}%)</span>
+                            </div>
+                            <div className="h-1.5 w-full rounded-full bg-border overflow-hidden">
+                              <div className="h-full bg-primary" style={{ width: `${Math.min(100, exp.coverage_pct)}%` }} />
+                            </div>
+                          </div>
+                        )}
+                        {exp.present_blocks && exp.present_blocks.filter(b => b.lost_points > 0).length > 0 && (
+                          <div>
+                            <p className="text-xs font-medium text-foreground mb-1">Puntos perdidos por bloque</p>
+                            <ul className="space-y-0.5">
+                              {exp.present_blocks.filter(b => b.lost_points > 0).map(b => (
+                                <li key={b.key} className="flex justify-between text-xs text-muted-foreground">
+                                  <span>{b.label}</span>
+                                  <span>−{b.lost_points} pts (coincidencia {Math.round(b.score * 100)}%)</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                        {exp.missing_blocks && exp.missing_blocks.length > 0 && (
+                          <div>
+                            <p className="text-xs font-medium text-foreground mb-1">
+                              Bloques sin datos comunes ({exp.missing_weight ?? 0} pts de peso fuera del cálculo)
+                            </p>
+                            <ul className="space-y-0.5">
+                              {exp.missing_blocks.map(b => (
+                                <li key={b.key} className="flex justify-between text-xs text-muted-foreground">
+                                  <span>{b.label}</span>
+                                  <span>peso {b.weight}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                        {(exp.dealbreaker_penalty_pts ?? 0) > 0 && (
+                          <p className="text-xs text-amber-600">
+                            Penalización por dealbreakers: −{exp.dealbreaker_penalty_pts} pts
+                          </p>
+                        )}
+                        {(exp.missing_fields_a && exp.missing_fields_a.length > 0) && (
+                          <div>
+                            <p className="text-xs font-medium text-foreground mb-1">Te faltan por completar:</p>
+                            <p className="text-xs text-muted-foreground">{exp.missing_fields_a.join(', ')}</p>
+                          </div>
+                        )}
+                        {(exp.missing_fields_b && exp.missing_fields_b.length > 0) && (
+                          <div>
+                            <p className="text-xs font-medium text-foreground mb-1">A la otra persona le faltan:</p>
+                            <p className="text-xs text-muted-foreground">{exp.missing_fields_b.join(', ')}</p>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
               ) : hasCompatibilityError ? (
-                <div className="space-y-2">
+                <div className="space-y-3">
                   <p className="text-sm text-muted-foreground">
                     {hasInsufficientProfileData
                       ? compatibility.message || 'Aún no hay datos suficientes en los perfiles para calcular la compatibilidad.'
                       : 'Compatibilidad activa, pero todavía no se ha podido calcular el porcentaje.'}
                   </p>
+                  {hasInsufficientProfileData && compatibility?.profile_explanation && (
+                    <div className="rounded-xl border border-border bg-muted/30 p-4 text-sm space-y-2">
+                      {compatibility.profile_explanation.reason_no_score && (
+                        <p className="text-xs text-foreground">{compatibility.profile_explanation.reason_no_score}</p>
+                      )}
+                      {typeof compatibility.profile_explanation.coverage_pct === 'number' && (
+                        <p className="text-xs text-muted-foreground">
+                          Cobertura actual: {compatibility.profile_explanation.coverage_pct}% (se necesita ≥45% y al menos hábitos u objetivo en ambos perfiles).
+                        </p>
+                      )}
+                      {(compatibility.profile_explanation.missing_fields_a?.length ?? 0) > 0 && (
+                        <p className="text-xs text-muted-foreground">
+                          <span className="font-medium text-foreground">Te faltan: </span>
+                          {compatibility.profile_explanation.missing_fields_a!.join(', ')}
+                        </p>
+                      )}
+                      {(compatibility.profile_explanation.missing_fields_b?.length ?? 0) > 0 && (
+                        <p className="text-xs text-muted-foreground">
+                          <span className="font-medium text-foreground">A la otra persona le faltan: </span>
+                          {compatibility.profile_explanation.missing_fields_b!.join(', ')}
+                        </p>
+                      )}
+                    </div>
+                  )}
                   {compatibility?.code && (
                     <p className="text-xs text-muted-foreground">Código: {compatibility.code}</p>
                   )}
                 </div>
+
               ) : hasActiveConsent && (isLoadingCompatibility || compatibility === null) ? (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Loader2 className="h-4 w-4 animate-spin" />
