@@ -1,33 +1,35 @@
+# Restringir el envío de mensajes a matches reales
+
 ## Problema
 
-`EditProfileSheet` ya tiene el bloque "Rasgos e intereses" con 6 categorías (Cómo eres, Estilo de vida, Planes e intereses, Música, Deportes y un sexto grupo) y límite global de 25 etiquetas, usando `PROFILE_INTEREST_CATEGORIES`, `PROFILE_INTEREST_TAG_LIMIT` y `encodeProfileInterestTags` de `src/lib/profileTraits.ts`.
+Hoy mismo, cualquier usuario autenticado puede abrir un chat con cualquier otro y mandarle mensajes. La RPC `convinter_create_chat` solo comprueba bloqueos: no exige que los dos hayan hecho match (corazón mutuo en Discover o petición de test aceptada). `convinter_send_message` también permite cualquier mensaje mientras no contenga datos de contacto.
 
-`Onboarding.tsx` (4 pasos) **no** lo expone. Cuando alguien crea perfil por primera vez, no puede rellenar esos rasgos — solo aparecen al editar luego. Hay que añadirlo también en el onboarding.
+Esto contradice el modelo de privacidad de CONVINTER, donde un chat solo debería abrirse cuando hay consentimiento mutuo (consent_level ≥ 1 en `convinter_pair_consent`, que ya se crea automáticamente cuando hay like recíproco o cuando se acepta una petición de compatibilidad).
 
-## Cambios
+## Qué se va a cambiar
 
-### 1. `src/pages/Onboarding.tsx`
+### 1. Backend (migración nueva: `migrations_manual/19_require_match_for_chat.sql` + migración Lovable Cloud equivalente)
 
-- Importar de `@/lib/profileTraits`: `PROFILE_INTEREST_CATEGORIES`, `PROFILE_INTEREST_TAG_LIMIT`, `encodeProfileInterestTags`.
-- Añadir `interestTags: string[]` a `OnboardingData` (inicial `[]`).
-- Insertar un nuevo **paso 4 "Rasgos e intereses"** y desplazar el actual paso 4 (resumen/elegir destino) a paso 5. Subir `totalSteps` de 4 a 5.
-  - Reutilizar el mismo UI del editor: cabecera sticky con contador `X/25`, barra de progreso, tarjetas por categoría con badges togglables y deshabilitadas al llegar al límite.
-  - Helper de validación: paso opcional, `canProceed(4)` siempre `true`; mensaje "Puedes elegir hasta 25 etiquetas o saltar este paso."
-- `handleComplete`:
-  - Combinar las etiquetas seleccionadas con las automáticas usando `encodeProfileInterestTags(currentTags, data.interestTags)`.
-  - Guardar el resultado en `lifestyle_tags` tanto del `upsert` de `profiles` como añadirlo al `upsert` de `convinter_profiles` (la columna existe — `EditProfileSheet` ya la usa).
-- Ajustar índices `case` de `renderStep`, mensajes de validación, y la lógica del botón "Siguiente" / "Ver progreso" para los 5 pasos.
+- **`convinter_create_chat(p_other)`**: antes de crear/recuperar el chat, comprobar que existe una fila en `convinter_pair_consent` con `consent_level >= 1` para el par `(me, p_other)`. Si no existe, devolver `{ ok: false, code: 'NO_MATCH' }` sin crear nada.
+- **`convinter_send_message(p_chat_id, p_body)`**: añadir la misma comprobación tras identificar al otro participante (defensa en profundidad por si quedaran chats huérfanos creados antes del cambio). Si el consent ha caído a 0, devolver `{ ok: false, code: 'NO_MATCH' }`.
+- No se tocan policies de RLS ni el modelo de datos.
 
-### 2. Sin cambios de backend
+### 2. Frontend
 
-`convinter_profiles.lifestyle_tags` y `profiles.lifestyle_tags` ya existen; el editor escribe ahí mismo. Solo unificamos el flujo de alta.
+- **`src/pages/Chat.tsx`**: manejar el nuevo código `NO_MATCH` mostrando un estado claro ("Aún no tenéis match. Cuando los dos os deis al corazón en Descubrir o aceptéis una petición de compatibilidad, se abrirá el chat.") y deshabilitando el input. Mismo trato si `convinter_send_message` devuelve `NO_MATCH`.
+- **`src/pages/PublicProfile.tsx`** (y cualquier otro punto con botón "Enviar mensaje" / "Chat"): ocultar o deshabilitar el botón cuando no haya match. Si el usuario clica igualmente desde una ruta directa `/chat/:matchId`, la pantalla de Chat ya mostrará el aviso anterior.
 
-### 3. Sin cambios en `EditProfileSheet`
+### 3. Fuera de alcance
 
-Sigue funcionando igual — leerá esas etiquetas codificadas al abrir.
+- No se cambia la lógica de cómo se crea el match (likes mutuos / aceptación de petición de test): ya funciona y crea `consent_level = 1` correctamente.
+- No se borran chats antiguos sin match. La RPC `convinter_send_message` los bloqueará en runtime; opcional limpiarlos más adelante.
+- No se toca el flujo de Discover, Matches ni el editor de perfil.
 
-## Fuera de alcance
+## Resultado esperado
 
-- Cambiar `Tus hábitos y tu manera de convivir` del editor (ya está cubierto en onboarding por el paso de estilo de convivencia).
-- Tocar `PublicProfile` (ya pinta los tags decodificados).
-- Migraciones SQL.
+Un usuario sólo puede abrir un chat y mandar mensajes a otro si:
+
+1. Ambos se han dado al corazón en `/discover`, **o**
+2. Uno pidió compatibilidad/test y el otro aceptó (consent_level ≥ 1).
+
+En cualquier otro caso, las RPC devuelven `NO_MATCH` y la UI lo refleja con un mensaje explicativo.
