@@ -44,6 +44,23 @@ type CompatibilityMismatch = {
   sim?: number;
 };
 
+type CompatibilityExplanation = {
+  coverage_pct?: number;
+  confidence_pct?: number;
+  max_weight?: number;
+  weight_used?: number;
+  missing_weight?: number;
+  present_blocks?: Array<{ key: string; label: string; weight: number; score: number; lost_points: number }>;
+  missing_blocks?: Array<{ key: string; label: string; weight: number }>;
+  missing_fields_a?: string[];
+  missing_fields_b?: string[];
+  dealbreaker_penalty_pts?: number;
+  raw_score?: number;
+  final_score?: number;
+  reasons?: string[];
+  reason_no_score?: string;
+};
+
 type CompatibilityData = {
   ok: boolean;
   score?: number | null;
@@ -59,13 +76,16 @@ type CompatibilityData = {
     test_score?: number | null;
     test_available?: boolean;
     profile_signals_used?: number;
+    profile_explanation?: CompatibilityExplanation;
   };
+  profile_explanation?: CompatibilityExplanation;
   code?: string;
   message?: string;
   cached?: boolean;
   detail_level?: number;
   computed_at?: string;
 };
+
 
 type RpcInvoker = (
   fn: string,
