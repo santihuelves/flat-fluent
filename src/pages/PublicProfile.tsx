@@ -460,7 +460,9 @@ export default function PublicProfile() {
 
       const result = data as unknown as { ok: boolean; code?: string };
       if (!result.ok) {
-        toast.error(result.code === 'INVALID_TARGET' ? 'No puedes abrir chat contigo mismo' : 'No se pudo abrir el chat');
+        if (result.code === 'INVALID_TARGET') toast.error('No puedes abrir chat contigo mismo');
+        else if (result.code === 'NO_MATCH') toast.error('Aún no tenéis match. Dale al corazón en Descubrir o pide compatibilidad primero.');
+        else toast.error('No se pudo abrir el chat');
         return;
       }
 
