@@ -19,6 +19,12 @@ import {
   X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import {
+  PROFILE_INTEREST_CATEGORIES,
+  PROFILE_INTEREST_TAG_LIMIT,
+  encodeProfileInterestTags,
+} from '@/lib/profileTraits';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -74,10 +80,11 @@ type OnboardingData = {
   inclusiveProfile: boolean;
   bio: string;
   photos: string[];
+  interestTags: string[];
 };
 
 const PROFILE_PHOTO_LIMIT = 1;
-const totalSteps = 4;
+const totalSteps = 5;
 
 const goalOptions: Array<{
   value: GoalType;
@@ -220,6 +227,7 @@ const emptyData: OnboardingData = {
   inclusiveProfile: false,
   bio: '',
   photos: [],
+  interestTags: [],
 };
 
 const toNumberOrNull = (value: string) => (value.trim() ? Number(value) : null);
@@ -456,11 +464,29 @@ const Onboarding = () => {
 
   const handleBack = () => setCurrentStep((prev) => Math.max(prev - 1, 1));
 
-  const lifestyleTags = [
+  const toggleInterestTag = (tag: string) => {
+    setData((prev) => {
+      const selected = prev.interestTags.includes(tag);
+      if (!selected && prev.interestTags.length >= PROFILE_INTEREST_TAG_LIMIT) {
+        toast.info(`Has llegado al máximo de ${PROFILE_INTEREST_TAG_LIMIT} etiquetas.`);
+        return prev;
+      }
+      return {
+        ...prev,
+        interestTags: selected
+          ? prev.interestTags.filter((item) => item !== tag)
+          : [...prev.interestTags, tag],
+      };
+    });
+  };
+
+  const baseLifestyleTags = [
     ...automaticTags.map((tag) => `auto_${tag.toLowerCase().replace(/\s+/g, '_')}`),
     data.age ? `profile_age_${data.age}` : null,
     data.inclusiveProfile ? 'inclusive_lgtbiq_friendly' : null,
   ].filter((tag): tag is string => Boolean(tag));
+
+  const lifestyleTags = encodeProfileInterestTags(baseLifestyleTags, data.interestTags);
 
   const getCreateListingPath = (listingType: BackendIntentionType) => `/create-listing?type=${listingType}`;
 
@@ -1040,6 +1066,65 @@ const Onboarding = () => {
     </div>
   );
 
+  const renderInterestStep = () => (
+    <div className="space-y-6">
+      <div className="text-center">
+        <h2 className="text-2xl font-bold text-foreground">Rasgos e intereses</h2>
+        <p className="mt-2 text-muted-foreground">
+          Elige hasta {PROFILE_INTEREST_TAG_LIMIT} detalles que ayuden a otras personas a conocerte mejor: personalidad, planes, música o estilo de vida. Es opcional.
+        </p>
+      </div>
+
+      <div className="sticky top-20 z-10 rounded-xl border border-border/70 bg-background/95 p-3 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-background/80">
+        <div className="flex items-center justify-between gap-3 text-sm">
+          <span className="font-medium text-foreground">
+            {data.interestTags.length}/{PROFILE_INTEREST_TAG_LIMIT} seleccionados
+          </span>
+          <span className="text-muted-foreground">
+            {PROFILE_INTEREST_TAG_LIMIT - data.interestTags.length > 0
+              ? `Te quedan ${PROFILE_INTEREST_TAG_LIMIT - data.interestTags.length}`
+              : 'Límite alcanzado'}
+          </span>
+        </div>
+        <div className="mt-2 h-2 overflow-hidden rounded-full bg-muted">
+          <div
+            className="h-full rounded-full bg-primary transition-all"
+            style={{ width: `${Math.min(100, (data.interestTags.length / PROFILE_INTEREST_TAG_LIMIT) * 100)}%` }}
+          />
+        </div>
+      </div>
+
+      <div className="space-y-5">
+        {PROFILE_INTEREST_CATEGORIES.map((category) => (
+          <div key={category.id} className="space-y-3 rounded-xl border border-border/60 p-4">
+            <div>
+              <Label className="text-sm font-semibold">{category.title}</Label>
+              <p className="mt-1 text-xs text-muted-foreground">{category.helper}</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {category.options.map((option) => {
+                const selected = data.interestTags.includes(option);
+                const disabled = !selected && data.interestTags.length >= PROFILE_INTEREST_TAG_LIMIT;
+                return (
+                  <Badge
+                    key={option}
+                    variant={selected ? 'default' : 'outline'}
+                    className={`cursor-pointer rounded-full px-3 py-1.5 text-sm transition-colors ${disabled ? 'cursor-not-allowed opacity-45' : ''}`}
+                    onClick={() => {
+                      if (!disabled) toggleInterestTag(option);
+                    }}
+                  >
+                    {option}
+                  </Badge>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
   const renderStep = () => {
     switch (currentStep) {
       case 0:
@@ -1051,6 +1136,8 @@ const Onboarding = () => {
       case 3:
         return renderPublicProfileStep();
       case 4:
+        return renderInterestStep();
+      case 5:
         return renderProgressStep();
       default:
         return null;
