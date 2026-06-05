@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { motion } from 'framer-motion';
-import { User, Camera, MapPin, FileText, Edit2, CheckCircle, AlertCircle, Loader2, Home, Briefcase, ShieldCheck, HeartHandshake, RotateCcw, Key, Search } from 'lucide-react';
+import { User, Camera, MapPin, FileText, Edit2, CheckCircle, AlertCircle, Loader2, Home, Briefcase, ShieldCheck, HeartHandshake, RotateCcw, Key, Search, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useTranslation } from 'react-i18next';
@@ -224,6 +224,12 @@ export default function Profile() {
           <div className="flex items-center justify-between mb-8">
             <h1 className="text-3xl font-bold">Mi perfil</h1>
             <div className="flex flex-wrap justify-end gap-2">
+              <Button asChild variant="outline" className="gap-2">
+                <Link to={`/u/${profile.user_id}?preview=1`}>
+                  <Eye className="h-4 w-4" />
+                  Cómo me ve la gente
+                </Link>
+              </Button>
               <Button asChild variant="outline" className="gap-2">
                 <Link to="/my-listings">
                   <Home className="h-4 w-4" />

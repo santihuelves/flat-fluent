@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { AlertCircle, ArrowLeft, CheckCircle, Heart, Loader2, MapPin, MessageCircle, Shield, X } from 'lucide-react';
+import { AlertCircle, ArrowLeft, Briefcase, CheckCircle, Eye, Heart, HeartHandshake, Loader2, MapPin, MessageCircle, Shield, ShieldCheck, X } from 'lucide-react';
 import { Layout } from '@/components/layout/Layout';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -11,6 +11,8 @@ import { SafetyActions } from '@/components/SafetyActions';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useSEO } from '@/hooks/useSEO';
+import { getLanguageLabel } from '@/lib/profileOptions';
+import { decodeLivingTraits, getHouseholdSizeLabel, getYesNoLabel } from '@/lib/profileTraits';
 
 type PublicProfileData = {
   user_id: string;
@@ -24,6 +26,9 @@ type PublicProfileData = {
   selfie_verified: boolean | null;
   trust_score: number | null;
   trust_badge: string | null;
+  occupation?: string | null;
+  lifestyle_tags?: string[] | null;
+  autonomous_community?: string | null;
 };
 
 type ProfileDetailResponse = {
@@ -78,6 +83,14 @@ type RequestState = 'idle' | 'sending' | 'sent';
 const rpc = supabase.rpc.bind(supabase) as unknown as RpcInvoker;
 
 const getName = (profile: PublicProfileData) => profile.display_name || profile.handle || 'Usuario';
+
+const getTrustBadgeLabel = (badge?: string | null) => {
+  if (badge === 'verified') return 'Perfil verificado';
+  if (badge === 'gold') return 'Confianza alta';
+  if (badge === 'silver') return 'Confianza media';
+  if (badge === 'bronze') return 'Confianza básica';
+  return null;
+};
 
 const getCompatibilityDetailLevel = (consentLevel?: number | null) => (
   Number(consentLevel ?? 0) >= 2 ? 2 : 1
@@ -147,6 +160,7 @@ export default function PublicProfile() {
   const [isOpeningChat, setIsOpeningChat] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isBlocked, setIsBlocked] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   const profileStructuredData = useMemo(() => {
     if (!profile) return null;
@@ -257,6 +271,11 @@ export default function PublicProfile() {
     setCompatibility(null);
     setConsentState(null);
     setConsentRequestState('idle');
+    setIsBlocked(false);
+
+    const { data: userData } = await supabase.auth.getUser();
+    const authUserId = userData.user?.id ?? null;
+    setCurrentUserId(authUserId);
 
     const { data, error: rpcError } = await supabase.rpc('convinter_get_profile_detail', {
       p_user: id,
@@ -278,7 +297,35 @@ export default function PublicProfile() {
     }
 
     setProfile(result.user);
+
+    const { data: extendedProfile, error: extendedProfileError } = await supabase
+      .from('profiles')
+      .select('occupation, lifestyle_tags, autonomous_community, province, city, bio, languages, name')
+      .eq('id', result.user.user_id)
+      .maybeSingle();
+
+    if (!extendedProfileError && extendedProfile) {
+      setProfile({
+        ...result.user,
+        display_name: result.user.display_name ?? extendedProfile.name ?? null,
+        bio: result.user.bio ?? extendedProfile.bio ?? null,
+        languages: result.user.languages?.length ? result.user.languages : extendedProfile.languages ?? null,
+        city: result.user.city ?? extendedProfile.city ?? null,
+        province_code: result.user.province_code ?? extendedProfile.province ?? null,
+        occupation: extendedProfile.occupation ?? null,
+        lifestyle_tags: extendedProfile.lifestyle_tags ?? null,
+        autonomous_community: extendedProfile.autonomous_community ?? null,
+      });
+    } else if (extendedProfileError) {
+      console.warn('Error loading extended public profile fields:', extendedProfileError);
+    }
+
     setIsLoading(false);
+
+    if (authUserId === result.user.user_id) {
+      return;
+    }
+
     const blocked = await loadBlockState(result.user.user_id);
     if (blocked) {
       setCompatibility({ ok: false, code: 'BLOCKED' });
@@ -469,6 +516,37 @@ export default function PublicProfile() {
   }
 
   const name = getName(profile);
+  const isOwnProfile = currentUserId === profile.user_id;
+  const lifestyleTags = profile.lifestyle_tags ?? [];
+  const showInclusiveBadge = lifestyleTags.includes('inclusive_lgtbiq_friendly');
+  const livingTraits = decodeLivingTraits(lifestyleTags);
+  const automaticCompatibilityTags = lifestyleTags
+    .filter((tag) => tag.startsWith('auto_'))
+    .map((tag) => tag.replace('auto_', '').replace(/_/g, ' '))
+    .map((tag) => tag.charAt(0).toUpperCase() + tag.slice(1));
+  const livingTraitLabels = [
+    getYesNoLabel(livingTraits.isSmoker, 'Fuma', 'No fumador'),
+    getYesNoLabel(livingTraits.hasPet, 'Convive con mascota', 'Sin mascota'),
+    getHouseholdSizeLabel(livingTraits.householdSize),
+    getYesNoLabel(livingTraits.includesMinor, 'Convive con menor', 'Sin menores en convivencia'),
+  ].filter((label): label is string => Boolean(label));
+  const visibleCompatibilityTags = Array.from(new Set([...automaticCompatibilityTags, ...livingTraitLabels])).slice(0, 10);
+  const trustBadgeLabel = getTrustBadgeLabel(profile.trust_badge);
+  const locationLabel = [profile.city, profile.province_code, profile.autonomous_community].filter(Boolean).join(' - ');
+  const basicInfoCards = [
+    {
+      key: 'occupation',
+      icon: Briefcase,
+      label: 'Ocupación',
+      value: profile.occupation,
+    },
+    {
+      key: 'location',
+      icon: MapPin,
+      label: 'Ubicación aproximada',
+      value: locationLabel || null,
+    },
+  ].filter((item) => Boolean(item.value));
   const reasons = compatibility?.breakdown?.reasons ?? [];
   const consentStatus = consentState?.state ?? 'none';
   const hasActiveConsent = consentStatus === 'active';
@@ -494,7 +572,7 @@ export default function PublicProfile() {
     : null;
   const mismatches = compatibility?.breakdown?.mismatches ?? [];
   const isIncomingRequest = consentStatus === 'incoming_pending';
-  const canRequestConsent = !isBlocked && !isLoadingConsentState && consentStatus === 'none' && consentRequestState === 'idle';
+  const canRequestConsent = !isOwnProfile && !isBlocked && !isLoadingConsentState && consentStatus === 'none' && consentRequestState === 'idle';
   const consentMessage = (() => {
     if (isBlocked) return 'Usuario bloqueado';
     if (isLoadingConsentState) return 'Comprobando consentimiento...';
@@ -508,6 +586,7 @@ export default function PublicProfile() {
     return 'Pide compatibilidad para comparar vuestros habitos de convivencia';
   })();
   const requestButtonLabel = (() => {
+    if (isOwnProfile) return 'Vista pública';
     if (isBlocked) return 'Usuario bloqueado';
     if (isLoadingConsentState) return 'Comprobando...';
     if (hasActiveConsent) return 'Compatibilidad visible';
@@ -520,14 +599,26 @@ export default function PublicProfile() {
   return (
     <Layout>
       <div className="container py-8 max-w-3xl">
-        <Link to="/discover">
+        <Link to={isOwnProfile ? '/profile' : '/discover'}>
           <Button variant="ghost" className="mb-6">
             <ArrowLeft className="mr-2 h-4 w-4" />
-            Volver
+            {isOwnProfile ? 'Volver a mi perfil' : 'Volver'}
           </Button>
         </Link>
 
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+          {isOwnProfile && (
+            <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 text-sm text-muted-foreground">
+              <div className="flex items-center gap-2 font-medium text-foreground">
+                <Eye className="h-4 w-4 text-primary" />
+                Vista pública
+              </div>
+              <p className="mt-1">
+                Solo tú ves este aviso. La ficha pública para otras personas empieza debajo; ellas verán sus propios botones de mensaje y compatibilidad contigo.
+              </p>
+            </div>
+          )}
+
           <Card>
             <CardContent className="p-6">
               <div className="flex flex-col md:flex-row gap-6 items-start">
@@ -543,14 +634,16 @@ export default function PublicProfile() {
                         <h1 className="text-2xl font-bold">{name}</h1>
                         {profile.selfie_verified && <Shield className="h-5 w-5 text-primary" />}
                       </div>
-                      <SafetyActions
-                        targetType="user"
-                        targetId={profile.user_id}
-                        targetUserId={profile.user_id}
-                        targetName={name}
-                        compact
-                        onBlocked={() => setIsBlocked(true)}
-                      />
+                      {!isOwnProfile && (
+                        <SafetyActions
+                          targetType="user"
+                          targetId={profile.user_id}
+                          targetUserId={profile.user_id}
+                          targetName={name}
+                          compact
+                          onBlocked={() => setIsBlocked(true)}
+                        />
+                      )}
                     </div>
                     <div className="flex flex-wrap items-center gap-4 text-muted-foreground">
                       {profile.city && (
@@ -561,67 +654,105 @@ export default function PublicProfile() {
                       )}
                       <span>Confianza {profile.trust_score ?? 0}/100</span>
                     </div>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {trustBadgeLabel && (
+                        <Badge variant="outline" className="rounded-full">
+                          {trustBadgeLabel}
+                        </Badge>
+                      )}
+                      {showInclusiveBadge && (
+                        <Badge variant="outline" className="rounded-full">
+                          <HeartHandshake className="mr-1 h-3 w-3" />
+                          LGTBIQ+ friendly
+                        </Badge>
+                      )}
+                    </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    {isLoadingConsentState || (hasActiveConsent && isLoadingCompatibility && !compatibility) ? (
-                      <Loader2 className="h-5 w-5 animate-spin text-primary" />
-                    ) : hasCompatibilityResult && compatibilityScore !== null ? (
-                      <>
-                        <div className="text-3xl font-bold text-primary">{compatibilityScore}%</div>
-                        <div className="text-sm text-muted-foreground">compatibilidad</div>
-                      </>
-                    ) : (
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <AlertCircle className="h-4 w-4" />
-                        {consentMessage}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="flex gap-2">
-                    {isIncomingRequest ? (
-                      <>
-                        <Button
-                          variant="outline"
-                          className="flex-1"
-                          onClick={() => void handleRespondConsent(false)}
-                          disabled={isRespondingConsent}
-                        >
-                          {isRespondingConsent ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <X className="mr-2 h-4 w-4" />}
-                          Rechazar
-                        </Button>
-                        <Button
-                          className="flex-1"
-                          onClick={() => void handleRespondConsent(true)}
-                          disabled={isRespondingConsent}
-                        >
-                          {isRespondingConsent ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
-                          Aceptar
-                        </Button>
-                      </>
-                    ) : (
-                      hasActiveConsent ? (
-                        <div className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-primary/20 bg-primary/10 px-4 py-2 text-sm font-semibold text-primary">
-                          <CheckCircle className="h-4 w-4" />
-                          {requestButtonLabel}
-                        </div>
+                  {!isOwnProfile && (
+                    <div className="flex items-center gap-2">
+                      {isLoadingConsentState || (hasActiveConsent && isLoadingCompatibility && !compatibility) ? (
+                        <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                      ) : hasCompatibilityResult && compatibilityScore !== null ? (
+                        <>
+                          <div className="text-3xl font-bold text-primary">{compatibilityScore}%</div>
+                          <div className="text-sm text-muted-foreground">compatibilidad</div>
+                        </>
                       ) : (
-                        <Button className="flex-1" onClick={handleRequestConsent} disabled={!canRequestConsent}>
-                          {consentRequestState === 'sending' || isLoadingConsentState ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Heart className="mr-2 h-4 w-4" />}
-                          {requestButtonLabel}
-                        </Button>
-                      )
-                    )}
-                    <Button variant="outline" className="flex-1" onClick={handleMessage} disabled={isBlocked || isOpeningChat}>
-                      {isOpeningChat ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <MessageCircle className="mr-2 h-4 w-4" />}
-                      Mensaje
-                    </Button>
-                  </div>
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <AlertCircle className="h-4 w-4" />
+                          {consentMessage}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {!isOwnProfile && (
+                    <div className="flex gap-2">
+                      {isIncomingRequest ? (
+                        <>
+                          <Button
+                            variant="outline"
+                            className="flex-1"
+                            onClick={() => void handleRespondConsent(false)}
+                            disabled={isRespondingConsent}
+                          >
+                            {isRespondingConsent ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <X className="mr-2 h-4 w-4" />}
+                            Rechazar
+                          </Button>
+                          <Button
+                            className="flex-1"
+                            onClick={() => void handleRespondConsent(true)}
+                            disabled={isRespondingConsent}
+                          >
+                            {isRespondingConsent ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
+                            Aceptar
+                          </Button>
+                        </>
+                      ) : (
+                        hasActiveConsent ? (
+                          <div className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-primary/20 bg-primary/10 px-4 py-2 text-sm font-semibold text-primary">
+                            <CheckCircle className="h-4 w-4" />
+                            {requestButtonLabel}
+                          </div>
+                        ) : (
+                          <Button className="flex-1" onClick={handleRequestConsent} disabled={!canRequestConsent}>
+                            {consentRequestState === 'sending' || isLoadingConsentState ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Heart className="mr-2 h-4 w-4" />}
+                            {requestButtonLabel}
+                          </Button>
+                        )
+                      )}
+                      <Button variant="outline" className="flex-1" onClick={handleMessage} disabled={isBlocked || isOpeningChat}>
+                        {isOpeningChat ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <MessageCircle className="mr-2 h-4 w-4" />}
+                        Mensaje
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </div>
             </CardContent>
           </Card>
+
+          {visibleCompatibilityTags.length > 0 && (
+            <Card>
+              <CardContent className="p-6">
+                <div className="mb-4 flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  <ShieldCheck className="h-4 w-4" />
+                  Convivencia opcional
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {visibleCompatibilityTags.map((tag) => (
+                    <Badge key={tag} className="rounded-full bg-primary/90">
+                      {tag}
+                    </Badge>
+                  ))}
+                </div>
+                <p className="mt-4 text-sm text-muted-foreground">
+                  Rasgos orientativos para saber si vuestra forma de vivir puede encajar, tanto para compartir casa como para conocer personas afines.
+                </p>
+              </CardContent>
+            </Card>
+          )}
 
           <Card>
             <CardContent className="p-6">
@@ -630,6 +761,26 @@ export default function PublicProfile() {
             </CardContent>
           </Card>
 
+          {basicInfoCards.length > 0 && (
+            <Card>
+              <CardContent className="p-6">
+                <h2 className="font-semibold mb-3">Datos básicos</h2>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {basicInfoCards.map(({ key, icon: Icon, label, value }) => (
+                    <div key={key} className="rounded-xl border border-border/60 bg-background/70 p-4">
+                      <div className="mb-2 flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        <Icon className="h-4 w-4" />
+                        {label}
+                      </div>
+                      <p className="text-sm font-medium text-foreground">{value}</p>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {!isOwnProfile && (
           <Card>
             <CardContent className="p-6">
               <h2 className="font-semibold mb-3">Compatibilidad</h2>
@@ -716,6 +867,7 @@ export default function PublicProfile() {
               )}
             </CardContent>
           </Card>
+          )}
 
           <div className="grid md:grid-cols-2 gap-4">
             <Card>
@@ -723,7 +875,7 @@ export default function PublicProfile() {
                 <h2 className="font-semibold mb-3">Idiomas</h2>
                 <div className="flex flex-wrap gap-2">
                   {(profile.languages?.length ? profile.languages : ['No indicado']).map((language) => (
-                    <Badge key={language} variant="outline">{language}</Badge>
+                    <Badge key={language} variant="outline">{language === 'No indicado' ? language : getLanguageLabel(language)}</Badge>
                   ))}
                 </div>
               </CardContent>
