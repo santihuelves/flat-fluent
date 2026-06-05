@@ -227,6 +227,7 @@ const emptyData: OnboardingData = {
   inclusiveProfile: false,
   bio: '',
   photos: [],
+  interestTags: [],
 };
 
 const toNumberOrNull = (value: string) => (value.trim() ? Number(value) : null);
