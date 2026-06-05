@@ -54,6 +54,11 @@ type CompatibilityData = {
     friction?: string;
     common_questions?: number;
     mismatches?: CompatibilityMismatch[];
+    source?: 'profile_only' | 'profile+test' | 'test_only';
+    profile_score?: number | null;
+    test_score?: number | null;
+    test_available?: boolean;
+    profile_signals_used?: number;
   };
   code?: string;
   message?: string;
