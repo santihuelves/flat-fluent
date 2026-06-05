@@ -1,56 +1,65 @@
-# Compatibilidad en dos niveles: perfil primero, test después
+# Fix: 100% de compatibilidad con perfiles casi vacíos
 
-## Problema
+## Problema real (verificado en el caché)
 
-Hoy `convinter_compute_and_cache_guarded` solo sabe puntuar a partir de las respuestas del test exhaustivo (`convinter_answers` con `test_id = 'convinter_full'`). Si uno de los dos no lo ha rellenado (o hay menos de 8 respuestas en común), la API devuelve `INSUFFICIENT_COMMON_ANSWERS` y la UI muestra "No hay suficientes respuestas comunes para calcular la compatibilidad detallada" — el usuario nunca ve un porcentaje, aunque ambos tengan perfil completo.
+Para usuarioj ↔ usuarioa1 el sistema devuelve `score=100, source=profile_only` porque:
 
-## Objetivo
+- **usuarioa1 no ha hecho el test exhaustivo** (0 respuestas en `convinter_answers`), así que el blending 40/60 no entra.
+- De los 6 bloques de perfil, solo 2 tienen datos para comparar:
+  - `location` = 1.0 (misma ciudad)
+  - `languages` = 1.0 (mismo idioma)
+  - `lifestyle`, `intentions`, `budget` → `has: false` (A1 no los rellenó)
+  - `dealbreakers` → sin conflictos (penalización 0)
+- La media ponderada sobre solo 25 pts de peso (de 90 posibles) da 100%.
 
-Que **siempre** haya un porcentaje de compatibilidad visible en cuanto ambos tengan perfil mínimamente relleno, calculado a partir de los datos del perfil. El test exhaustivo deja de ser un requisito y pasa a ser un **refinamiento** que sube la fiabilidad y aporta el desglose detallado.
+Resultado: "habláis español y vivís en la misma ciudad" → 100%. Engañoso.
 
-## Qué se va a cambiar
+## Solución
 
-### 1. Backend (nueva migración `migrations_manual/20_profile_compatibility.sql` + equivalente Lovable Cloud)
+Modificar **`convinter_score_profile_pair`** y, ligeramente, el wrapper `convinter_compute_and_cache_guarded`, en una nueva migración (`migrations_manual/21_profile_score_confidence.sql` + equivalente Lovable Cloud).
 
-**Nueva función `convinter_score_profile_pair(a uuid, b uuid)`** (security definer, interna):
+### Cambios en `convinter_score_profile_pair`
 
-- Lee de `convinter_profiles` + `profiles` + `convinter_profile_intentions` para cada usuario.
-- Calcula un score 0–100 a partir de señales del perfil con pesos fijos:
-  - **Estilo de vida / convivencia** (peso 30): tags `trait_smoker_*`, `trait_pet_*`, `trait_household_*`, `trait_minor_*` + `lifestyle_tags` solapados.
-  - **Intenciones** (peso 25): compatibilidad entre `convinter_profile_intentions.intention_type` (ej. `seek_room` ↔ `offer_room`, `seek_flatmate` ↔ `seek_flatmate`) y `urgency` similar.
-  - **Ubicación** (peso 15): misma provincia/ciudad o comunidad autónoma.
-  - **Idiomas** (peso 10): proporción de idiomas en común sobre la unión.
-  - **Presupuesto y estancia** (peso 10): solape entre rangos `budget_min/budget_max` y `min_stay_months` compatible con disponibilidad.
-  - **Dealbreakers** (peso 10, restador fuerte): si un dealbreaker de A coincide con un trait declarado de B (p. ej. A no quiere fumadores y B es `trait_smoker_yes`), penalización dura.
-- Devuelve `jsonb` con `score`, `signals_used` (cuántos de los 6 bloques tenían datos para puntuar) y `breakdown` por bloque.
+1. **Cobertura mínima**: si el peso total de bloques con datos es `< 40` (de 90 posibles), devolver `score = NULL` y `signals_used = N`. La RPC superior lo traducirá a `INSUFFICIENT_PROFILE_DATA` si tampoco hay test exhaustivo.
+   - Ejemplo: solo location (15) + languages (10) = 25 → no llega.
+   - lifestyle (30) + languages (10) = 40 → sí cuenta.
+   - intentions (25) + location (15) = 40 → sí cuenta.
 
-**Modificar `convinter_compute_and_cache_guarded(p_other_user, p_detail_level)`:**
+2. **Bloque obligatorio**: al menos uno de `lifestyle` o `intentions` debe tener datos. Son los bloques que realmente diferencian convivencia/objetivos. Sin ninguno de los dos, todo lo demás es decorativo.
 
-- Calcular siempre primero `profile_score` con la función nueva.
-- Calcular `test_score` y `common_n` como hoy (lógica v3 ya existente, sin tocarla).
-- Lógica de salida:
-  - Si `common_n >= 8` → `final_score = round(0.4 * profile_score + 0.6 * test_score)`, `source = 'profile+test'`.
-  - Si `common_n < 8` → `final_score = profile_score`, `source = 'profile_only'`, `can_show_score = true` (ya no devuelve `INSUFFICIENT_COMMON_ANSWERS`).
-  - Si `profile_score` no se puede calcular por perfiles vacíos (< 2 señales con datos en ambos) → entonces sí `code = 'INSUFFICIENT_PROFILE_DATA'`.
-- El `breakdown` devuelto incluye: `source`, `profile_score`, `test_score` (puede ser `null`), `common_questions`, `profile_signals_used`, `mismatches` del test (vacío si no hay test), y un campo `test_available: boolean` para que la UI sepa si invitar al test exhaustivo.
-- Cacheado se mantiene en `convinter_compat_cache` con `scoring_model = 'convinter_profile_v1+test_v3'`. Se invalida automáticamente porque el modelo cambia y el código ya borra cachés con modelo distinto (ver migración 16, líneas finales).
+3. **Factor de confianza** sobre el score crudo:
+   ```
+   confidence = weight_sum / 90        // entre 0 y 1
+   score_calibrado = round(score_crudo * (0.6 + 0.4 * confidence))
+   ```
+   - Con cobertura total (90/90): factor 1.0 → no cambia.
+   - Con cobertura 40/90 (mínimo): factor 0.78 → un 100% crudo se queda en 78.
+   - Esto refleja que pocos datos = menos certeza, sin penalizar de más cuando hay buena cobertura.
 
-### 2. Frontend (`src/pages/PublicProfile.tsx`)
+4. **Tope para `profile_only`**: aplicar el factor de confianza siempre que el resultado se vaya a usar como `profile_only`. (El wrapper sigue mezclando 40/60 con test cuando exista test.)
 
-- Quitar el caso "INSUFFICIENT_COMMON_ANSWERS" como bloqueo: ahora la RPC ya devuelve score base. Mantener `INSUFFICIENT_PROFILE_DATA` como el nuevo estado vacío ("Aún no hay datos suficientes en el perfil para calcular compatibilidad").
-- Cuando `breakdown.source === 'profile_only'`, mostrar el porcentaje + una nota tipo: "Esta compatibilidad se calcula con los datos del perfil. Para un análisis más detallado, pídele que rellene el test exhaustivo." con un botón para `convinter_request_full_test` (ya existe).
-- Cuando `breakdown.source === 'profile+test'`, mostrar el porcentaje como ahora + el desglose de mismatches del test exhaustivo.
-- Pequeño badge/leyenda con el origen ("Basado en perfil" vs "Perfil + test exhaustivo") para que el usuario entienda la diferencia.
+5. **No contar `dealbreakers` en `signals_used`**: es un modificador, no una señal positiva. Mantener `has` y `penalty` en `parts` para diagnóstico.
 
-### 3. Fuera de alcance
+### Cambio en `convinter_compute_and_cache_guarded`
 
-- No se toca el flujo del test exhaustivo en sí (`/test`).
-- No se cambian los pesos del scoring del test (v3 sigue igual).
-- No se tocan los gates de consentimiento, ni la nueva restricción de match para chat (migración 19).
+- Si `profile_score = NULL` (por no llegar al mínimo) y tampoco hay test (`common_n < 8`), devolver `INSUFFICIENT_PROFILE_DATA` con mensaje claro: "Aún faltan datos en uno de los perfiles para calcular compatibilidad. Pídele que complete sus hábitos de convivencia y objetivo de búsqueda, o rellena el test exhaustivo."
+- Si hay test exhaustivo pero el perfil base no llega al mínimo, usar solo `test_score` (source `test_only`) sin penalizar.
+- Invalidar caché previa borrando filas con `scoring_model = 'convinter_profile_v1+test_v3'` para que se recalculen con el modelo nuevo (`'convinter_profile_v2+test_v3'`).
+
+### Frontend
+
+- En `src/pages/PublicProfile.tsx`, mejorar el mensaje cuando `code === 'INSUFFICIENT_PROFILE_DATA'`: "Aún faltan datos del perfil de la otra persona para calcular compatibilidad. Si os ponéis en contacto o aceptáis el test exhaustivo, podréis ver un porcentaje más fiable."
+- Sin más cambios estructurales (el badge "Basado en perfil" y la nota ya están).
 
 ## Resultado esperado
 
-- Cualquier visita a `/u/:id` muestra siempre un porcentaje en cuanto ambos perfiles tienen datos mínimos (≈2 de los 6 bloques).
-- Si ninguno ha hecho el test exhaustivo: porcentaje "base perfil" + CTA para pedir el test.
-- Si uno o ambos lo han hecho y hay ≥8 respuestas comunes: porcentaje combinado (40% perfil + 60% test) + desglose detallado actual.
-- Solo se ve el mensaje "datos insuficientes" cuando los perfiles realmente están casi vacíos.
+- usuarioj ↔ usuarioa1: el perfil de A1 está casi vacío → ahora devolverá `INSUFFICIENT_PROFILE_DATA` (faltan lifestyle/intentions y solo suma 25 de peso).
+- Dos usuarios con perfiles completos y mismos hábitos → siguen pudiendo llegar a 95–100%.
+- Dos usuarios con perfiles completos pero discrepancias reales (smoker vs no_smoker dealbreaker, intenciones incompatibles) → score realista, no inflado.
+- Cuando el perfil tiene cobertura intermedia (50–70 puntos de peso), el % se calibra hacia abajo para reflejar la incertidumbre.
+
+## Fuera de alcance
+
+- No se toca el scoring del test exhaustivo (sigue v3).
+- No se cambian pesos individuales de bloques.
+- No se modifica UI ni flujos de consentimiento/match.
