@@ -209,6 +209,24 @@ export type Database = {
         }
         Relationships: []
       }
+      convinter_likes: {
+        Row: {
+          created_at: string
+          liked_id: string
+          liker_id: string
+        }
+        Insert: {
+          created_at?: string
+          liked_id: string
+          liker_id: string
+        }
+        Update: {
+          created_at?: string
+          liked_id?: string
+          liker_id?: string
+        }
+        Relationships: []
+      }
       convinter_listing_verification_requests: {
         Row: {
           approved_level: number | null
@@ -876,6 +894,7 @@ export type Database = {
         Returns: boolean
       }
       convinter_is_moderator: { Args: { p_user: string }; Returns: boolean }
+      convinter_like_profile: { Args: { p_target: string }; Returns: Json }
       convinter_make_fingerprint: { Args: { p_text: string }; Returns: string }
       convinter_mark_chat_read: { Args: { p_chat_id: string }; Returns: Json }
       convinter_mark_deletion_done: {
