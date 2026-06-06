@@ -840,6 +840,10 @@ export type Database = {
         Args: { p_detail_level?: number; p_other_user: string }
         Returns: Json
       }
+      convinter_compute_profile_compatibility: {
+        Args: { p_other_user: string }
+        Returns: Json
+      }
       convinter_create_chat: { Args: { p_other: string }; Returns: Json }
       convinter_create_listing: {
         Args: {
