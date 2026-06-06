@@ -1031,6 +1031,10 @@ export type Database = {
         Args: { p_selfie_url: string }
         Returns: Json
       }
+      convinter_test_answer_similarity: {
+        Args: { p_a_value: string; p_b_value: string; p_question_id: string }
+        Returns: number
+      }
       convinter_unblock_user: { Args: { p_target: string }; Returns: Json }
       convinter_update_listing: {
         Args: {
