@@ -1039,6 +1039,18 @@ export type Database = {
         Args: { p_a_value: string; p_b_value: string; p_question_id: string }
         Returns: number
       }
+      convinter_test_question_block: {
+        Args: { p_question_id: string }
+        Returns: string
+      }
+      convinter_test_question_kind: {
+        Args: { p_question_id: string }
+        Returns: string
+      }
+      convinter_test_question_weight: {
+        Args: { p_question_id: string }
+        Returns: number
+      }
       convinter_unblock_user: { Args: { p_target: string }; Returns: Json }
       convinter_update_listing: {
         Args: {
